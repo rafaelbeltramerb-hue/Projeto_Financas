@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+[cite: 4]<!DOCTYPE html>
 <html lang="pt-BR" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -352,7 +352,7 @@
       </div>
       <div>
         <h3 class="text-lg font-bold text-slate-100">Excluir Lançamento?</h3>
-        <p class="text-xs text-slate-400 mt-1">Esta ação removerá o lançamento do espaço compartilhado.</p>
+        <p id="delete-modal-msg" class="text-xs text-slate-400 mt-1">Esta ação removerá o lançamento do espaço compartilhado.</p>
       </div>
       <div class="flex justify-center space-x-3 border-t border-slate-800 pt-4">
         <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition">Cancelar</button>
@@ -442,18 +442,18 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Descrição</label>
-          <input type="text" id="tx-description" required placeholder="Ex: Supermercado, Aluguel, Compra de Celular" 
+          <input type="text" id="tx-description" required placeholder="Ex: Supermercado, Aluguel, Salário" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs text-slate-400 mb-1">Valor Total (R$)</label>
-            <input type="number" step="0.01" id="tx-amount" required placeholder="0,00" oninput="updateInstallmentPreview()" 
+            <input type="number" step="0.01" id="tx-amount" required placeholder="0,00" 
               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
           </div>
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Data de Vencimento / 1ª Parcela</label>
+            <label class="block text-xs text-slate-400 mb-1">Data de Vencimento</label>
             <input type="date" id="tx-date" required 
               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
           </div>
@@ -495,7 +495,7 @@
           </div>
 
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Status Inicial (1ª Parcela)</label>
+            <label class="block text-xs text-slate-400 mb-1">Status Inicial</label>
             <select id="tx-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
               <option value="pending">Pendente</option>
               <option value="completed">Concluído / Pago</option>
@@ -512,10 +512,9 @@
           </div>
           
           <div id="installments-container">
-            <label class="block text-xs text-slate-400 mb-1">Quantidade de Parcelas</label>
-            <input type="number" id="tx-installments" min="1" max="72" value="1" placeholder="1 para à vista" oninput="updateInstallmentPreview()"
+            <label class="block text-xs text-slate-400 mb-1">Número de Parcelas</label>
+            <input type="number" id="tx-installments" min="1" max="72" value="1" placeholder="1 para à vista" 
               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
-            <p id="tx-installment-preview" class="text-[11px] text-indigo-400 font-medium mt-1.5 hidden"></p>
           </div>
         </div>
 
@@ -538,7 +537,7 @@
     let currentWorkspaceOwner = null;
     let transactions = [];
     let expensesChart = null;
-    let pendingDeleteId = null;
+    let pendingDeleteIds = [];
 
     // BANCO LOCAL DE USUÁRIOS E CONVITES (GARANTIA LOCAL)
     function getUsersDB() {
@@ -1029,7 +1028,6 @@
       const form = document.getElementById('transaction-form');
       form.reset();
       document.getElementById('tx-id').value = '';
-      document.getElementById('tx-installments').value = '1';
       document.getElementById('modal-title').innerText = editId ? 'Editar Transação' : 'Nova Transação';
 
       if (editId) {
@@ -1063,23 +1061,6 @@
         document.getElementById('tx-installments').value = '1';
       } else {
         installmentsContainer.classList.remove('hidden');
-      }
-      updateInstallmentPreview();
-    }
-
-    // CÁLCULO E PRÉVIA VISUAL EM TEMPO REAL DAS PARCELAS
-    function updateInstallmentPreview() {
-      const amount = parseFloat(document.getElementById('tx-amount').value) || 0;
-      const installments = parseInt(document.getElementById('tx-installments').value) || 1;
-      const isRecurring = document.getElementById('tx-recurring').checked;
-      const previewEl = document.getElementById('tx-installment-preview');
-
-      if (!isRecurring && installments > 1 && amount > 0) {
-        const valPerInstallment = amount / installments;
-        previewEl.innerText = `📌 Serão lançadas ${installments}x parcelas de R$ ${valPerInstallment.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        previewEl.classList.remove('hidden');
-      } else {
-        previewEl.classList.add('hidden');
       }
     }
 
@@ -1124,7 +1105,7 @@
           is_recurring: isRecurring
         }).eq('id', id);
 
-        // Se marcou "Lançamento Fixo Mensal" ao editar, cria automaticamente os próximos 24 meses
+        // Se marcou "Lançamento Fixo Mensal" ao editar, cria automaticamente os próximos 24 meses caso ainda não existam
         if (isRecurring) {
           const futureRows = [];
           for (let i = 1; i <= 24; i++) {
@@ -1160,8 +1141,7 @@
             });
           }
         } else if (installments > 1) {
-          // DIVISÃO DO VALOR TOTAL PELA QUANTIDADE DE PARCELAS
-          const installmentValue = parseFloat((totalAmount / installments).toFixed(2));
+          const installmentValue = totalAmount / installments;
           for (let i = 0; i < installments; i++) {
             newRows.push({
               description: `${description} (${i + 1}/${installments})`,
@@ -1206,22 +1186,56 @@
 
     function deleteTransaction(id) {
       const item = transactions.find(t => t.id == id);
-      if (item && item.status === 'completed') {
-        alert('Lançamentos concluídos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
-        return;
+      if (!item) return;
+
+      // Identifica se a transação faz parte de um parcelamento (padrão "Descrição (X/N)")
+      const match = item.description.match(/^(.+)\s\(\d+\/\d+\)$/);
+
+      if (match) {
+        const baseTitle = match[1];
+        // Busca todas as parcelas pertencentes a este mesmo parcelamento
+        const relatedParcelas = transactions.filter(t => {
+          const m = t.description.match(/^(.+)\s\(\d+\/\d+\)$/);
+          return m && m[1] === baseTitle;
+        });
+
+        // Se ALGUMA parcela do grupo estiver paga/concluída, impede a exclusão de todas
+        const hasPaid = relatedParcelas.some(t => t.status === 'completed');
+        if (hasPaid) {
+          alert('Não é possível excluir este parcelamento pois existe pelo menos uma parcela paga/concluída.');
+          return;
+        }
+
+        // Se nenhuma estiver paga, seleciona todas as parcelas do grupo para exclusão
+        pendingDeleteIds = relatedParcelas.map(t => t.id);
+      } else {
+        // Lançamento comum (não parcelado)
+        if (item.status === 'completed') {
+          alert('Lançamentos concluídos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
+          return;
+        }
+        pendingDeleteIds = [item.id];
       }
-      pendingDeleteId = id;
+
+      // Atualiza a mensagem do modal de exclusão
+      const msgEl = document.getElementById('delete-modal-msg');
+      if (msgEl) {
+        msgEl.innerText = pendingDeleteIds.length > 1
+          ? `Esta ação removerá todas as ${pendingDeleteIds.length} parcelas do espaço compartilhado.`
+          : 'Esta ação removerá o lançamento do espaço compartilhado.';
+      }
+
       document.getElementById('delete-modal').classList.remove('hidden');
     }
 
     function closeDeleteModal() {
-      pendingDeleteId = null;
+      pendingDeleteIds = [];
       document.getElementById('delete-modal').classList.add('hidden');
     }
 
     async function confirmDeleteTransaction() {
-      if (pendingDeleteId) {
-        await db.from('transactions').delete().eq('id', pendingDeleteId);
+      if (pendingDeleteIds && pendingDeleteIds.length > 0) {
+        await db.from('transactions').delete().in('id', pendingDeleteIds);
         closeDeleteModal();
         await loadTransactionsFromDB();
       }
