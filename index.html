@@ -539,7 +539,7 @@
     let expensesChart = null;
     let pendingDeleteId = null;
 
-    // BANCO LOCAL DE USUÁRIOS E CONVITES (GARANTIA DE PERSISTÊNCIA)
+    // BANCO LOCAL DE USUÁRIOS E CONVITES (GARANTIA LOCAL)
     function getUsersDB() {
       const saved = localStorage.getItem('app_registered_users');
       return saved ? JSON.parse(saved) : {};
@@ -645,28 +645,30 @@
         setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
       }
       else if (authMode === 'invited') {
-        // Valida convite no Supabase OU no LocalStorage
         let ownerFound = null;
+
+        // Tenta buscar no Supabase se este email foi convidado por alguém
         try {
           const { data: inviteData } = await db.from('invitations')
             .select('owner_email')
             .eq('invited_email', email)
             .maybeSingle();
           if (inviteData && inviteData.owner_email) {
-            ownerFound = inviteData.owner_email;
+            ownerFound = inviteData.owner_email.toLowerCase();
           }
         } catch (err) {
-          console.warn(err);
+          console.warn('Erro ao verificar convite no Supabase:', err);
         }
 
+        // Backup local caso Supabase falhe ou esteja offline
         if (!ownerFound) {
           const localInvites = getInvitationsDB();
           const match = localInvites.find(i => i.invited_email === email);
-          if (match) ownerFound = match.owner_email;
+          if (match) ownerFound = match.owner_email.toLowerCase();
         }
 
         if (!ownerFound) {
-          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${email}</em> ainda não recebeu autorização.<br><br>Se você deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
+          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${email}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
@@ -684,7 +686,7 @@
       }
     });
 
-    // DETERMINA DE QUEM É O ESPAÇO
+    // DETERMINA DE QUEM É O ESPAÇO COMPARTILHADO
     async function resolveWorkspaceAndInit() {
       let ownerFound = null;
 
@@ -706,6 +708,7 @@
         if (found) ownerFound = found.owner_email.toLowerCase();
       }
 
+      // Se for convidado, o dono do espaço é quem o convidou. Se não, o dono é ele mesmo.
       currentWorkspaceOwner = ownerFound ? ownerFound : currentUser.email.toLowerCase();
 
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
@@ -729,13 +732,14 @@
       toggleAuthMode('login');
     }
 
-    // CARREGAR TRANSAÇÕES
+    // CARREGAR TRANSAÇÕES UNIFICADAS DO ESPAÇO
     async function loadTransactionsFromDB() {
       if (!currentWorkspaceOwner) return;
 
+      // Busca todas as transações pertencentes ao workspace do criador
       const { data, error } = await db.from('transactions')
         .select('*')
-        .or(`user_email.eq.${currentWorkspaceOwner},owner_email.eq.${currentWorkspaceOwner}`)
+        .or(`owner_email.eq.${currentWorkspaceOwner},user_email.eq.${currentWorkspaceOwner}`)
         .order('due_date', { ascending: true });
 
       if (error) {
@@ -752,13 +756,14 @@
         dueDate: item.due_date,
         status: item.status,
         isRecurring: item.is_recurring,
-        userEmail: item.user_email || item.owner_email
+        userEmail: item.user_email,
+        ownerEmail: item.owner_email
       }));
 
       renderDashboard();
     }
 
-    // MODAL CONVITE COM SALVAMENTO EM LOCALSTORAGE + SUPABASE E ENVIADOR AUTOMÁTICO
+    // ABRIR E GERENCIAR MODAL DE CONVITE
     async function openShareModal() {
       await renderSharedUsersList();
       document.getElementById('share-modal').classList.remove('hidden');
@@ -771,7 +776,6 @@
 
     async function renderSharedUsersList() {
       const container = document.getElementById('shared-users-list');
-      
       let list = getInvitationsDB().filter(inv => inv.owner_email === currentUser.email);
 
       try {
@@ -788,7 +792,7 @@
           saveInvitationsDB(list);
         }
       } catch (err) {
-        console.warn('Usando backup local para convites:', err);
+        console.warn('Usando backup local para lista de convites:', err);
       }
 
       if (list.length === 0) {
@@ -821,38 +825,36 @@
         return;
       }
 
-      // 1. Salva no banco local (Garantia imediata de persistência)
+      // 1. Salva no banco local
       let localInvites = getInvitationsDB();
       if (!localInvites.some(inv => inv.owner_email === currentUser.email && inv.invited_email === email)) {
         localInvites.push({ owner_email: currentUser.email, invited_email: email });
         saveInvitationsDB(localInvites);
       }
 
-      // 2. Tenta salvar no Supabase
+      // 2. Salva no Supabase (Permite sincronização entre computadores diferentes)
       try {
         await db.from('invitations').upsert({
           owner_email: currentUser.email,
           invited_email: email
         }, { onConflict: 'owner_email,invited_email' });
       } catch (err) {
-        console.warn('Erro ao salvar no Supabase, mantido em backup local:', err);
+        console.warn('Erro ao salvar convite no Supabase:', err);
       }
 
-      // 3. Monta e abre o programa de e-mail do usuário automaticamente
+      // 3. Abre app de e-mail automaticamente
       const appLink = window.location.href;
       const subject = encodeURIComponent("Convite para Espaço de Controle Financeiro");
       const body = encodeURIComponent(
-        `Olá!\n\n${currentUser.name || currentUser.email} te convidou para compartilhar o gerenciamento financeiro no sistema Controle Financeiro.\n\n` +
-        `Para acessar o espaço compartilhado:\n` +
-        `1. Acesse o sistema: ${appLink}\n` +
+        `Olá!\n\n${currentUser.name || currentUser.email} te convidou para gerenciar as finanças de forma compartilhada no sistema Controle Financeiro.\n\n` +
+        `Para acessar:\n` +
+        `1. Acesse: ${appLink}\n` +
         `2. Clique na aba "Sou Convidado"\n` +
-        `3. Digite seu e-mail (${email}) e crie sua senha de acesso.\n\n` +
+        `3. Digite seu e-mail (${email}) e escolha uma senha.\n\n` +
         `Atenciosamente,`
       );
 
       const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
-
-      // Abre o programa de e-mail do dispositivo
       window.location.href = mailtoUrl;
 
       const statusBox = document.getElementById('invite-status-box');
@@ -870,11 +872,9 @@
     }
 
     async function removeSharedUser(email) {
-      // Remove localmente
       let localInvites = getInvitationsDB().filter(inv => !(inv.owner_email === currentUser.email && inv.invited_email === email));
       saveInvitationsDB(localInvites);
 
-      // Remove no Supabase
       try {
         await db.from('invitations')
           .delete()
@@ -1008,7 +1008,7 @@
               category: row['Categoria'] || 'Outros',
               due_date: dueDate,
               status: 'pending',
-              user_email: currentWorkspaceOwner,
+              user_email: currentUser.email,
               owner_email: currentWorkspaceOwner
             });
           }
@@ -1087,6 +1087,7 @@
       return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
     }
 
+    // ADICIONAR / EDITAR TRANSAÇÃO (VINCULA O CRIADOR REAL DO LANÇAMENTO AO USER_EMAIL E O ESPAÇO AO OWNER_EMAIL)
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -1101,8 +1102,7 @@
 
       if (id) {
         await db.from('transactions').update({
-          description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: isRecurring,
-          user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
+          description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: isRecurring
         }).eq('id', id);
       } else {
         const newRows = [];
@@ -1111,7 +1111,7 @@
             newRows.push({
               description, amount: totalAmount, type, category,
               due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
-              is_recurring: true, user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
+              is_recurring: true, user_email: currentUser.email, owner_email: currentWorkspaceOwner
             });
           }
         } else if (installments > 1) {
@@ -1121,13 +1121,13 @@
               description: `${description} (${i + 1}/${installments})`,
               amount: installmentValue, type, category,
               due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
-              is_recurring: false, user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
+              is_recurring: false, user_email: currentUser.email, owner_email: currentWorkspaceOwner
             });
           }
         } else {
           newRows.push({
             description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false,
-            user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
+            user_email: currentUser.email, owner_email: currentWorkspaceOwner
           });
         }
         await db.from('transactions').insert(newRows);
@@ -1259,6 +1259,7 @@
       monthTransactions.forEach(t => {
         const isIncome = t.type === 'income';
         const isPaid = t.status === 'completed';
+        const isOtherUser = t.userEmail && t.userEmail !== currentUser.email;
 
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-800/30 transition border-b border-slate-800/40';
@@ -1266,6 +1267,7 @@
           <td class="p-4 font-medium flex items-center gap-2">
             ${t.description}
             ${t.isRecurring ? '<span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded font-semibold">Fixo</span>' : ''}
+            ${isOtherUser ? `<span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-semibold" title="Adicionado por ${t.userEmail}">Por: ${t.userEmail.split('@')[0]}</span>` : ''}
           </td>
           <td class="p-4 text-slate-400">${t.category}</td>
           <td class="p-4 text-slate-400">${t.dueDate}</td>
