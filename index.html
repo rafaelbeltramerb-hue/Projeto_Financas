@@ -575,7 +575,8 @@
       reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array' });
+          // Habilita a leitura nativa de datas do Excel (cellDates: true)
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonRows = XLSX.utils.sheet_to_json(firstSheet);
 
@@ -587,21 +588,49 @@
           const newTransactions = [];
           for (const row of jsonRows) {
             const description = row['Descrição'] || row['Descricao'] || row['description'] || 'Importado';
-            const amount = parseFloat(row['Valor'] || row['valor'] || row['amount'] || 0);
-            const dueDate = row['Vencimento'] || row['Data'] || row['due_date'] || new Date().toISOString().split('T')[0];
-            const category = row['Categoria'] || row['category'] || 'Outros';
-            const type = (row['Tipo'] || row['type'] || 'expense').toLowerCase().includes('receita') ? 'income' : 'expense';
+            
+            // Captura o valor numérico bruto
+            const rawAmount = parseFloat(row['Valor'] || row['valor'] || row['amount'] || 0);
+            if (rawAmount === 0 || isNaN(rawAmount)) continue;
 
-            if (amount > 0) {
-              newTransactions.push({
-                description,
-                amount: Math.abs(amount),
-                type,
-                category,
-                due_date: String(dueDate).substring(0, 10),
-                status: 'pending'
-              });
+            // Define se é receita ou despesa com base no sinal do valor (ou na coluna Tipo, se houver)
+            let type = rawAmount < 0 ? 'expense' : 'income';
+            if (row['Tipo'] || row['tipo'] || row['type']) {
+              const typeStr = String(row['Tipo'] || row['tipo'] || row['type']).toLowerCase();
+              if (typeStr.includes('receita') || typeStr.includes('income')) type = 'income';
+              if (typeStr.includes('despesa') || typeStr.includes('expense')) type = 'expense';
             }
+
+            // Mapeia colunas de data incluindo 'Data Ocorrência'
+            const rawDate = row['Data Ocorrência'] || row['Data Ocorrencia'] || row['Data'] || row['Vencimento'] || row['due_date'];
+            
+            let dueDate = new Date().toISOString().split('T')[0];
+            if (rawDate) {
+              if (rawDate instanceof Date) {
+                dueDate = rawDate.toISOString().split('T')[0];
+              } else {
+                const str = String(rawDate).trim();
+                if (str.includes('-')) {
+                  dueDate = str.split('T')[0].split(' ')[0];
+                } else if (str.includes('/')) {
+                  const parts = str.split(' ')[0].split('/');
+                  if (parts.length === 3) {
+                    dueDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+                }
+              }
+            }
+
+            const category = row['Categoria'] || row['category'] || 'Outros';
+
+            newTransactions.push({
+              description,
+              amount: Math.abs(rawAmount),
+              type,
+              category,
+              due_date: dueDate,
+              status: 'pending'
+            });
           }
 
           if (newTransactions.length > 0) {
@@ -613,6 +642,8 @@
               closeImportModal();
               loadTransactionsFromDB();
             }, 1500);
+          } else {
+            alert('Nenhuma transação válida encontrada.');
           }
         } catch (err) {
           console.error(err);
@@ -621,7 +652,6 @@
       };
       reader.readAsArrayBuffer(file);
     }
-
     // Carregar Banco de Dados
     async function loadTransactionsFromDB() {
       const { data, error } = await db.from('transactions').select('*').order('due_date', { ascending: true });
