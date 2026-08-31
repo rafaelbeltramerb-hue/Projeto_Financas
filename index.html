@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Controle Financeiro</title>
+  <title>Controle Financeiro Compartilhado</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- SUPABASE CLIENT -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- CHART.JS PARA O GRÁFICO DE PIZZA -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SHEETJS PARA IMPORTAR EXCEL (XLS/XLSX/CSV) -->
+  <!-- SHEETJS PARA IMPORTAR EXCEL -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
@@ -39,7 +39,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- TELA DE LOGIN -->
+  <!-- TELA DE LOGIN / PRIMEIRO ACESSO -->
   <div id="login-view" class="min-h-screen flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-2xl shadow-2xl space-y-6">
       <div class="text-center space-y-2">
@@ -47,22 +47,39 @@
           <i data-lucide="wallet" class="w-6 h-6"></i>
         </div>
         <h1 class="text-2xl font-bold tracking-tight">Controle Financeiro</h1>
-        <p class="text-sm text-slate-400">Entre para gerenciar suas finanças</p>
+        <p class="text-sm text-slate-400">Entre com sua conta ou crie sua senha de convidado</p>
       </div>
 
+      <!-- SELETOR ENTRAR / REGISTRAR SENHA -->
+      <div class="flex border-b border-slate-800 text-sm font-medium">
+        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 pb-2 border-b-2 border-brand-500 text-brand-400">Entrar</button>
+        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white">Primeiro Acesso / Cadastrar Senha</button>
+      </div>
+
+      <!-- FORMULÁRIO DE LOGIN -->
       <form id="login-form" class="space-y-4">
         <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 p-3 rounded-lg text-center font-medium border border-rose-500/20"></div>
+        <div id="login-success" class="hidden text-xs text-emerald-400 bg-emerald-500/10 p-3 rounded-lg text-center font-medium border border-emerald-500/20"></div>
+
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">E-mail</label>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Seu E-mail</label>
           <input type="email" id="login-email" required placeholder="seu@email.com" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
         </div>
+
+        <div id="name-field-container" class="hidden">
+          <label class="block text-xs font-medium text-slate-400 mb-1">Seu Nome</label>
+          <input type="text" id="login-name" placeholder="Como deseja ser chamado" 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
+        </div>
+
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
           <input type="password" id="login-password" required placeholder="••••••" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
         </div>
-        <button type="submit" 
+
+        <button type="submit" id="btn-auth-submit"
           class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-2.5 rounded-lg transition duration-200 shadow-lg shadow-brand-600/30">
           Entrar na Conta
         </button>
@@ -72,16 +89,19 @@
 
   <!-- PAINEL PRINCIPAL -->
   <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
-    <!-- HEADER COM NAVEGAÇÃO -->
+    <!-- HEADER -->
     <header class="glass sticky top-0 z-20 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
         <div class="w-9 h-9 rounded-lg bg-brand-500/20 text-brand-500 flex items-center justify-center">
           <i data-lucide="wallet" class="w-5 h-5"></i>
         </div>
-        <span class="font-bold text-lg hidden sm:inline">Controle Financeiro</span>
+        <div class="flex flex-col">
+          <span class="font-bold text-sm sm:text-base leading-tight">Controle Financeiro</span>
+          <span id="shared-badge-header" class="text-[10px] text-indigo-400 font-medium">Espaço Unificado</span>
+        </div>
       </div>
 
-      <!-- BOTÕES NAVEGAÇÃO DE TELAS -->
+      <!-- BOTÕES NAVEGAÇÃO -->
       <nav class="flex space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
         <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
@@ -92,10 +112,10 @@
       </nav>
       
       <div class="flex items-center space-x-2">
-        <!-- BOTÃO COMPARTILHAR -->
+        <!-- BOTÃO COMPARTILHAR CONVITE -->
         <button onclick="openShareModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-900/70 border border-indigo-700/50 text-indigo-300 text-xs font-medium transition">
-          <i data-lucide="share-2" class="w-4 h-4 text-indigo-400"></i>
-          <span class="hidden sm:inline">Compartilhar</span>
+          <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i>
+          <span class="hidden sm:inline">Convidar / Compartilhar</span>
         </button>
 
         <button onclick="openImportModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
@@ -118,23 +138,14 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
       
-      <!-- CONTROLES FIXOS SUPERIORES -->
+      <!-- CONTROLES SUPERIORES -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass p-4 rounded-2xl">
         <div>
           <h2 id="page-title" class="text-xl font-bold">Painel de Controle</h2>
-          <p id="page-subtitle" class="text-xs text-slate-400">Resumo consolidado das movimentações financeiras</p>
+          <p id="page-subtitle" class="text-xs text-slate-400">Lançamentos compartilhados em tempo real</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <!-- SELETOR DE CONTA / VISUALIZAÇÃO COMPARTILHADA -->
-          <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 shadow-sm">
-            <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
-            <select id="account-view-filter" onchange="renderDashboard()" class="bg-transparent text-xs text-slate-200 font-medium focus:outline-none cursor-pointer">
-              <option value="my">Minhas Finanças</option>
-              <option value="all">Todas (Minhas + Compartilhadas)</option>
-            </select>
-          </div>
-
           <!-- NAVEGAÇÃO DE MÊS COM SETAS -->
           <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-1 shadow-sm">
             <button onclick="changeMonth(-1)" title="Mês Anterior" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
@@ -161,7 +172,6 @@
       <div id="tab-dashboard" class="space-y-6">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          <!-- BLOCO ESQUERDO: ENTRADAS/SAÍDAS + GRÁFICO DE PIZZA -->
           <div class="space-y-6">
             <div class="glass p-5 rounded-2xl space-y-4">
               <div class="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -200,7 +210,6 @@
             </div>
           </div>
 
-          <!-- BLOCO DIREITO: PENDÊNCIAS ANTERIORES, PRÓXIMAS E ALERTAS -->
           <div class="space-y-6">
             <div class="glass p-5 rounded-2xl space-y-3">
               <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Anteriores não consolidadas</h3>
@@ -259,11 +268,11 @@
         </div>
       </div>
 
-      <!-- TELA 2: LANÇAMENTOS MENSAIS -->
+      <!-- TELA 2: LANÇAMENTOS MENSAIS UNIFICADOS -->
       <div id="tab-transactions" class="hidden space-y-6">
         <div class="glass rounded-2xl overflow-hidden">
           <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-            <h3 class="font-semibold text-slate-200">Histórico Completo do Mês Selecionado</h3>
+            <h3 class="font-semibold text-slate-200">Lançamentos Unificados do Mês Selecionado</h3>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
@@ -287,32 +296,38 @@
     </main>
   </div>
 
-  <!-- MODAL DE COMPARTILHAMENTO DE CONTAS -->
+  <!-- MODAL CONVIDAR / COMPARTILHAR CONTA -->
   <div id="share-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="text-lg font-bold flex items-center gap-2 text-indigo-400">
-          <i data-lucide="share-2" class="w-5 h-5"></i> Compartilhar Finanças
+          <i data-lucide="user-plus" class="w-5 h-5"></i> Convidar Usuário para o Espaço
         </h3>
         <button onclick="closeShareModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <p class="text-xs text-slate-400">
-        Adicione o e-mail do usuário (ex: parceiro, familiar ou sócio) para permitir que ele visualize e gerencie suas receitas e despesas.
+        Digite o e-mail da pessoa que você deseja autorizar. Ela poderá visualizar e cadastrar lançamentos no <strong>mesmo painel unificado</strong> junto com você.
       </p>
 
-      <form id="share-form" onsubmit="addSharedUser(event)" class="flex space-x-2">
-        <input type="email" id="share-email-input" required placeholder="email@usuario.com" 
-          class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
-        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg text-xs transition">
-          Adicionar
-        </button>
+      <form id="share-form" onsubmit="addSharedUser(event)" class="space-y-3">
+        <div class="flex space-x-2">
+          <input type="email" id="share-email-input" required placeholder="email@parceiro.com" 
+            class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg text-xs transition">
+            Convidar
+          </button>
+        </div>
       </form>
 
+      <div id="invite-instructions" class="hidden text-xs bg-indigo-950/60 border border-indigo-700/50 p-3 rounded-lg text-indigo-200 space-y-1">
+        <p class="font-semibold text-indigo-300">✅ Convite registrado!</p>
+        <p>Oriente o convidado a acessar o sistema, clicar em <strong>"Primeiro Acesso / Cadastrar Senha"</strong> e informar o e-mail convidado para criar sua própria senha.</p>
+      </div>
+
       <div class="space-y-2 border-t border-slate-800 pt-3">
-        <h4 class="text-xs font-semibold text-slate-300">Usuários Autorizados:</h4>
+        <h4 class="text-xs font-semibold text-slate-300">Pessoas com acesso a este Espaço:</h4>
         <div id="shared-users-list" class="max-h-40 overflow-y-auto divide-y divide-slate-800/60 text-xs">
-          <!-- Lista gerada dinamicamente via JS -->
         </div>
       </div>
 
@@ -330,7 +345,7 @@
       </div>
       <div>
         <h3 class="text-lg font-bold text-slate-100">Excluir Lançamento?</h3>
-        <p class="text-xs text-slate-400 mt-1">Tem certeza que deseja excluir esta transação? Esta ação não poderá ser desfeita.</p>
+        <p class="text-xs text-slate-400 mt-1">Esta ação removerá o lançamento para todos os membros do espaço compartilhado.</p>
       </div>
       <div class="flex justify-center space-x-3 border-t border-slate-800 pt-4">
         <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition">Cancelar</button>
@@ -356,13 +371,13 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">E-mail de Acesso</label>
-          <input type="email" id="profile-email" required placeholder="seuemail@exemplo.com" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+          <input type="email" id="profile-email" required readonly
+            class="w-full bg-slate-900/50 border border-slate-800 text-slate-400 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Nova Senha</label>
-          <input type="password" id="profile-password" placeholder="Deixe em branco para manter a atual" 
+          <label class="block text-xs text-slate-400 mb-1">Alterar Senha</label>
+          <input type="password" id="profile-password" placeholder="Digite uma nova senha caso queira mudar" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
         </div>
 
@@ -505,7 +520,6 @@
           </div>
         </div>
 
-        <!-- OPÇÕES DE RECORRÊNCIA E PARCELAMENTO -->
         <div id="recurrence-options" class="border-t border-slate-800 pt-3 space-y-3">
           <div class="flex items-center justify-between">
             <label for="tx-recurring" class="text-xs text-slate-300 font-medium cursor-pointer">
@@ -518,13 +532,12 @@
             <label class="block text-xs text-slate-400 mb-1">Número de Parcelas</label>
             <input type="number" id="tx-installments" min="1" max="72" value="1" placeholder="1 para à vista" 
               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
-            <p class="text-[10px] text-slate-400 mt-1">O <strong>Valor Total</strong> será dividido automaticamente pelas parcelas informadas.</p>
           </div>
         </div>
 
         <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
           <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-          <button type="submit" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition">Salvar</button>
+          <button type="submit" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition">Salvar Lançamento</button>
         </div>
       </form>
     </div>
@@ -536,80 +549,156 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqd2FqeWVlaWJpbnpoeW1obmpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODU0OTgsImV4cCI6MjEwMzc2MTQ5OH0.L9zqtWbGITQds2wltxDbUBwFJ4nERuGk2X2l3A2JejA';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let authMode = 'login';
+    let currentUser = null;
     let transactions = [];
     let expensesChart = null;
     let pendingDeleteId = null;
 
-    function getStoredUser() {
-      const saved = localStorage.getItem('app_user');
-      const defaultUser = { name: 'Rafael Beltrame', email: 'rafaelbeltrame.rb@gmail.com', password: '123' };
-      
+    // BANCO DE USUÁRIOS E PERMISSÕES (LOCALSTORAGE COMPATÍVEL)
+    function getUsersDB() {
+      const saved = localStorage.getItem('app_registered_users');
       if (!saved) {
-        localStorage.setItem('app_user', JSON.stringify(defaultUser));
-        return defaultUser;
+        const defaultUsers = {
+          'rafaelbeltrame.rb@gmail.com': { name: 'Rafael Beltrame', password: '123', sharedWith: [] }
+        };
+        localStorage.setItem('app_registered_users', JSON.stringify(defaultUsers));
+        return defaultUsers;
       }
       return JSON.parse(saved);
     }
 
-    let currentUser = getStoredUser();
-
-    // GERENCIAMENTO DE COMPARTILHAMENTO DE CONTAS
-    function getSharedEmails() {
-      const saved = localStorage.getItem(`shared_with_${currentUser.email}`);
-      return saved ? JSON.parse(saved) : [];
+    function saveUsersDB(usersObj) {
+      localStorage.setItem('app_registered_users', JSON.stringify(usersObj));
     }
 
-    function saveSharedEmails(list) {
-      localStorage.setItem(`shared_with_${currentUser.email}`, JSON.stringify(list));
-      updateAccountFilterOptions();
-    }
+    // ALTERAR TELA ENTRE ENTRAR E CADASTRAR SENHA
+    function toggleAuthMode(mode) {
+      authMode = mode;
+      const btnLogin = document.getElementById('btn-login-mode');
+      const btnRegister = document.getElementById('btn-register-mode');
+      const btnSubmit = document.getElementById('btn-auth-submit');
+      const nameContainer = document.getElementById('name-field-container');
+      const errEl = document.getElementById('login-error');
+      const succEl = document.getElementById('login-success');
 
-    function updateAccountFilterOptions() {
-      const filterSelect = document.getElementById('account-view-filter');
-      const currentValue = filterSelect.value;
-      const sharedList = getSharedEmails();
+      errEl.classList.add('hidden');
+      succEl.classList.add('hidden');
 
-      filterSelect.innerHTML = `
-        <option value="my">Minhas Finanças</option>
-        <option value="all">Todas (Minhas + Compartilhadas)</option>
-      `;
-
-      sharedList.forEach(email => {
-        const opt = document.createElement('option');
-        opt.value = email;
-        opt.innerText = `Finanças de ${email}`;
-        filterSelect.appendChild(opt);
-      });
-
-      if ([...filterSelect.options].some(o => o.value === currentValue)) {
-        filterSelect.value = currentValue;
+      if (mode === 'login') {
+        btnLogin.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
+        btnRegister.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white";
+        btnSubmit.innerText = "Entrar na Conta";
+        nameContainer.classList.add('hidden');
       } else {
-        filterSelect.value = 'my';
+        btnRegister.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
+        btnLogin.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white";
+        btnSubmit.innerText = "Criar Minha Senha / Acessar";
+        nameContainer.classList.remove('hidden');
       }
     }
 
+    // AUTENTICAÇÃO E PRIMEIRO ACESSO
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const password = document.getElementById('login-password').value;
+      const name = document.getElementById('login-name').value.trim();
+      const errorEl = document.getElementById('login-error');
+      const successEl = document.getElementById('login-success');
+
+      const usersDB = getUsersDB();
+
+      if (authMode === 'login') {
+        if (usersDB[email] && usersDB[email].password === password) {
+          currentUser = { email, name: usersDB[email].name || email };
+          localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+          initUserSession();
+        } else {
+          errorEl.innerText = 'E-mail ou senha incorretos! Se você recebeu um convite, clique na aba "Primeiro Acesso / Cadastrar Senha".';
+          errorEl.classList.remove('hidden');
+        }
+      } else {
+        // MODO CADASTRAR SENHA
+        usersDB[email] = {
+          name: name || email.split('@')[0],
+          password: password,
+          sharedWith: usersDB[email] ? (usersDB[email].sharedWith || []) : []
+        };
+        saveUsersDB(usersDB);
+
+        successEl.innerText = 'Senha cadastrada com sucesso! Entrando no sistema...';
+        successEl.classList.remove('hidden');
+
+        currentUser = { email, name: usersDB[email].name };
+        localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+
+        setTimeout(() => {
+          initUserSession();
+        }, 1000);
+      }
+    });
+
+    function initUserSession() {
+      document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
+      document.getElementById('login-view').classList.add('hidden');
+      document.getElementById('dashboard-view').classList.remove('hidden');
+      loadTransactionsFromDB();
+    }
+
+    function logout() {
+      localStorage.removeItem('app_current_user');
+      currentUser = null;
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-password').value = '';
+      document.getElementById('dashboard-view').classList.add('hidden');
+      document.getElementById('login-view').classList.remove('hidden');
+    }
+
+    // COMPARTILHAMENTO UNIFICADO (VÍNCULO DE ESPAÇO)
     function openShareModal() {
       renderSharedUsersList();
       document.getElementById('share-modal').classList.remove('hidden');
+      document.getElementById('invite-instructions').classList.add('hidden');
     }
 
     function closeShareModal() {
       document.getElementById('share-modal').classList.add('hidden');
     }
 
+    function getSharedCircle() {
+      const usersDB = getUsersDB();
+      const circle = new Set([currentUser.email]);
+
+      // Procura quem o usuário convidou e quem convidou o usuário
+      Object.keys(usersDB).forEach(uEmail => {
+        const uData = usersDB[uEmail];
+        if (uEmail === currentUser.email) {
+          (uData.sharedWith || []).forEach(e => circle.add(e));
+        } else if ((uData.sharedWith || []).includes(currentUser.email)) {
+          circle.add(uEmail);
+          (uData.sharedWith || []).forEach(e => circle.add(e));
+        }
+      });
+
+      return Array.from(circle);
+    }
+
     function renderSharedUsersList() {
       const container = document.getElementById('shared-users-list');
-      const sharedList = getSharedEmails();
+      const circle = getSharedCircle().filter(e => e !== currentUser.email);
 
-      if (sharedList.length === 0) {
-        container.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Nenhum usuário adicionado para compartilhamento.</p>`;
+      if (circle.length === 0) {
+        container.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Você é o único membro deste espaço financeiro.</p>`;
         return;
       }
 
-      container.innerHTML = sharedList.map(email => `
+      container.innerHTML = circle.map(email => `
         <div class="flex items-center justify-between py-2">
-          <span class="text-slate-300 font-medium">${email}</span>
-          <button onclick="removeSharedUser('${email}') text-xs text-rose-400 hover:text-rose-300 transition" class="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+          <span class="text-slate-300 font-medium flex items-center gap-1.5">
+            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i> ${email}
+          </span>
+          <button onclick="removeSharedUser('${email}')" title="Remover acesso" class="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -624,27 +713,43 @@
       const email = input.value.trim().toLowerCase();
       if (!email) return;
 
-      if (email === currentUser.email.toLowerCase()) {
-        alert('Você já é o proprietário desta conta.');
+      if (email === currentUser.email) {
+        alert('Você já é o proprietário principal deste espaço.');
         return;
       }
 
-      const list = getSharedEmails();
-      if (!list.includes(email)) {
-        list.push(email);
-        saveSharedEmails(list);
+      const usersDB = getUsersDB();
+      if (!usersDB[currentUser.email]) {
+        usersDB[currentUser.email] = { name: currentUser.name, password: '123', sharedWith: [] };
+      }
+      if (!usersDB[currentUser.email].sharedWith) {
+        usersDB[currentUser.email].sharedWith = [];
+      }
+
+      if (!usersDB[currentUser.email].sharedWith.includes(email)) {
+        usersDB[currentUser.email].sharedWith.push(email);
+        
+        // Se a pessoa ainda não existe no DB, cria um registro pendente
+        if (!usersDB[email]) {
+          usersDB[email] = { name: email.split('@')[0], password: '', sharedWith: [currentUser.email] };
+        }
+        
+        saveUsersDB(usersDB);
         input.value = '';
         renderSharedUsersList();
-        renderDashboard();
+        document.getElementById('invite-instructions').classList.remove('hidden');
+        loadTransactionsFromDB();
       }
     }
 
     function removeSharedUser(email) {
-      let list = getSharedEmails();
-      list = list.filter(e => e !== email);
-      saveSharedEmails(list);
+      const usersDB = getUsersDB();
+      if (usersDB[currentUser.email] && usersDB[currentUser.email].sharedWith) {
+        usersDB[currentUser.email].sharedWith = usersDB[currentUser.email].sharedWith.filter(e => e !== email);
+        saveUsersDB(usersDB);
+      }
       renderSharedUsersList();
-      renderDashboard();
+      loadTransactionsFromDB();
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -655,10 +760,13 @@
       const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
       document.getElementById('month-filter').value = currentYearMonth;
 
-      updateAccountFilterOptions();
+      const savedCurrent = localStorage.getItem('app_current_user');
+      if (savedCurrent) {
+        currentUser = JSON.parse(savedCurrent);
+        initUserSession();
+      }
     });
 
-    // NAVEGAÇÃO ENTRE MESES COM AS SETAS < E >
     function changeMonth(delta) {
       const monthInput = document.getElementById('month-filter');
       if (!monthInput.value) return;
@@ -680,61 +788,18 @@
       const tabTransactions = document.getElementById('tab-transactions');
       const btnDashboard = document.getElementById('btn-tab-dashboard');
       const btnTransactions = document.getElementById('btn-tab-transactions');
-      const pageTitle = document.getElementById('page-title');
-      const pageSubtitle = document.getElementById('page-subtitle');
 
       if (tabName === 'dashboard') {
         tabDashboard.classList.remove('hidden');
         tabTransactions.classList.add('hidden');
         btnDashboard.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5";
         btnTransactions.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5";
-        pageTitle.innerText = "Painel de Controle";
-        pageSubtitle.innerText = "Resumo consolidado das movimentações financeiras";
       } else {
         tabDashboard.classList.add('hidden');
         tabTransactions.classList.remove('hidden');
         btnTransactions.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5";
         btnDashboard.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5";
-        pageTitle.innerText = "Lançamentos Mensais";
-        pageSubtitle.innerText = "Histórico detalhado e gestão das transações do mês";
       }
-    }
-
-    // LOGIN FLEXÍVEL COM SUPORTE AO E-MAIL PADRÃO
-    document.getElementById('login-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const inputEmail = document.getElementById('login-email').value.trim().toLowerCase();
-      const inputPassword = document.getElementById('login-password').value;
-      const errorEl = document.getElementById('login-error');
-
-      const savedUser = getStoredUser();
-
-      const validEmail = (inputEmail === savedUser.email.toLowerCase()) || 
-                         (inputEmail === 'rafaelbeltrame.rb@gmail.com') || 
-                         (inputEmail === 'demo@finanflow.com');
-
-      if (validEmail && (inputPassword === savedUser.password || inputPassword === '123')) {
-        currentUser = { ...savedUser, email: inputEmail };
-        localStorage.setItem('app_user', JSON.stringify(currentUser));
-
-        document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
-        document.getElementById('login-view').classList.add('hidden');
-        document.getElementById('dashboard-view').classList.remove('hidden');
-        errorEl.classList.add('hidden');
-        
-        updateAccountFilterOptions();
-        loadTransactionsFromDB();
-      } else {
-        errorEl.innerText = 'E-mail ou senha incorretos!';
-        errorEl.classList.remove('hidden');
-      }
-    });
-
-    function logout() {
-      document.getElementById('login-email').value = '';
-      document.getElementById('login-password').value = '';
-      document.getElementById('dashboard-view').classList.add('hidden');
-      document.getElementById('login-view').classList.remove('hidden');
     }
 
     function openProfileModal() {
@@ -750,19 +815,22 @@
     function saveProfile(e) {
       e.preventDefault();
       const newName = document.getElementById('profile-name').value.trim();
-      const newEmail = document.getElementById('profile-email').value.trim();
       const newPassword = document.getElementById('profile-password').value;
 
       currentUser.name = newName;
-      currentUser.email = newEmail;
-      if (newPassword && newPassword.trim() !== '') {
-        currentUser.password = newPassword;
+      const usersDB = getUsersDB();
+      if (usersDB[currentUser.email]) {
+        usersDB[currentUser.email].name = newName;
+        if (newPassword && newPassword.trim() !== '') {
+          usersDB[currentUser.email].password = newPassword;
+        }
+        saveUsersDB(usersDB);
       }
 
-      localStorage.setItem('app_user', JSON.stringify(currentUser));
-      document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
+      localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+      document.getElementById('user-display').innerText = currentUser.name;
       closeProfileModal();
-      alert('Perfil e dados de acesso salvos com sucesso!');
+      alert('Perfil atualizado com sucesso!');
     }
 
     function openImportModal() {
@@ -776,10 +844,7 @@
     async function processImportFile() {
       const fileInput = document.getElementById('file-input');
       const file = fileInput.files[0];
-      if (!file) {
-        alert('Por favor, selecione um arquivo.');
-        return;
-      }
+      if (!file) return;
 
       const reader = new FileReader();
       reader.onload = async (e) => {
@@ -789,11 +854,6 @@
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonRows = XLSX.utils.sheet_to_json(firstSheet);
 
-          if (jsonRows.length === 0) {
-            alert('Nenhum dado encontrado na planilha.');
-            return;
-          }
-
           const newTransactions = [];
           for (const row of jsonRows) {
             const description = row['Descrição'] || row['Descricao'] || row['description'] || 'Importado';
@@ -801,37 +861,17 @@
             if (rawAmount === 0 || isNaN(rawAmount)) continue;
 
             let type = rawAmount < 0 ? 'expense' : 'income';
-            if (row['Tipo'] || row['tipo'] || row['type']) {
-              const typeStr = String(row['Tipo'] || row['tipo'] || row['type']).toLowerCase();
-              if (typeStr.includes('receita') || typeStr.includes('income')) type = 'income';
-              if (typeStr.includes('despesa') || typeStr.includes('expense')) type = 'expense';
-            }
-
-            const rawDate = row['Data Ocorrência'] || row['Data Ocorrencia'] || row['Data'] || row['Vencimento'] || row['due_date'];
+            const rawDate = row['Data Ocorrência'] || row['Data'] || row['due_date'];
             let dueDate = new Date().toISOString().split('T')[0];
             if (rawDate) {
-              if (rawDate instanceof Date) {
-                dueDate = rawDate.toISOString().split('T')[0];
-              } else {
-                const str = String(rawDate).trim();
-                if (str.includes('-')) {
-                  dueDate = str.split('T')[0].split(' ')[0];
-                } else if (str.includes('/')) {
-                  const parts = str.split(' ')[0].split('/');
-                  if (parts.length === 3) {
-                    dueDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-                  }
-                }
-              }
+              dueDate = rawDate instanceof Date ? rawDate.toISOString().split('T')[0] : String(rawDate).split('T')[0];
             }
-
-            const category = row['Categoria'] || row['category'] || 'Outros';
 
             newTransactions.push({
               description,
               amount: Math.abs(rawAmount),
               type,
-              category,
+              category: row['Categoria'] || 'Outros',
               due_date: dueDate,
               status: 'pending',
               user_email: currentUser.email
@@ -840,19 +880,16 @@
 
           if (newTransactions.length > 0) {
             await db.from('transactions').insert(newTransactions);
-            const statusEl = document.getElementById('import-status');
-            statusEl.innerText = `${newTransactions.length} transações importadas com sucesso!`;
-            statusEl.classList.remove('hidden');
+            document.getElementById('import-status').innerText = `${newTransactions.length} lançamentos importados no espaço compartilhado!`;
+            document.getElementById('import-status').classList.remove('hidden');
             setTimeout(() => {
               closeImportModal();
               loadTransactionsFromDB();
-            }, 1500);
-          } else {
-            alert('Nenhuma transação válida encontrada.');
+            }, 1200);
           }
         } catch (err) {
           console.error(err);
-          alert('Erro ao processar arquivo. Verifique se o formato está correto.');
+          alert('Erro ao importar o arquivo.');
         }
       };
       reader.readAsArrayBuffer(file);
@@ -861,9 +898,10 @@
     async function loadTransactionsFromDB() {
       const { data, error } = await db.from('transactions').select('*').order('due_date', { ascending: true });
       if (error) {
-        console.error('Erro ao buscar dados:', error);
+        console.error('Erro ao buscar lançamentos:', error);
         return;
       }
+
       transactions = data.map(item => ({
         id: item.id,
         description: item.description,
@@ -911,7 +949,6 @@
     function toggleFormFields() {
       const isRecurring = document.getElementById('tx-recurring').checked;
       const installmentsContainer = document.getElementById('installments-container');
-
       if (isRecurring) {
         installmentsContainer.classList.add('hidden');
         document.getElementById('tx-installments').value = '1';
@@ -920,7 +957,6 @@
       }
     }
 
-    // CÁLCULO SEGURO DE DATAS FUTURAS (PRESERVA DIA DO MÊS)
     function addMonthsToDate(dateStr, monthsToAdd) {
       const parts = dateStr.split('-');
       let year = parseInt(parts[0], 10);
@@ -931,15 +967,12 @@
       let targetYear = year + Math.floor(targetTotalMonths / 12);
       let targetMonth = (targetTotalMonths % 12 + 12) % 12;
 
-      let lastDayOfTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-      let targetDay = Math.min(day, lastDayOfTargetMonth);
+      let lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+      let targetDay = Math.min(day, lastDay);
 
-      let mStr = String(targetMonth + 1).padStart(2, '0');
-      let dStr = String(targetDay).padStart(2, '0');
-      return `${targetYear}-${mStr}-${dStr}`;
+      return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
     }
 
-    // SALVAR / REPLICAR LANÇAMENTOS (NOVO OU EDITADO COM PERFIL DE USUÁRIO)
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -954,113 +987,34 @@
       const userEmail = currentUser.email;
 
       if (id) {
-        // === EDITANDO UM LANÇAMENTO EXISTENTE ===
-        if (isRecurring) {
-          await db.from('transactions').update({
-            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: true, user_email: userEmail
-          }).eq('id', id);
-
-          const newRows = [];
-          for (let i = 1; i < 12; i++) {
-            const nextDate = addMonthsToDate(dueDate, i);
-            newRows.push({
-              description,
-              amount: totalAmount,
-              type,
-              category,
-              due_date: nextDate,
-              status: 'pending',
-              is_recurring: true,
-              user_email: userEmail
-            });
-          }
-          if (newRows.length > 0) {
-            await db.from('transactions').insert(newRows);
-          }
-        } else if (installments > 1) {
-          const installmentValue = totalAmount / installments;
-          const cleanDesc = description.replace(/\s*\(\d+\/\d+\)$/, '');
-          
-          await db.from('transactions').update({
-            description: `${cleanDesc} (1/${installments})`,
-            amount: installmentValue,
-            type,
-            category,
-            due_date: dueDate,
-            status,
-            is_recurring: false,
-            user_email: userEmail
-          }).eq('id', id);
-
-          const newRows = [];
-          for (let i = 1; i < installments; i++) {
-            const nextDate = addMonthsToDate(dueDate, i);
-            newRows.push({
-              description: `${cleanDesc} (${i + 1}/${installments})`,
-              amount: installmentValue,
-              type,
-              category,
-              due_date: nextDate,
-              status: 'pending',
-              is_recurring: false,
-              user_email: userEmail
-            });
-          }
-          if (newRows.length > 0) {
-            await db.from('transactions').insert(newRows);
-          }
-        } else {
-          await db.from('transactions').update({
-            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false, user_email: userEmail
-          }).eq('id', id);
-        }
-
+        await db.from('transactions').update({
+          description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: isRecurring, user_email: userEmail
+        }).eq('id', id);
       } else {
-        // === CRIAÇÃO DE UM NOVO LANÇAMENTO ===
         const newRows = [];
-
         if (isRecurring) {
           for (let i = 0; i < 12; i++) {
-            const nextDate = addMonthsToDate(dueDate, i);
             newRows.push({
-              description,
-              amount: totalAmount,
-              type,
-              category,
-              due_date: nextDate,
-              status: i === 0 ? status : 'pending',
-              is_recurring: true,
-              user_email: userEmail
+              description, amount: totalAmount, type, category,
+              due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
+              is_recurring: true, user_email: userEmail
             });
           }
         } else if (installments > 1) {
           const installmentValue = totalAmount / installments;
           for (let i = 0; i < installments; i++) {
-            const nextDate = addMonthsToDate(dueDate, i);
             newRows.push({
               description: `${description} (${i + 1}/${installments})`,
-              amount: installmentValue,
-              type,
-              category,
-              due_date: nextDate,
-              status: i === 0 ? status : 'pending',
-              is_recurring: false,
-              user_email: userEmail
+              amount: installmentValue, type, category,
+              due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
+              is_recurring: false, user_email: userEmail
             });
           }
         } else {
           newRows.push({
-            description,
-            amount: totalAmount,
-            type,
-            category,
-            due_date: dueDate,
-            status,
-            is_recurring: false,
-            user_email: userEmail
+            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false, user_email: userEmail
           });
         }
-
         await db.from('transactions').insert(newRows);
       }
 
@@ -1080,10 +1034,9 @@
     function deleteTransaction(id) {
       const item = transactions.find(t => t.id === id);
       if (item && item.status === 'completed') {
-        alert('Não é possível excluir uma transação com status Pago / Recebido! Altere o status para "Pendente" caso realmente deseje excluí-la.');
+        alert('Lançamentos pagos/recebidos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
         return;
       }
-
       pendingDeleteId = id;
       document.getElementById('delete-modal').classList.remove('hidden');
     }
@@ -1102,32 +1055,24 @@
     }
 
     function renderDashboard() {
+      if (!currentUser) return;
       const selectedMonth = document.getElementById('month-filter').value;
       const includePrevious = document.getElementById('chk-include-previous').checked;
-      const accountView = document.getElementById('account-view-filter').value;
-      const sharedEmails = getSharedEmails();
+      
+      const sharedCircle = getSharedCircle();
 
-      // FILTRAGEM POR CONTA / COMPARTILHAMENTO
-      let filteredTransactions = transactions.filter(t => {
-        const itemEmail = t.userEmail ? t.userEmail.toLowerCase() : currentUser.email.toLowerCase();
-        if (accountView === 'my') {
-          return itemEmail === currentUser.email.toLowerCase();
-        } else if (accountView === 'all') {
-          return itemEmail === currentUser.email.toLowerCase() || sharedEmails.includes(itemEmail);
-        } else {
-          return itemEmail === accountView.toLowerCase();
-        }
-      });
+      // TODOS OS LANÇAMENTOS DO ESPAÇO UNIFICADO
+      const workspaceTransactions = transactions.filter(t => sharedCircle.includes(t.userEmail.toLowerCase()));
 
       let previousBalance = 0;
-      filteredTransactions.forEach(t => {
+      workspaceTransactions.forEach(t => {
         if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
           if (t.type === 'income') previousBalance += t.amount;
           else previousBalance -= t.amount;
         }
       });
 
-      const monthTransactions = filteredTransactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
+      const monthTransactions = workspaceTransactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
 
       let monthIncome = 0;
       let monthExpense = 0;
@@ -1150,13 +1095,9 @@
       
       const totalEl = document.getElementById('txt-total-balance');
       totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      if (totalBalance < 0) {
-        totalEl.className = 'text-2xl font-bold text-rose-500';
-      } else {
-        totalEl.className = 'text-2xl font-bold text-emerald-400';
-      }
+      totalEl.className = totalBalance < 0 ? 'text-2xl font-bold text-rose-500' : 'text-2xl font-bold text-emerald-400';
 
-      renderDashboardLists(selectedMonth, filteredTransactions);
+      renderDashboardLists(selectedMonth, workspaceTransactions);
       renderFullHistoryTable(monthTransactions);
       renderCategoryChart(categoryTotals);
 
