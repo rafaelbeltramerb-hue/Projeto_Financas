@@ -652,9 +652,9 @@
           const { data: inviteData } = await db.from('invitations')
             .select('owner_email')
             .eq('invited_email', email)
-            .maybeSingle();
-          if (inviteData && inviteData.owner_email) {
-            ownerFound = inviteData.owner_email.toLowerCase();
+            .limit(1);
+          if (inviteData && inviteData.length > 0 && inviteData[0].owner_email) {
+            ownerFound = inviteData[0].owner_email.toLowerCase();
           }
         } catch (err) {
           console.warn('Erro ao verificar convite no Supabase:', err);
@@ -694,9 +694,9 @@
         const { data: inviteData } = await db.from('invitations')
           .select('owner_email')
           .eq('invited_email', currentUser.email)
-          .maybeSingle();
-        if (inviteData && inviteData.owner_email) {
-          ownerFound = inviteData.owner_email.toLowerCase();
+          .limit(1);
+        if (inviteData && inviteData.length > 0 && inviteData[0].owner_email) {
+          ownerFound = inviteData[0].owner_email.toLowerCase();
         }
       } catch (err) {
         console.warn(err);
@@ -739,7 +739,7 @@
       // Busca todas as transações pertencentes ao workspace do criador
       const { data, error } = await db.from('transactions')
         .select('*')
-        .or(`owner_email.eq.${currentWorkspaceOwner},user_email.eq.${currentWorkspaceOwner}`)
+        .eq('owner_email', currentWorkspaceOwner)
         .order('due_date', { ascending: true });
 
       if (error) {
@@ -1038,7 +1038,7 @@
       document.getElementById('modal-title').innerText = editId ? 'Editar Transação' : 'Nova Transação';
 
       if (editId) {
-        const item = transactions.find(t => t.id === editId);
+        const item = transactions.find(t => t.id == editId);
         if (item) {
           document.getElementById('tx-id').value = item.id;
           document.getElementById('tx-description').value = item.description;
@@ -1087,7 +1087,7 @@
       return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
     }
 
-    // ADICIONAR / EDITAR TRANSAÇÃO (VINCULA O CRIADOR REAL DO LANÇAMENTO AO USER_EMAIL E O ESPAÇO AO OWNER_EMAIL)
+    // ADICIONAR / EDITAR TRANSAÇÃO
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -1138,7 +1138,7 @@
     });
 
     async function toggleStatus(id) {
-      const item = transactions.find(t => t.id === id);
+      const item = transactions.find(t => t.id == id);
       if (item) {
         const newStatus = item.status === 'completed' ? 'pending' : 'completed';
         await db.from('transactions').update({ status: newStatus }).eq('id', id);
@@ -1147,7 +1147,7 @@
     }
 
     function deleteTransaction(id) {
-      const item = transactions.find(t => t.id === id);
+      const item = transactions.find(t => t.id == id);
       if (item && item.status === 'completed') {
         alert('Lançamentos concluídos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
         return;
@@ -1223,7 +1223,8 @@
       nextList.innerHTML = '';
       alertsList.innerHTML = '';
 
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayObj = new Date();
+      todayObj.setHours(0, 0, 0, 0);
 
       transactions.forEach(t => {
         if (t.status !== 'pending') return;
@@ -1245,7 +1246,8 @@
           nextList.innerHTML += rowHTML;
         }
 
-        const diffDays = Math.ceil((new Date(t.dueDate) - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+        const dueObj = new Date(t.dueDate + 'T00:00:00');
+        const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
         if (diffDays <= 5) {
           alertsList.innerHTML += rowHTML;
         }
@@ -1280,13 +1282,13 @@
             </span>
           </td>
           <td class="p-4 text-right space-x-1">
-            <button onclick="toggleStatus(${t.id})" title="Confirmar/Cancelar status" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-400 transition">
+            <button onclick="toggleStatus('${t.id}')" title="Confirmar/Cancelar status" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-400 transition">
               <i data-lucide="${isPaid ? 'undo-2' : 'check-circle'}" class="w-4 h-4"></i>
             </button>
-            <button onclick="openModal(${t.id})" title="Editar" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
+            <button onclick="openModal('${t.id}')" title="Editar" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
               <i data-lucide="pencil" class="w-4 h-4"></i>
             </button>
-            <button onclick="deleteTransaction(${t.id})" 
+            <button onclick="deleteTransaction('${t.id}')" 
               title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
               class="p-1.5 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-600' : 'hover:bg-slate-800 text-slate-400 hover:text-rose-400'}">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -1304,6 +1306,7 @@
 
       if (expensesChart) {
         expensesChart.destroy();
+        expensesChart = null;
       }
 
       if (labels.length === 0) return;
