@@ -1,4 +1,4 @@
-[cite: 4]<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR" class="dark">
 <head>
   <meta charset="UTF-8">
@@ -539,25 +539,6 @@
     let expensesChart = null;
     let pendingDeleteIds = [];
 
-    // BANCO LOCAL DE USUÁRIOS E CONVITES (GARANTIA LOCAL)
-    function getUsersDB() {
-      const saved = localStorage.getItem('app_registered_users');
-      return saved ? JSON.parse(saved) : {};
-    }
-
-    function saveUsersDB(usersObj) {
-      localStorage.setItem('app_registered_users', JSON.stringify(usersObj));
-    }
-
-    function getInvitationsDB() {
-      const saved = localStorage.getItem('app_invitations');
-      return saved ? JSON.parse(saved) : [];
-    }
-
-    function saveInvitationsDB(list) {
-      localStorage.setItem('app_invitations', JSON.stringify(list));
-    }
-
     // ALTERNADOR ENTRE AS 3 ABAS DE AUTENTICAÇÃO
     function toggleAuthMode(mode) {
       authMode = mode;
@@ -595,7 +576,7 @@
       }
     }
 
-    // AUTENTICAÇÃO
+    // AUTENTICAÇÃO ONLINE VIA SUPABASE
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -607,36 +588,46 @@
       errorEl.classList.add('hidden');
       successEl.classList.add('hidden');
 
-      const usersDB = getUsersDB();
-
       if (authMode === 'login') {
-        if (!usersDB[email]) {
+        // Busca usuário no Supabase
+        const { data: users, error } = await db.from('users').select('*').eq('email', email);
+
+        if (error || !users || users.length === 0) {
           errorEl.innerHTML = `⚠️ E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar Conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou Convidado"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
 
-        if (usersDB[email].password !== password) {
+        const dbUser = users[0];
+        if (dbUser.password !== password) {
           errorEl.innerText = 'Senha incorreta! Verifique sua senha e tente novamente.';
           errorEl.classList.remove('hidden');
           return;
         }
 
-        currentUser = { email, name: usersDB[email].name || email };
+        currentUser = { email: dbUser.email, name: dbUser.name };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
         await resolveWorkspaceAndInit();
       } 
       else if (authMode === 'register') {
-        if (usersDB[email]) {
+        // Verifica se usuário já existe
+        const { data: existing } = await db.from('users').select('email').eq('email', email);
+        if (existing && existing.length > 0) {
           errorEl.innerText = 'Este e-mail já possui uma conta cadastrada. Por favor, acesse a aba "Entrar".';
           errorEl.classList.remove('hidden');
           return;
         }
 
-        usersDB[email] = { name: name || email.split('@')[0], password };
-        saveUsersDB(usersDB);
+        const userName = name || email.split('@')[0];
+        const { error: insertErr } = await db.from('users').insert({ email, name: userName, password });
 
-        currentUser = { email, name: usersDB[email].name };
+        if (insertErr) {
+          errorEl.innerText = 'Erro ao criar conta no servidor: ' + insertErr.message;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        currentUser = { email, name: userName };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
 
         successEl.innerText = 'Conta criada com sucesso! Acessando seu espaço...';
@@ -660,21 +651,15 @@
         }
 
         if (!ownerFound) {
-          const localInvites = getInvitationsDB();
-          const match = localInvites.find(i => i.invited_email === email);
-          if (match) ownerFound = match.owner_email.toLowerCase();
-        }
-
-        if (!ownerFound) {
           errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${email}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
 
-        usersDB[email] = { name: name || email.split('@')[0], password };
-        saveUsersDB(usersDB);
+        const userName = name || email.split('@')[0];
+        await db.from('users').upsert({ email, name: userName, password }, { onConflict: 'email' });
 
-        currentUser = { email, name: usersDB[email].name };
+        currentUser = { email, name: userName };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
 
         successEl.innerText = `Convite confirmado! Acessando o espaço de ${ownerFound}...`;
@@ -698,12 +683,6 @@
         }
       } catch (err) {
         console.warn(err);
-      }
-
-      if (!ownerFound) {
-        const localInvites = getInvitationsDB();
-        const found = localInvites.find(inv => inv.invited_email === currentUser.email);
-        if (found) ownerFound = found.owner_email.toLowerCase();
       }
 
       currentWorkspaceOwner = ownerFound ? ownerFound : currentUser.email.toLowerCase();
@@ -772,7 +751,7 @@
 
     async function renderSharedUsersList() {
       const container = document.getElementById('shared-users-list');
-      let list = getInvitationsDB().filter(inv => inv.owner_email === currentUser.email);
+      let list = [];
 
       try {
         const { data: invites } = await db.from('invitations')
@@ -780,15 +759,10 @@
           .eq('owner_email', currentUser.email);
 
         if (invites && invites.length > 0) {
-          invites.forEach(inv => {
-            if (!list.some(l => l.invited_email === inv.invited_email)) {
-              list.push({ owner_email: currentUser.email, invited_email: inv.invited_email });
-            }
-          });
-          saveInvitationsDB(list);
+          list = invites.map(inv => ({ owner_email: currentUser.email, invited_email: inv.invited_email }));
         }
       } catch (err) {
-        console.warn('Usando backup local para lista de convites:', err);
+        console.warn('Erro ao carregar lista de convites:', err);
       }
 
       if (list.length === 0) {
@@ -819,12 +793,6 @@
       if (email === currentUser.email) {
         alert('Você é o dono principal deste espaço.');
         return;
-      }
-
-      let localInvites = getInvitationsDB();
-      if (!localInvites.some(inv => inv.owner_email === currentUser.email && inv.invited_email === email)) {
-        localInvites.push({ owner_email: currentUser.email, invited_email: email });
-        saveInvitationsDB(localInvites);
       }
 
       try {
@@ -865,9 +833,6 @@
     }
 
     async function removeSharedUser(email) {
-      let localInvites = getInvitationsDB().filter(inv => !(inv.owner_email === currentUser.email && inv.invited_email === email));
-      saveInvitationsDB(localInvites);
-
       try {
         await db.from('invitations')
           .delete()
@@ -939,20 +904,19 @@
       document.getElementById('profile-modal').classList.add('hidden');
     }
 
-    function saveProfile(e) {
+    async function saveProfile(e) {
       e.preventDefault();
       const newName = document.getElementById('profile-name').value.trim();
       const newPassword = document.getElementById('profile-password').value;
 
       currentUser.name = newName;
-      const usersDB = getUsersDB();
-      if (usersDB[currentUser.email]) {
-        usersDB[currentUser.email].name = newName;
-        if (newPassword && newPassword.trim() !== '') {
-          usersDB[currentUser.email].password = newPassword;
-        }
-        saveUsersDB(usersDB);
+      
+      const updateData = { name: newName };
+      if (newPassword && newPassword.trim() !== '') {
+        updateData.password = newPassword;
       }
+
+      await db.from('users').update(updateData).eq('email', currentUser.email);
 
       localStorage.setItem('app_current_user', JSON.stringify(currentUser));
       document.getElementById('user-display').innerText = currentUser.name;
@@ -1080,7 +1044,7 @@
       return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
     }
 
-    // ADICIONAR / EDITAR TRANSAÇÃO COM GERADO AUTOMÁTICO DE MESES SUBSEQUENTES
+    // ADICIONAR / EDITAR TRANSAÇÃO
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -1094,7 +1058,6 @@
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
       if (id) {
-        // Atualiza a transação principal
         await db.from('transactions').update({
           description, 
           amount: totalAmount, 
@@ -1105,7 +1068,6 @@
           is_recurring: isRecurring
         }).eq('id', id);
 
-        // Se marcou "Lançamento Fixo Mensal" ao editar, cria automaticamente os próximos 24 meses caso ainda não existam
         if (isRecurring) {
           const futureRows = [];
           for (let i = 1; i <= 24; i++) {
@@ -1126,7 +1088,6 @@
       } else {
         const newRows = [];
         if (isRecurring) {
-          // Lança o mês atual + os 24 meses subsequentes para Receitas ou Despesas
           for (let i = 0; i < 24; i++) {
             newRows.push({
               description,
@@ -1188,28 +1149,23 @@
       const item = transactions.find(t => t.id == id);
       if (!item) return;
 
-      // Identifica se a transação faz parte de um parcelamento (padrão "Descrição (X/N)")
       const match = item.description.match(/^(.+)\s\(\d+\/\d+\)$/);
 
       if (match) {
         const baseTitle = match[1];
-        // Busca todas as parcelas pertencentes a este mesmo parcelamento
         const relatedParcelas = transactions.filter(t => {
           const m = t.description.match(/^(.+)\s\(\d+\/\d+\)$/);
           return m && m[1] === baseTitle;
         });
 
-        // Se ALGUMA parcela do grupo estiver paga/concluída, impede a exclusão de todas
         const hasPaid = relatedParcelas.some(t => t.status === 'completed');
         if (hasPaid) {
           alert('Não é possível excluir este parcelamento pois existe pelo menos uma parcela paga/concluída.');
           return;
         }
 
-        // Se nenhuma estiver paga, seleciona todas as parcelas do grupo para exclusão
         pendingDeleteIds = relatedParcelas.map(t => t.id);
       } else {
-        // Lançamento comum (não parcelado)
         if (item.status === 'completed') {
           alert('Lançamentos concluídos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
           return;
@@ -1217,7 +1173,6 @@
         pendingDeleteIds = [item.id];
       }
 
-      // Atualiza a mensagem do modal de exclusão
       const msgEl = document.getElementById('delete-modal-msg');
       if (msgEl) {
         msgEl.innerText = pendingDeleteIds.length > 1
