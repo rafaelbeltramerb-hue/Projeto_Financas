@@ -8,10 +8,12 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- SUPABASE CLIENT -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- CHART.JS PARA O GRÁFICO DE PIZZA -->
+  <!-- CHART.JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- SHEETJS PARA IMPORTAR EXCEL -->
+  <!-- SHEETJS PARA IMPORTAÇÃO -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- EMAILJS PARA ENVIO REAL DE E-MAILS -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -39,7 +41,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- TELA DE LOGIN / PRIMEIRO ACESSO -->
+  <!-- TELA DE LOGIN / CADASTRO / CONVITE -->
   <div id="login-view" class="min-h-screen flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-8 rounded-2xl shadow-2xl space-y-6">
       <div class="text-center space-y-2">
@@ -47,29 +49,30 @@
           <i data-lucide="wallet" class="w-6 h-6"></i>
         </div>
         <h1 class="text-2xl font-bold tracking-tight">Controle Financeiro</h1>
-        <p class="text-sm text-slate-400">Entre com sua conta ou crie sua senha de convidado</p>
+        <p id="auth-subtitle" class="text-xs text-slate-400">Acesse sua conta para continuar</p>
       </div>
 
-      <!-- SELETOR ENTRAR / REGISTRAR SENHA -->
-      <div class="flex border-b border-slate-800 text-sm font-medium">
-        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 pb-2 border-b-2 border-brand-500 text-brand-400">Entrar</button>
-        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white">Primeiro Acesso / Cadastrar Senha</button>
+      <!-- SELETOR 3 ABAS DE AUTENTICAÇÃO -->
+      <div class="flex border-b border-slate-800 text-xs font-medium text-center">
+        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold">Entrar</button>
+        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white">Criar Conta</button>
+        <button id="btn-invite-mode" onclick="toggleAuthMode('invited')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white">Sou Convidado</button>
       </div>
 
-      <!-- FORMULÁRIO DE LOGIN -->
+      <!-- FORMULÁRIO DE AUTENTICAÇÃO -->
       <form id="login-form" class="space-y-4">
         <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 p-3 rounded-lg text-center font-medium border border-rose-500/20"></div>
         <div id="login-success" class="hidden text-xs text-emerald-400 bg-emerald-500/10 p-3 rounded-lg text-center font-medium border border-emerald-500/20"></div>
 
-        <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Seu E-mail</label>
-          <input type="email" id="login-email" required placeholder="seu@email.com" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
-        </div>
-
         <div id="name-field-container" class="hidden">
           <label class="block text-xs font-medium text-slate-400 mb-1">Seu Nome</label>
           <input type="text" id="login-name" placeholder="Como deseja ser chamado" 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Seu E-mail</label>
+          <input type="email" id="login-email" required placeholder="seu@email.com" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
         </div>
 
@@ -97,7 +100,7 @@
         </div>
         <div class="flex flex-col">
           <span class="font-bold text-sm sm:text-base leading-tight">Controle Financeiro</span>
-          <span id="shared-badge-header" class="text-[10px] text-indigo-400 font-medium">Espaço Unificado</span>
+          <span id="shared-badge-header" class="text-[10px] text-indigo-400 font-medium">Espaço: <span id="workspace-owner-label">Próprio</span></span>
         </div>
       </div>
 
@@ -115,7 +118,7 @@
         <!-- BOTÃO COMPARTILHAR CONVITE -->
         <button onclick="openShareModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-900/70 border border-indigo-700/50 text-indigo-300 text-xs font-medium transition">
           <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i>
-          <span class="hidden sm:inline">Convidar / Compartilhar</span>
+          <span class="hidden sm:inline">Convidar por E-mail</span>
         </button>
 
         <button onclick="openImportModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
@@ -142,11 +145,11 @@
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass p-4 rounded-2xl">
         <div>
           <h2 id="page-title" class="text-xl font-bold">Painel de Controle</h2>
-          <p id="page-subtitle" class="text-xs text-slate-400">Lançamentos compartilhados em tempo real</p>
+          <p id="page-subtitle" class="text-xs text-slate-400">Lançamentos do Espaço Compartilhado</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
-          <!-- NAVEGAÇÃO DE MÊS COM SETAS -->
+          <!-- NAVEGAÇÃO DE MÊS -->
           <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-1 shadow-sm">
             <button onclick="changeMonth(-1)" title="Mês Anterior" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
               <i data-lucide="chevron-left" class="w-4 h-4"></i>
@@ -272,7 +275,7 @@
       <div id="tab-transactions" class="hidden space-y-6">
         <div class="glass rounded-2xl overflow-hidden">
           <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-            <h3 class="font-semibold text-slate-200">Lançamentos Unificados do Mês Selecionado</h3>
+            <h3 class="font-semibold text-slate-200">Lançamentos do Mês Selecionado</h3>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
@@ -296,37 +299,44 @@
     </main>
   </div>
 
-  <!-- MODAL CONVIDAR / COMPARTILHAR CONTA -->
+  <!-- MODAL CONVIDAR E ENVIAR E-MAIL REAL -->
   <div id="share-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="text-lg font-bold flex items-center gap-2 text-indigo-400">
-          <i data-lucide="user-plus" class="w-5 h-5"></i> Convidar Usuário para o Espaço
+          <i data-lucide="send" class="w-5 h-5"></i> Convidar Usuário por E-mail
         </h3>
         <button onclick="closeShareModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <p class="text-xs text-slate-400">
-        Digite o e-mail da pessoa que você deseja autorizar. Ela poderá visualizar e cadastrar lançamentos no <strong>mesmo painel unificado</strong> junto com você.
+        Insira o e-mail da pessoa. Ela receberá permissão para acessar suas finanças na aba <strong>"Sou Convidado"</strong>.
       </p>
 
       <form id="share-form" onsubmit="addSharedUser(event)" class="space-y-3">
-        <div class="flex space-x-2">
-          <input type="email" id="share-email-input" required placeholder="email@parceiro.com" 
-            class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
-          <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg text-xs transition">
-            Convidar
-          </button>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">E-mail do Convidado</label>
+          <input type="email" id="share-email-input" required placeholder="parceiro@email.com" 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
         </div>
+        
+        <button type="submit" id="btn-send-invite" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition flex items-center justify-center gap-2">
+          <i data-lucide="mail" class="w-4 h-4"></i> Cadastrar Autorização & Enviar Convite
+        </button>
       </form>
 
-      <div id="invite-instructions" class="hidden text-xs bg-indigo-950/60 border border-indigo-700/50 p-3 rounded-lg text-indigo-200 space-y-1">
-        <p class="font-semibold text-indigo-300">✅ Convite registrado!</p>
-        <p>Oriente o convidado a acessar o sistema, clicar em <strong>"Primeiro Acesso / Cadastrar Senha"</strong> e informar o e-mail convidado para criar sua própria senha.</p>
+      <div id="invite-status-box" class="hidden text-xs bg-indigo-950/80 border border-indigo-700/60 p-3 rounded-lg text-indigo-200 space-y-2">
+        <p id="invite-status-msg" class="font-semibold text-indigo-300"></p>
+        <div id="direct-email-action" class="hidden border-t border-indigo-800/60 pt-2 space-y-1">
+          <p class="text-[11px] text-slate-300">Você também pode enviar o convite diretamente pelo seu programa de e-mail:</p>
+          <a id="btn-mailto-link" href="#" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-brand-400 underline font-medium hover:text-brand-300">
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Abrir E-mail Pré-preenchido
+          </a>
+        </div>
       </div>
 
       <div class="space-y-2 border-t border-slate-800 pt-3">
-        <h4 class="text-xs font-semibold text-slate-300">Pessoas com acesso a este Espaço:</h4>
+        <h4 class="text-xs font-semibold text-slate-300">Pessoas Autorizadas no seu Espaço:</h4>
         <div id="shared-users-list" class="max-h-40 overflow-y-auto divide-y divide-slate-800/60 text-xs">
         </div>
       </div>
@@ -345,7 +355,7 @@
       </div>
       <div>
         <h3 class="text-lg font-bold text-slate-100">Excluir Lançamento?</h3>
-        <p class="text-xs text-slate-400 mt-1">Esta ação removerá o lançamento para todos os membros do espaço compartilhado.</p>
+        <p class="text-xs text-slate-400 mt-1">Esta ação removerá o lançamento do espaço compartilhado.</p>
       </div>
       <div class="flex justify-center space-x-3 border-t border-slate-800 pt-4">
         <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition">Cancelar</button>
@@ -377,7 +387,7 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Alterar Senha</label>
-          <input type="password" id="profile-password" placeholder="Digite uma nova senha caso queira mudar" 
+          <input type="password" id="profile-password" placeholder="Nova senha se desejar alterar" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
         </div>
 
@@ -389,7 +399,7 @@
     </div>
   </div>
 
-  <!-- MODAL IMPORTAR ARQUIVO (XLS/XLSX/CSV) -->
+  <!-- MODAL IMPORTAR ARQUIVO -->
   <div id="import-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -452,59 +462,35 @@
           </div>
         </div>
 
-        <!-- CATEGORIAS -->
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs text-slate-400 mb-1">Categoria</label>
             <select id="tx-category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
               <option value="Transferência">Transferência</option>
-
               <optgroup label="Alimentação">
                 <option value="Açougue">Açougue</option>
                 <option value="Almoço">Almoço</option>
                 <option value="Café/Lanches">Café/Lanches</option>
                 <option value="Feira">Feira</option>
-                <option value="Guloseimas">Guloseimas</option>
                 <option value="Padaria">Padaria</option>
                 <option value="Restaurante">Restaurante</option>
                 <option value="Supermercado">Supermercado</option>
               </optgroup>
-
-              <optgroup label="Animal de Estimação">
-                <option value="Pet Shop">Pet Shop</option>
-                <option value="Ração">Ração</option>
-                <option value="Remédio - pet">Remédio - pet</option>
-                <option value="Veterinário">Veterinário</option>
-              </optgroup>
-
               <optgroup label="Casa">
                 <option value="Água">Água</option>
                 <option value="Aluguel">Aluguel</option>
                 <option value="Condomínio">Condomínio</option>
-                <option value="Empregada Doméstica">Empregada Doméstica</option>
                 <option value="Gás">Gás</option>
                 <option value="Internet">Internet</option>
-                <option value="Lavanderia">Lavanderia</option>
                 <option value="Luz">Luz</option>
-                <option value="Manutenção da Casa">Manutenção da Casa</option>
-                <option value="Materiais de Limpeza">Materiais de Limpeza</option>
                 <option value="Telefone">Telefone</option>
-                <option value="TV por assinatura">TV por assinatura</option>
               </optgroup>
-
               <optgroup label="Educação">
-                <option value="Cursos">Cursos</option>
                 <option value="Escola">Escola</option>
                 <option value="Faculdade">Faculdade</option>
-                <option value="Livraria">Livraria</option>
                 <option value="Material Escolar">Material Escolar</option>
-                <option value="Pós-Graduação">Pós-Graduação</option>
               </optgroup>
-
               <optgroup label="Outros">
-                <option value="Gastos Esporádicos">Gastos Esporádicos</option>
-                <option value="Gastos Pessoais">Gastos Pessoais</option>
-                <option value="Impostos">Impostos</option>
                 <option value="Salário">Salário</option>
                 <option value="Outros">Outros</option>
               </optgroup>
@@ -523,7 +509,7 @@
         <div id="recurrence-options" class="border-t border-slate-800 pt-3 space-y-3">
           <div class="flex items-center justify-between">
             <label for="tx-recurring" class="text-xs text-slate-300 font-medium cursor-pointer">
-              Lançamento Fixo Mensal? <span class="text-[10px] text-slate-400 font-normal">(sem data fim / recorrente)</span>
+              Lançamento Fixo Mensal? <span class="text-[10px] text-slate-400 font-normal">(sem data fim)</span>
             </label>
             <input type="checkbox" id="tx-recurring" onchange="toggleFormFields()" class="w-4 h-4 accent-brand-600 rounded cursor-pointer">
           </div>
@@ -549,57 +535,62 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqd2FqeWVlaWJpbnpoeW1obmpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODU0OTgsImV4cCI6MjEwMzc2MTQ5OH0.L9zqtWbGITQds2wltxDbUBwFJ4nERuGk2X2l3A2JejA';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let authMode = 'login';
+    let authMode = 'login'; // 'login', 'register', 'invited'
     let currentUser = null;
+    let currentWorkspaceOwner = null;
     let transactions = [];
     let expensesChart = null;
     let pendingDeleteId = null;
 
-    // BANCO DE USUÁRIOS E PERMISSÕES (LOCALSTORAGE COMPATÍVEL)
     function getUsersDB() {
       const saved = localStorage.getItem('app_registered_users');
-      if (!saved) {
-        const defaultUsers = {
-          'rafaelbeltrame.rb@gmail.com': { name: 'Rafael Beltrame', password: '123', sharedWith: [] }
-        };
-        localStorage.setItem('app_registered_users', JSON.stringify(defaultUsers));
-        return defaultUsers;
-      }
-      return JSON.parse(saved);
+      return saved ? JSON.parse(saved) : {};
     }
 
     function saveUsersDB(usersObj) {
       localStorage.setItem('app_registered_users', JSON.stringify(usersObj));
     }
 
-    // ALTERAR TELA ENTRE ENTRAR E CADASTRAR SENHA
+    // ALTERNADOR ENTRE AS 3 ABAS DE AUTENTICAÇÃO
     function toggleAuthMode(mode) {
       authMode = mode;
       const btnLogin = document.getElementById('btn-login-mode');
       const btnRegister = document.getElementById('btn-register-mode');
+      const btnInvite = document.getElementById('btn-invite-mode');
       const btnSubmit = document.getElementById('btn-auth-submit');
       const nameContainer = document.getElementById('name-field-container');
+      const subtitle = document.getElementById('auth-subtitle');
       const errEl = document.getElementById('login-error');
       const succEl = document.getElementById('login-success');
 
       errEl.classList.add('hidden');
       succEl.classList.add('hidden');
 
+      // Reseta estilos das abas
+      [btnLogin, btnRegister, btnInvite].forEach(btn => {
+        btn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white";
+      });
+
       if (mode === 'login') {
         btnLogin.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
-        btnRegister.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white";
         btnSubmit.innerText = "Entrar na Conta";
+        subtitle.innerText = "Acesse sua conta para gerenciar suas finanças";
         nameContainer.classList.add('hidden');
-      } else {
+      } else if (mode === 'register') {
         btnRegister.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
-        btnLogin.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white";
-        btnSubmit.innerText = "Criar Minha Senha / Acessar";
+        btnSubmit.innerText = "Criar Minha Conta";
+        subtitle.innerText = "Crie seu espaço próprio e 100% isolado";
+        nameContainer.classList.remove('hidden');
+      } else if (mode === 'invited') {
+        btnInvite.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
+        btnSubmit.innerText = "Validar Convite e Acessar";
+        subtitle.innerText = "Acesse o espaço de quem te enviou um convite";
         nameContainer.classList.remove('hidden');
       }
     }
 
-    // AUTENTICAÇÃO E PRIMEIRO ACESSO
-    document.getElementById('login-form').addEventListener('submit', (e) => {
+    // PROCESSAMENTO DA AUTENTICAÇÃO COM VALIDAÇÃO DE CONVITE
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('login-email').value.trim().toLowerCase();
       const password = document.getElementById('login-password').value;
@@ -607,98 +598,182 @@
       const errorEl = document.getElementById('login-error');
       const successEl = document.getElementById('login-success');
 
+      errorEl.classList.add('hidden');
+      successEl.classList.add('hidden');
+
       const usersDB = getUsersDB();
 
+      // MODO 1: LOGIN TRADICIONAL
       if (authMode === 'login') {
-        if (usersDB[email] && usersDB[email].password === password) {
-          currentUser = { email, name: usersDB[email].name || email };
-          localStorage.setItem('app_current_user', JSON.stringify(currentUser));
-          initUserSession();
-        } else {
-          errorEl.innerText = 'E-mail ou senha incorretos! Se você recebeu um convite, clique na aba "Primeiro Acesso / Cadastrar Senha".';
+        if (!usersDB[email]) {
+          errorEl.innerHTML = `⚠️ E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar Conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou Convidado"</strong>.`;
           errorEl.classList.remove('hidden');
+          return;
         }
-      } else {
-        // MODO CADASTRAR SENHA
+
+        if (usersDB[email].password !== password) {
+          errorEl.innerText = 'Senha incorreta! Verifique sua senha e tente novamente.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        currentUser = { email, name: usersDB[email].name || email };
+        localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+        await resolveWorkspaceAndInit();
+      } 
+      
+      // MODO 2: CRIAR CONTA PRÓPRIA (NOVO ESPAÇO)
+      else if (authMode === 'register') {
+        if (usersDB[email]) {
+          errorEl.innerText = 'Este e-mail já possui uma conta cadastrada. Por favor, acesse a aba "Entrar".';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
         usersDB[email] = {
           name: name || email.split('@')[0],
-          password: password,
-          sharedWith: usersDB[email] ? (usersDB[email].sharedWith || []) : []
+          password: password
         };
         saveUsersDB(usersDB);
-
-        successEl.innerText = 'Senha cadastrada com sucesso! Entrando no sistema...';
-        successEl.classList.remove('hidden');
 
         currentUser = { email, name: usersDB[email].name };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
 
-        setTimeout(() => {
-          initUserSession();
-        }, 1000);
+        successEl.innerText = 'Conta criada com sucesso! Acessando seu espaço...';
+        successEl.classList.remove('hidden');
+
+        setTimeout(async () => {
+          await resolveWorkspaceAndInit();
+        }, 800);
+      }
+
+      // MODO 3: PRIMEIRO ACESSO DE CONVIDADO (COM AVISO SE NÃO TIVER CONVITE)
+      else if (authMode === 'invited') {
+        // Consulta no Supabase se este e-mail realmente foi convidado por alguém
+        const { data: inviteData, error: inviteErr } = await db.from('invitations')
+          .select('owner_email')
+          .eq('invited_email', email)
+          .maybeSingle();
+
+        if (!inviteData || !inviteData.owner_email) {
+          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${email}</em> ainda não recebeu autorização de ninguém.<br><br>Se você deseja criar o seu próprio controle financeiro, clique na aba <strong>"Criar Conta"</strong> acima.`;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        // Se tem convite válido no Supabase, cadastra ou atualiza o usuário
+        usersDB[email] = {
+          name: name || email.split('@')[0],
+          password: password
+        };
+        saveUsersDB(usersDB);
+
+        currentUser = { email, name: usersDB[email].name };
+        localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+
+        successEl.innerText = `Convite confirmado! Acessando o espaço de ${inviteData.owner_email}...`;
+        successEl.classList.remove('hidden');
+
+        setTimeout(async () => {
+          await resolveWorkspaceAndInit();
+        }, 800);
       }
     });
 
-    function initUserSession() {
+    // RESOLVE O ESPAÇO DO USUÁRIO
+    async function resolveWorkspaceAndInit() {
+      // 1. Verificar se é convidado em algum espaço
+      const { data: inviteData } = await db.from('invitations')
+        .select('owner_email')
+        .eq('invited_email', currentUser.email)
+        .maybeSingle();
+
+      if (inviteData && inviteData.owner_email) {
+        currentWorkspaceOwner = inviteData.owner_email.toLowerCase();
+      } else {
+        // Se não for convidado, é o proprietário do seu próprio espaço
+        currentWorkspaceOwner = currentUser.email.toLowerCase();
+      }
+
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
+      document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
+      
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
-      loadTransactionsFromDB();
+
+      await loadTransactionsFromDB();
     }
 
     function logout() {
       localStorage.removeItem('app_current_user');
       currentUser = null;
+      currentWorkspaceOwner = null;
       document.getElementById('login-email').value = '';
       document.getElementById('login-password').value = '';
+      document.getElementById('login-name').value = '';
       document.getElementById('dashboard-view').classList.add('hidden');
       document.getElementById('login-view').classList.remove('hidden');
+      toggleAuthMode('login');
     }
 
-    // COMPARTILHAMENTO UNIFICADO (VÍNCULO DE ESPAÇO)
-    function openShareModal() {
-      renderSharedUsersList();
+    // CARREGAR TRANSAÇÕES DO ESPAÇO
+    async function loadTransactionsFromDB() {
+      if (!currentWorkspaceOwner) return;
+
+      const { data, error } = await db.from('transactions')
+        .select('*')
+        .or(`user_email.eq.${currentWorkspaceOwner},owner_email.eq.${currentWorkspaceOwner}`)
+        .order('due_date', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar lançamentos:', error);
+        return;
+      }
+
+      transactions = (data || []).map(item => ({
+        id: item.id,
+        description: item.description,
+        amount: parseFloat(item.amount),
+        type: item.type,
+        category: item.category,
+        dueDate: item.due_date,
+        status: item.status,
+        isRecurring: item.is_recurring,
+        userEmail: item.user_email || item.owner_email
+      }));
+
+      renderDashboard();
+    }
+
+    // MODAL DE COMPARTILHAMENTO
+    async function openShareModal() {
+      await renderSharedUsersList();
       document.getElementById('share-modal').classList.remove('hidden');
-      document.getElementById('invite-instructions').classList.add('hidden');
+      document.getElementById('invite-status-box').classList.add('hidden');
     }
 
     function closeShareModal() {
       document.getElementById('share-modal').classList.add('hidden');
     }
 
-    function getSharedCircle() {
-      const usersDB = getUsersDB();
-      const circle = new Set([currentUser.email]);
-
-      // Procura quem o usuário convidou e quem convidou o usuário
-      Object.keys(usersDB).forEach(uEmail => {
-        const uData = usersDB[uEmail];
-        if (uEmail === currentUser.email) {
-          (uData.sharedWith || []).forEach(e => circle.add(e));
-        } else if ((uData.sharedWith || []).includes(currentUser.email)) {
-          circle.add(uEmail);
-          (uData.sharedWith || []).forEach(e => circle.add(e));
-        }
-      });
-
-      return Array.from(circle);
-    }
-
-    function renderSharedUsersList() {
+    async function renderSharedUsersList() {
       const container = document.getElementById('shared-users-list');
-      const circle = getSharedCircle().filter(e => e !== currentUser.email);
+      
+      const { data: invites } = await db.from('invitations')
+        .select('invited_email')
+        .eq('owner_email', currentUser.email);
 
-      if (circle.length === 0) {
-        container.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Você é o único membro deste espaço financeiro.</p>`;
+      if (!invites || invites.length === 0) {
+        container.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Nenhum convidado adicionado ao seu espaço.</p>`;
         return;
       }
 
-      container.innerHTML = circle.map(email => `
+      container.innerHTML = invites.map(inv => `
         <div class="flex items-center justify-between py-2">
           <span class="text-slate-300 font-medium flex items-center gap-1.5">
-            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i> ${email}
+            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i> ${inv.invited_email}
           </span>
-          <button onclick="removeSharedUser('${email}')" title="Remover acesso" class="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+          <button onclick="removeSharedUser('${inv.invited_email}')" title="Remover permissão" class="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -707,52 +782,63 @@
       lucide.createIcons();
     }
 
-    function addSharedUser(e) {
+    async function addSharedUser(e) {
       e.preventDefault();
       const input = document.getElementById('share-email-input');
       const email = input.value.trim().toLowerCase();
       if (!email) return;
 
       if (email === currentUser.email) {
-        alert('Você já é o proprietário principal deste espaço.');
+        alert('Você é o dono principal deste espaço.');
         return;
       }
 
-      const usersDB = getUsersDB();
-      if (!usersDB[currentUser.email]) {
-        usersDB[currentUser.email] = { name: currentUser.name, password: '123', sharedWith: [] };
-      }
-      if (!usersDB[currentUser.email].sharedWith) {
-        usersDB[currentUser.email].sharedWith = [];
+      const { error } = await db.from('invitations').upsert({
+        owner_email: currentUser.email,
+        invited_email: email
+      }, { onConflict: 'owner_email,invited_email' });
+
+      if (error) {
+        console.warn('Erro ao salvar convite:', error);
       }
 
-      if (!usersDB[currentUser.email].sharedWith.includes(email)) {
-        usersDB[currentUser.email].sharedWith.push(email);
-        
-        // Se a pessoa ainda não existe no DB, cria um registro pendente
-        if (!usersDB[email]) {
-          usersDB[email] = { name: email.split('@')[0], password: '', sharedWith: [currentUser.email] };
-        }
-        
-        saveUsersDB(usersDB);
-        input.value = '';
-        renderSharedUsersList();
-        document.getElementById('invite-instructions').classList.remove('hidden');
-        loadTransactionsFromDB();
-      }
+      const appLink = window.location.href;
+      const subject = encodeURIComponent("Convite para Espaço de Controle Financeiro");
+      const body = encodeURIComponent(
+        `Olá!\n\n${currentUser.name} (${currentUser.email}) te convidou para compartilhar a gestão financeira no aplicativo Controle Financeiro.\n\n` +
+        `Para acessar:\n` +
+        `1. Acesse o link: ${appLink}\n` +
+        `2. Clique na aba "Sou Convidado"\n` +
+        `3. Informe seu e-mail (${email}) e crie sua senha de acesso.\n\n` +
+        `Atenciosamente,`
+      );
+
+      const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+
+      const statusBox = document.getElementById('invite-status-box');
+      const statusMsg = document.getElementById('invite-status-msg');
+      const mailtoBtn = document.getElementById('btn-mailto-link');
+      const directAction = document.getElementById('direct-email-action');
+
+      statusMsg.innerText = `✅ Autorização registrada com sucesso para ${email}!`;
+      mailtoBtn.href = mailtoUrl;
+      directAction.classList.remove('hidden');
+      statusBox.classList.remove('hidden');
+
+      input.value = '';
+      await renderSharedUsersList();
     }
 
-    function removeSharedUser(email) {
-      const usersDB = getUsersDB();
-      if (usersDB[currentUser.email] && usersDB[currentUser.email].sharedWith) {
-        usersDB[currentUser.email].sharedWith = usersDB[currentUser.email].sharedWith.filter(e => e !== email);
-        saveUsersDB(usersDB);
-      }
-      renderSharedUsersList();
-      loadTransactionsFromDB();
+    async function removeSharedUser(email) {
+      await db.from('invitations')
+        .delete()
+        .eq('owner_email', currentUser.email)
+        .eq('invited_email', email);
+
+      await renderSharedUsersList();
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
       const today = new Date();
       document.getElementById('tx-date').value = today.toISOString().split('T')[0];
@@ -763,7 +849,7 @@
       const savedCurrent = localStorage.getItem('app_current_user');
       if (savedCurrent) {
         currentUser = JSON.parse(savedCurrent);
-        initUserSession();
+        await resolveWorkspaceAndInit();
       }
     });
 
@@ -808,6 +894,7 @@
       document.getElementById('profile-password').value = '';
       document.getElementById('profile-modal').classList.remove('hidden');
     }
+
     function closeProfileModal() {
       document.getElementById('profile-modal').classList.add('hidden');
     }
@@ -874,13 +961,14 @@
               category: row['Categoria'] || 'Outros',
               due_date: dueDate,
               status: 'pending',
-              user_email: currentUser.email
+              user_email: currentWorkspaceOwner,
+              owner_email: currentWorkspaceOwner
             });
           }
 
           if (newTransactions.length > 0) {
             await db.from('transactions').insert(newTransactions);
-            document.getElementById('import-status').innerText = `${newTransactions.length} lançamentos importados no espaço compartilhado!`;
+            document.getElementById('import-status').innerText = `${newTransactions.length} lançamentos importados no espaço!`;
             document.getElementById('import-status').classList.remove('hidden');
             setTimeout(() => {
               closeImportModal();
@@ -893,27 +981,6 @@
         }
       };
       reader.readAsArrayBuffer(file);
-    }
-
-    async function loadTransactionsFromDB() {
-      const { data, error } = await db.from('transactions').select('*').order('due_date', { ascending: true });
-      if (error) {
-        console.error('Erro ao buscar lançamentos:', error);
-        return;
-      }
-
-      transactions = data.map(item => ({
-        id: item.id,
-        description: item.description,
-        amount: parseFloat(item.amount),
-        type: item.type,
-        category: item.category,
-        dueDate: item.due_date,
-        status: item.status,
-        isRecurring: item.is_recurring,
-        userEmail: item.user_email || currentUser.email
-      }));
-      renderDashboard();
     }
 
     function openModal(editId = null) {
@@ -984,11 +1051,11 @@
       const status = document.getElementById('tx-status').value;
       const isRecurring = document.getElementById('tx-recurring').checked;
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
-      const userEmail = currentUser.email;
 
       if (id) {
         await db.from('transactions').update({
-          description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: isRecurring, user_email: userEmail
+          description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: isRecurring,
+          user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
         }).eq('id', id);
       } else {
         const newRows = [];
@@ -997,7 +1064,7 @@
             newRows.push({
               description, amount: totalAmount, type, category,
               due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
-              is_recurring: true, user_email: userEmail
+              is_recurring: true, user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
             });
           }
         } else if (installments > 1) {
@@ -1007,12 +1074,13 @@
               description: `${description} (${i + 1}/${installments})`,
               amount: installmentValue, type, category,
               due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
-              is_recurring: false, user_email: userEmail
+              is_recurring: false, user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
             });
           }
         } else {
           newRows.push({
-            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false, user_email: userEmail
+            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false,
+            user_email: currentWorkspaceOwner, owner_email: currentWorkspaceOwner
           });
         }
         await db.from('transactions').insert(newRows);
@@ -1034,7 +1102,7 @@
     function deleteTransaction(id) {
       const item = transactions.find(t => t.id === id);
       if (item && item.status === 'completed') {
-        alert('Lançamentos pagos/recebidos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
+        alert('Lançamentos concluídos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
         return;
       }
       pendingDeleteId = id;
@@ -1058,21 +1126,16 @@
       if (!currentUser) return;
       const selectedMonth = document.getElementById('month-filter').value;
       const includePrevious = document.getElementById('chk-include-previous').checked;
-      
-      const sharedCircle = getSharedCircle();
-
-      // TODOS OS LANÇAMENTOS DO ESPAÇO UNIFICADO
-      const workspaceTransactions = transactions.filter(t => sharedCircle.includes(t.userEmail.toLowerCase()));
 
       let previousBalance = 0;
-      workspaceTransactions.forEach(t => {
+      transactions.forEach(t => {
         if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
           if (t.type === 'income') previousBalance += t.amount;
           else previousBalance -= t.amount;
         }
       });
 
-      const monthTransactions = workspaceTransactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
+      const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
 
       let monthIncome = 0;
       let monthExpense = 0;
@@ -1097,14 +1160,14 @@
       totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       totalEl.className = totalBalance < 0 ? 'text-2xl font-bold text-rose-500' : 'text-2xl font-bold text-emerald-400';
 
-      renderDashboardLists(selectedMonth, workspaceTransactions);
+      renderDashboardLists(selectedMonth);
       renderFullHistoryTable(monthTransactions);
       renderCategoryChart(categoryTotals);
 
       lucide.createIcons();
     }
 
-    function renderDashboardLists(selectedMonth, activeTransactions) {
+    function renderDashboardLists(selectedMonth) {
       const previousList = document.getElementById('list-previous-pending');
       const nextList = document.getElementById('list-next-pending');
       const alertsList = document.getElementById('list-alerts');
@@ -1115,7 +1178,7 @@
 
       const todayStr = new Date().toISOString().split('T')[0];
 
-      activeTransactions.forEach(t => {
+      transactions.forEach(t => {
         if (t.status !== 'pending') return;
 
         const valFormatted = (t.type === 'expense' ? '-' : '+') + `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
@@ -1175,7 +1238,7 @@
               <i data-lucide="pencil" class="w-4 h-4"></i>
             </button>
             <button onclick="deleteTransaction(${t.id})" 
-              title="${isPaid ? 'Não é possível excluir um lançamento já concluído' : 'Excluir'}" 
+              title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
               class="p-1.5 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-600' : 'hover:bg-slate-800 text-slate-400 hover:text-rose-400'}">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
