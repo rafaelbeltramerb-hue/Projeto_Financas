@@ -69,186 +69,220 @@
     </div>
   </div>
 
-  <!-- PAINEL PRINCIPAL (DASHBOARD) -->
+  <!-- PAINEL PRINCIPAL -->
   <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
-    <header class="glass sticky top-0 z-20 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
+    <!-- HEADER COM NAVEGAÇÃO POR ABAS/TELAS -->
+    <header class="glass sticky top-0 z-20 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
         <div class="w-9 h-9 rounded-lg bg-brand-500/20 text-brand-500 flex items-center justify-center">
           <i data-lucide="wallet" class="w-5 h-5"></i>
         </div>
-        <span class="font-bold text-lg">Controle Financeiro</span>
+        <span class="font-bold text-lg hidden sm:inline">Controle Financeiro</span>
       </div>
+
+      <!-- BOTÕES NAVEGAÇÃO DE TELAS -->
+      <nav class="flex space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+        <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+        </button>
+        <button id="btn-tab-transactions" onclick="switchTab('transactions')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5">
+          <i data-lucide="receipt" class="w-4 h-4"></i> Lançamentos Mensais
+        </button>
+      </nav>
       
-      <div class="flex items-center space-x-3">
-        <button onclick="openImportModal()" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+      <div class="flex items-center space-x-2">
+        <button onclick="openImportModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
           <i data-lucide="file-up" class="w-4 h-4 text-brand-400"></i>
-          <span>Importar (XLS/CSV)</span>
+          <span class="hidden md:inline">Importar (XLS/CSV)</span>
         </button>
 
-        <button onclick="openProfileModal()" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-slate-800 text-slate-300 transition">
+        <button onclick="openProfileModal()" class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 transition">
           <div class="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold">
             <i data-lucide="user" class="w-4 h-4"></i>
           </div>
-          <span id="user-display" class="text-sm font-medium hidden sm:inline">Usuário</span>
+          <span id="user-display" class="text-xs font-medium hidden lg:inline">Usuário</span>
         </button>
 
         <button onclick="logout()" title="Sair" class="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition">
-          <i data-lucide="log-out" class="w-5 h-5"></i>
+          <i data-lucide="log-out" class="w-4 h-4"></i>
         </button>
       </div>
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-      <!-- CABEÇALHO MENSAL -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      
+      <!-- CONTROLES FIXOS SUPERIORES (MÊS & NOVA TRANSAÇÃO) -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass p-4 rounded-2xl">
         <div>
-          <h2 class="text-2xl font-bold">Painel de Controle</h2>
-          <p class="text-xs sm:text-sm text-slate-400">Resumo consolidado das movimentações financeiras</p>
+          <h2 id="page-title" class="text-xl font-bold">Painel de Controle</h2>
+          <p id="page-subtitle" class="text-xs text-slate-400">Resumo consolidado das movimentações financeiras</p>
         </div>
 
         <div class="flex items-center gap-3">
           <div class="flex items-center space-x-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 shadow-sm">
             <i data-lucide="calendar" class="w-4 h-4 text-brand-500"></i>
             <span class="text-xs text-slate-400 hidden sm:inline">Mês:</span>
-            <input type="month" id="month-filter" onchange="renderDashboard()" class="bg-transparent text-sm focus:outline-none text-slate-200 font-medium">
+            <input type="month" id="month-filter" onchange="renderDashboard()" class="bg-transparent text-xs sm:text-sm focus:outline-none text-slate-200 font-medium">
           </div>
 
           <button onclick="openModal()" 
-            class="inline-flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl font-medium transition shadow-lg shadow-brand-600/20">
+            class="inline-flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition shadow-lg shadow-brand-600/20">
             <i data-lucide="plus" class="w-4 h-4"></i>
             <span>Nova Transação</span>
           </button>
         </div>
       </div>
 
-      <!-- GRID NO ESTILO DA IMAGEM 2 -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        <!-- BLROCO ESQUERDO: ENTRADAS/SAÍDAS + GRÁFICO DE PIZZA -->
-        <div class="space-y-6">
-          <!-- CARD ENTRADAS E SAÍDAS -->
-          <div class="glass p-5 rounded-2xl space-y-4">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-              <h3 class="font-bold text-slate-200 text-base">Entradas e saídas</h3>
-              <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
-                <input type="checkbox" id="chk-include-previous" onchange="renderDashboard()" checked class="accent-brand-600 rounded">
-                <span>Incluir saldo anterior</span>
-              </label>
-            </div>
-            
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between items-center text-slate-400">
-                <span>Saldo anterior</span>
-                <span id="txt-previous-balance" class="font-semibold text-rose-400">R$ 0,00</span>
+      <!-- TELA 1: DASHBOARD -->
+      <div id="tab-dashboard" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          
+          <!-- BLOCO ESQUERDO: ENTRADAS/SAÍDAS + GRÁFICO DE PIZZA -->
+          <div class="space-y-6">
+            <!-- CARD ENTRADAS E SAÍDAS -->
+            <div class="glass p-5 rounded-2xl space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-slate-200 text-base">Entradas e saídas</h3>
+                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                  <input type="checkbox" id="chk-include-previous" onchange="renderDashboard()" checked class="accent-brand-600 rounded">
+                  <span>Incluir saldo anterior</span>
+                </label>
               </div>
-              <div class="flex justify-between items-center text-slate-400">
-                <span>Entradas</span>
-                <span id="txt-month-income" class="font-semibold text-slate-300">R$ 0,00</span>
+              
+              <div class="space-y-2 text-sm">
+                <div class="flex justify-between items-center text-slate-400">
+                  <span>Saldo anterior</span>
+                  <span id="txt-previous-balance" class="font-semibold text-rose-400">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-400">
+                  <span>Entradas</span>
+                  <span id="txt-month-income" class="font-semibold text-slate-300">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-400">
+                  <span>Saídas</span>
+                  <span id="txt-month-expense" class="font-semibold text-rose-400">-R$ 0,00</span>
+                </div>
+                <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-lg font-bold">
+                  <span>Total</span>
+                  <span id="txt-total-balance" class="text-2xl text-rose-500">R$ 0,00</span>
+                </div>
               </div>
-              <div class="flex justify-between items-center text-slate-400">
-                <span>Saídas</span>
-                <span id="txt-month-expense" class="font-semibold text-rose-400">-R$ 0,00</span>
+            </div>
+
+            <!-- CARD GRÁFICO DE DESPESAS POR CATEGORIA -->
+            <div class="glass p-5 rounded-2xl space-y-3">
+              <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Despesas por Categoria</h3>
+              <div class="w-full flex items-center justify-center p-2" style="max-height: 260px;">
+                <canvas id="expensesChart"></canvas>
               </div>
-              <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-lg font-bold">
-                <span>Total</span>
-                <span id="txt-total-balance" class="text-2xl text-rose-500">R$ 0,00</span>
+            </div>
+          </div>
+
+          <!-- BLOCO DIREITO: PENDÊNCIAS ANTERIORES, PRÓXIMAS E ALERTAS -->
+          <div class="space-y-6">
+            <!-- ANTERIORES NÃO CONSOLIDADAS -->
+            <div class="glass p-5 rounded-2xl space-y-3">
+              <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Anteriores não consolidadas</h3>
+              <div class="max-h-40 overflow-y-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="text-slate-500 border-b border-slate-800">
+                    <tr>
+                      <th class="pb-2">Transação</th>
+                      <th class="pb-2">Data</th>
+                      <th class="pb-2 text-right">Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="list-previous-pending" class="divide-y divide-slate-800/40 text-slate-300">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PRÓXIMAS NÃO CONSOLIDADAS -->
+            <div class="glass p-5 rounded-2xl space-y-3">
+              <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Próximas não consolidadas</h3>
+              <div class="max-h-48 overflow-y-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="text-slate-500 border-b border-slate-800">
+                    <tr>
+                      <th class="pb-2">Transação</th>
+                      <th class="pb-2">Data</th>
+                      <th class="pb-2 text-right">Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="list-next-pending" class="divide-y divide-slate-800/40 text-slate-300">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- PRÓXIMAS COM ALERTA -->
+            <div class="glass p-5 rounded-2xl space-y-3 border-l-4 border-amber-500">
+              <h3 class="font-bold text-amber-400 text-base border-b border-slate-800 pb-2 flex items-center gap-2">
+                <i data-lucide="alert-circle" class="w-4 h-4"></i> Próximas com alerta
+              </h3>
+              <div class="max-h-36 overflow-y-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="text-slate-500 border-b border-slate-800">
+                    <tr>
+                      <th class="pb-2">Transação</th>
+                      <th class="pb-2">Data</th>
+                      <th class="pb-2 text-right">Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="list-alerts" class="divide-y divide-slate-800/40 text-slate-300">
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <!-- CARD GRÁFICO DE DESPESAS POR CATEGORIA -->
-          <div class="glass p-5 rounded-2xl space-y-3">
-            <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Despesas por Categoria</h3>
-            <div class="w-full flex items-center justify-center p-2" style="max-height: 260px;">
-              <canvas id="expensesChart"></canvas>
-            </div>
-          </div>
-        </div>
-
-        <!-- BLOCO DIREITO: PENDÊNCIAS ANTERIORES, PRÓXIMAS E ALERTAS -->
-        <div class="space-y-6">
-          <!-- ANTERIORES NÃO CONSOLIDADAS -->
-          <div class="glass p-5 rounded-2xl space-y-3">
-            <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Anteriores não consolidadas</h3>
-            <div class="max-h-40 overflow-y-auto">
-              <table class="w-full text-xs text-left">
-                <thead class="text-slate-500 border-b border-slate-800">
-                  <tr>
-                    <th class="pb-2">Transação</th>
-                    <th class="pb-2">Data</th>
-                    <th class="pb-2 text-right">Valor (R$)</th>
-                  </tr>
-                </thead>
-                <tbody id="list-previous-pending" class="divide-y divide-slate-800/40 text-slate-300">
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- PRÓXIMAS NÃO CONSOLIDADAS -->
-          <div class="glass p-5 rounded-2xl space-y-3">
-            <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Próximas não consolidadas</h3>
-            <div class="max-h-48 overflow-y-auto">
-              <table class="w-full text-xs text-left">
-                <thead class="text-slate-500 border-b border-slate-800">
-                  <tr>
-                    <th class="pb-2">Transação</th>
-                    <th class="pb-2">Data</th>
-                    <th class="pb-2 text-right">Valor (R$)</th>
-                  </tr>
-                </thead>
-                <tbody id="list-next-pending" class="divide-y divide-slate-800/40 text-slate-300">
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- PRÓXIMAS COM ALERTA -->
-          <div class="glass p-5 rounded-2xl space-y-3 border-l-4 border-amber-500">
-            <h3 class="font-bold text-amber-400 text-base border-b border-slate-800 pb-2 flex items-center gap-2">
-              <i data-lucide="alert-circle" class="w-4 h-4"></i> Próximas com alerta
-            </h3>
-            <div class="max-h-36 overflow-y-auto">
-              <table class="w-full text-xs text-left">
-                <thead class="text-slate-500 border-b border-slate-800">
-                  <tr>
-                    <th class="pb-2">Transação</th>
-                    <th class="pb-2">Data</th>
-                    <th class="pb-2 text-right">Valor (R$)</th>
-                  </tr>
-                </thead>
-                <tbody id="list-alerts" class="divide-y divide-slate-800/40 text-slate-300">
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- TABELA COMPLETA DE HISTÓRICO -->
-      <div class="glass rounded-2xl overflow-hidden mt-8">
-        <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-          <h3 class="font-semibold text-slate-200">Histórico Completo do Mês Selecionado</h3>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm">
-            <thead class="bg-slate-900/50 text-slate-400 border-b border-slate-800">
-              <tr>
-                <th class="p-4">Descrição</th>
-                <th class="p-4">Categoria</th>
-                <th class="p-4">Vencimento</th>
-                <th class="p-4">Valor</th>
-                <th class="p-4">Status</th>
-                <th class="p-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="transactions-list" class="divide-y divide-slate-800/50">
-            </tbody>
-          </table>
         </div>
       </div>
+
+      <!-- TELA 2: LANÇAMENTOS MENSAIS -->
+      <div id="tab-transactions" class="hidden space-y-6">
+        <div class="glass rounded-2xl overflow-hidden">
+          <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+            <h3 class="font-semibold text-slate-200">Histórico Completo do Mês Selecionado</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-900/50 text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th class="p-4">Descrição</th>
+                  <th class="p-4">Categoria</th>
+                  <th class="p-4">Vencimento</th>
+                  <th class="p-4">Valor</th>
+                  <th class="p-4">Status</th>
+                  <th class="p-4 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="transactions-list" class="divide-y divide-slate-800/50">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
     </main>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
+  <div id="delete-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass w-full max-w-sm p-6 rounded-2xl shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 bg-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-100">Excluir Lançamento?</h3>
+        <p class="text-xs text-slate-400 mt-1">Tem certeza que deseja excluir esta transação? Esta ação não poderá ser desfeita.</p>
+      </div>
+      <div class="flex justify-center space-x-3 border-t border-slate-800 pt-4">
+        <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition">Cancelar</button>
+        <button onclick="confirmDeleteTransaction()" class="bg-rose-600 hover:bg-rose-500 text-white font-medium px-4 py-2 rounded-lg text-xs transition shadow-lg shadow-rose-600/30">Confirmar Exclusão</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL EDITAR PERFIL DO USUÁRIO -->
@@ -349,7 +383,7 @@
           </div>
         </div>
 
-        <!-- CATEGORIAS AMPLIADAS -->
+        <!-- CATEGORIAS -->
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs text-slate-400 mb-1">Categoria</label>
@@ -445,6 +479,7 @@
 
     let transactions = [];
     let expensesChart = null;
+    let pendingDeleteId = null;
     let currentUser = {
       name: 'Rafael Beltrame',
       email: 'demo@finanflow.com'
@@ -458,6 +493,32 @@
       const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
       document.getElementById('month-filter').value = currentYearMonth;
     });
+
+    // TROCA DE TELAS / ABAS
+    function switchTab(tabName) {
+      const tabDashboard = document.getElementById('tab-dashboard');
+      const tabTransactions = document.getElementById('tab-transactions');
+      const btnDashboard = document.getElementById('btn-tab-dashboard');
+      const btnTransactions = document.getElementById('btn-tab-transactions');
+      const pageTitle = document.getElementById('page-title');
+      const pageSubtitle = document.getElementById('page-subtitle');
+
+      if (tabName === 'dashboard') {
+        tabDashboard.classList.remove('hidden');
+        tabTransactions.classList.add('hidden');
+        btnDashboard.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5";
+        btnTransactions.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5";
+        pageTitle.innerText = "Painel de Controle";
+        pageSubtitle.innerText = "Resumo consolidado das movimentações financeiras";
+      } else {
+        tabDashboard.classList.add('hidden');
+        tabTransactions.classList.remove('hidden');
+        btnTransactions.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5";
+        btnDashboard.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5";
+        pageTitle.innerText = "Lançamentos Mensais";
+        pageSubtitle.innerText = "Histórico detalhado e gestão das transações do mês";
+      }
+    }
 
     // Login
     document.getElementById('login-form').addEventListener('submit', (e) => {
@@ -490,7 +551,6 @@
       currentUser.email = document.getElementById('profile-email').value;
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
       closeProfileModal();
-      alert('Perfil do usuário atualizado com sucesso!');
     }
 
     // Modal Importação
@@ -619,7 +679,7 @@
       else expenseOptions.classList.add('hidden');
     }
 
-    // Salvar/Editar
+    // Salvar/Editar Transação
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -670,17 +730,30 @@
       }
     }
 
-    async function deleteTransaction(id) {
-      await db.from('transactions').delete().eq('id', id);
-      await loadTransactionsFromDB();
+    // AVISO E EXCLUSÃO DE TRANSAÇÃO
+    function deleteTransaction(id) {
+      pendingDeleteId = id;
+      document.getElementById('delete-modal').classList.remove('hidden');
     }
 
-    // Renderizar Dashboard com estilo da Imagem 2
+    function closeDeleteModal() {
+      pendingDeleteId = null;
+      document.getElementById('delete-modal').classList.add('hidden');
+    }
+
+    async function confirmDeleteTransaction() {
+      if (pendingDeleteId) {
+        await db.from('transactions').delete().eq('id', pendingDeleteId);
+        closeDeleteModal();
+        await loadTransactionsFromDB();
+      }
+    }
+
+    // Renderizar Dados
     function renderDashboard() {
-      const selectedMonth = document.getElementById('month-filter').value; // Formato YYYY-MM
+      const selectedMonth = document.getElementById('month-filter').value;
       const includePrevious = document.getElementById('chk-include-previous').checked;
 
-      // Calcular Saldo Anterior (antes do mês selecionado)
       let previousBalance = 0;
       transactions.forEach(t => {
         if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
@@ -689,7 +762,6 @@
         }
       });
 
-      // Transações do mês selecionado
       const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
 
       let monthIncome = 0;
@@ -701,14 +773,12 @@
           if (t.status === 'completed') monthIncome += t.amount;
         } else {
           if (t.status === 'completed') monthExpense += t.amount;
-          // Para o gráfico de pizza (despesas totais do mês)
           categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
         }
       });
 
       const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
 
-      // Atualizar valores do Bloco Entradas e saídas
       document.getElementById('txt-previous-balance').innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('txt-month-income').innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
@@ -721,13 +791,8 @@
         totalEl.className = 'text-2xl font-bold text-emerald-400';
       }
 
-      // Renderizar Tabelas do Dashboard (Anteriores, Próximas, Alertas)
       renderDashboardLists(selectedMonth);
-
-      // Renderizar Tabela Geral
       renderFullHistoryTable(monthTransactions);
-
-      // Renderizar Gráfico de Pizza
       renderCategoryChart(categoryTotals);
 
       lucide.createIcons();
@@ -758,16 +823,12 @@
           </tr>
         `;
 
-        // Anteriores não consolidadas (Vencimento anterior ao mês selecionado)
         if (t.dueDate < selectedMonth + '-01') {
           previousList.innerHTML += rowHTML;
-        }
-        // Próximas não consolidadas (No mês selecionado ou futuro)
-        else if (t.dueDate >= selectedMonth + '-01') {
+        } else if (t.dueDate >= selectedMonth + '-01') {
           nextList.innerHTML += rowHTML;
         }
 
-        // Alertas (Vencidos ou a vencer nos próximos 5 dias)
         const diffDays = Math.ceil((new Date(t.dueDate) - new Date(todayStr)) / (1000 * 60 * 60 * 24));
         if (diffDays <= 5) {
           alertsList.innerHTML += rowHTML;
@@ -801,13 +862,13 @@
             </span>
           </td>
           <td class="p-4 text-right space-x-1">
-            <button onclick="toggleStatus(${t.id})" title="Confirmar/Cancelar status" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-400">
+            <button onclick="toggleStatus(${t.id})" title="Confirmar/Cancelar status" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-400 transition">
               <i data-lucide="${isPaid ? 'undo-2' : 'check-circle'}" class="w-4 h-4"></i>
             </button>
-            <button onclick="openModal(${t.id})" title="Editar" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white">
+            <button onclick="openModal(${t.id})" title="Editar" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
               <i data-lucide="pencil" class="w-4 h-4"></i>
             </button>
-            <button onclick="deleteTransaction(${t.id})" title="Excluir" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400">
+            <button onclick="deleteTransaction(${t.id})" title="Excluir" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </td>
@@ -816,7 +877,6 @@
       });
     }
 
-    // Gerador de Gráfico de Pizza (Chart.js)
     function renderCategoryChart(categoryTotals) {
       const ctx = document.getElementById('expensesChart').getContext('2d');
       const labels = Object.keys(categoryTotals);
@@ -826,9 +886,7 @@
         expensesChart.destroy();
       }
 
-      if (labels.length === 0) {
-        return;
-      }
+      if (labels.length === 0) return;
 
       expensesChart = new Chart(ctx, {
         type: 'pie',
