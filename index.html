@@ -72,7 +72,7 @@
 
   <!-- PAINEL PRINCIPAL -->
   <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
-    <!-- HEADER COM NAVEGAÇÃO POR ABAS/TELAS -->
+    <!-- HEADER COM NAVEGAÇÃO -->
     <header class="glass sticky top-0 z-20 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
         <div class="w-9 h-9 rounded-lg bg-brand-500/20 text-brand-500 flex items-center justify-center">
@@ -140,7 +140,6 @@
           
           <!-- BLOCO ESQUERDO: ENTRADAS/SAÍDAS + GRÁFICO DE PIZZA -->
           <div class="space-y-6">
-            <!-- CARD ENTRADAS E SAÍDAS -->
             <div class="glass p-5 rounded-2xl space-y-4">
               <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <h3 class="font-bold text-slate-200 text-base">Entradas e saídas</h3>
@@ -170,7 +169,6 @@
               </div>
             </div>
 
-            <!-- CARD GRÁFICO DE DESPESAS POR CATEGORIA -->
             <div class="glass p-5 rounded-2xl space-y-3">
               <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Despesas por Categoria</h3>
               <div class="w-full flex items-center justify-center p-2" style="max-height: 260px;">
@@ -449,15 +447,20 @@
           </div>
         </div>
 
-        <div id="expense-options" class="hidden border-t border-slate-800 pt-3 space-y-3">
+        <!-- OPÇÕES DE RECORRÊNCIA E PARCELAMENTO (SUPORTA RECEITA E DESPESA) -->
+        <div id="recurrence-options" class="border-t border-slate-800 pt-3 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-slate-400">Despesa Fixa Mensal?</span>
-            <input type="checkbox" id="tx-recurring" class="w-4 h-4 accent-brand-600 rounded">
+            <label for="tx-recurring" class="text-xs text-slate-300 font-medium cursor-pointer">
+              Lançamento Fixo Mensal? <span class="text-[10px] text-slate-400 font-normal">(sem data fim / recorrente)</span>
+            </label>
+            <input type="checkbox" id="tx-recurring" onchange="toggleFormFields()" class="w-4 h-4 accent-brand-600 rounded cursor-pointer">
           </div>
-          <div>
+          
+          <div id="installments-container">
             <label class="block text-xs text-slate-400 mb-1">Número de Parcelas</label>
             <input type="number" id="tx-installments" min="1" max="72" value="1" placeholder="1 para à vista" 
               class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            <p class="text-[10px] text-slate-400 mt-1">O <strong>Valor Total</strong> será dividido automaticamente pelas parcelas informadas.</p>
           </div>
         </div>
 
@@ -479,7 +482,6 @@
     let expensesChart = null;
     let pendingDeleteId = null;
 
-    // GERENCIAMENTO PERSISTENTE DO USUÁRIO NO LOCALSTORAGE
     function getStoredUser() {
       const saved = localStorage.getItem('app_user');
       if (saved) return JSON.parse(saved);
@@ -499,7 +501,6 @@
       document.getElementById('month-filter').value = currentYearMonth;
     });
 
-    // TROCA DE TELAS / ABAS
     function switchTab(tabName) {
       const tabDashboard = document.getElementById('tab-dashboard');
       const tabTransactions = document.getElementById('tab-transactions');
@@ -525,7 +526,7 @@
       }
     }
 
-    // LOGIN AUTÊNTICO COM O USUÁRIO SALVO
+    // LOGIN COM PERSISTÊNCIA LOCAL
     document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const inputEmail = document.getElementById('login-email').value.trim();
@@ -554,7 +555,6 @@
       document.getElementById('login-view').classList.remove('hidden');
     }
 
-    // Modal Perfil
     function openProfileModal() {
       document.getElementById('profile-name').value = currentUser.name || '';
       document.getElementById('profile-email').value = currentUser.email || '';
@@ -583,7 +583,6 @@
       alert('Perfil e dados de acesso salvos com sucesso!');
     }
 
-    // Modal Importação
     function openImportModal() {
       document.getElementById('import-modal').classList.remove('hidden');
       document.getElementById('import-status').classList.add('hidden');
@@ -592,7 +591,6 @@
       document.getElementById('import-modal').classList.add('hidden');
     }
 
-    // Processar Arquivo Excel / CSV
     async function processImportFile() {
       const fileInput = document.getElementById('file-input');
       const file = fileInput.files[0];
@@ -677,7 +675,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // Carregar Banco de Dados
     async function loadTransactionsFromDB() {
       const { data, error } = await db.from('transactions').select('*').order('due_date', { ascending: true });
       if (error) {
@@ -727,20 +724,26 @@
       document.getElementById('modal').classList.add('hidden');
     }
 
+    // ALTERA VISIBILIDADE DE CAMPOS RECORRENTES E PARCELAS
     function toggleFormFields() {
-      const isExpense = document.getElementById('type-expense').checked;
-      const expenseOptions = document.getElementById('expense-options');
-      if (isExpense) expenseOptions.classList.remove('hidden');
-      else expenseOptions.classList.add('hidden');
+      const isRecurring = document.getElementById('tx-recurring').checked;
+      const installmentsContainer = document.getElementById('installments-container');
+
+      if (isRecurring) {
+        installmentsContainer.classList.add('hidden');
+        document.getElementById('tx-installments').value = '1';
+      } else {
+        installmentsContainer.classList.remove('hidden');
+      }
     }
 
-    // Salvar/Editar Transação
+    // SALVAR / GERAR TRANSAÇÕES (FIXA E PARCELADA COM VALOR TOTAL INTEGRAL)
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
       const type = document.querySelector('input[name="type"]:checked').value;
-      const description = document.getElementById('tx-description').value;
-      const amount = parseFloat(document.getElementById('tx-amount').value);
+      const description = document.getElementById('tx-description').value.trim();
+      const totalAmount = parseFloat(document.getElementById('tx-amount').value);
       const dueDate = document.getElementById('tx-date').value;
       const category = document.getElementById('tx-category').value;
       const status = document.getElementById('tx-status').value;
@@ -748,27 +751,61 @@
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
       if (id) {
+        // Atualização individual
         await db.from('transactions').update({
-          description, amount, type, category, due_date: dueDate, status, is_recurring: isRecurring
+          description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: isRecurring
         }).eq('id', id);
       } else {
-        const valPerInstallment = (type === 'expense' && installments > 1) ? amount / installments : amount;
         const newRows = [];
 
-        for (let i = 0; i < (type === 'expense' ? installments : 1); i++) {
-          const d = new Date(dueDate + 'T00:00:00');
-          d.setMonth(d.getMonth() + i);
+        // CASO 1: LANÇAMENTO FIXO MENSAL (Projeta 12 meses à frente)
+        if (isRecurring) {
+          for (let i = 0; i < 12; i++) {
+            const d = new Date(dueDate + 'T00:00:00');
+            d.setMonth(d.getMonth() + i);
 
+            newRows.push({
+              description,
+              amount: totalAmount, // Valor fixo mensal
+              type,
+              category,
+              due_date: d.toISOString().split('T')[0],
+              status: i === 0 ? status : 'pending',
+              is_recurring: true
+            });
+          }
+        } 
+        // CASO 2: PARCELAMENTO (Divide o valor total pelo número de parcelas)
+        else if (installments > 1) {
+          const installmentValue = totalAmount / installments;
+          for (let i = 0; i < installments; i++) {
+            const d = new Date(dueDate + 'T00:00:00');
+            d.setMonth(d.getMonth() + i);
+
+            newRows.push({
+              description: `${description} (${i + 1}/${installments})`,
+              amount: installmentValue,
+              type,
+              category,
+              due_date: d.toISOString().split('T')[0],
+              status: i === 0 ? status : 'pending',
+              is_recurring: false
+            });
+          }
+        } 
+        // CASO 3: LANÇAMENTO AVULSO
+        else {
           newRows.push({
-            description: installments > 1 ? `${description} (${i + 1}/${installments})` : description,
-            amount: valPerInstallment,
+            description,
+            amount: totalAmount,
             type,
             category,
-            due_date: d.toISOString().split('T')[0],
-            status: i === 0 ? status : 'pending',
-            is_recurring: isRecurring
+            due_date: dueDate,
+            status,
+            is_recurring: false
           });
         }
+
         await db.from('transactions').insert(newRows);
       }
 
@@ -785,7 +822,6 @@
       }
     }
 
-    // AVISO E VERIFICAÇÃO DE EXCLUSÃO
     function deleteTransaction(id) {
       const item = transactions.find(t => t.id === id);
       if (item && item.status === 'completed') {
@@ -810,7 +846,6 @@
       }
     }
 
-    // Renderizar Dados
     function renderDashboard() {
       const selectedMonth = document.getElementById('month-filter').value;
       const includePrevious = document.getElementById('chk-include-previous').checked;
@@ -910,7 +945,7 @@
         tr.innerHTML = `
           <td class="p-4 font-medium flex items-center gap-2">
             ${t.description}
-            ${t.isRecurring ? '<span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded">Fixa</span>' : ''}
+            ${t.isRecurring ? '<span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded font-semibold">Fixo</span>' : ''}
           </td>
           <td class="p-4 text-slate-400">${t.category}</td>
           <td class="p-4 text-slate-400">${t.dueDate}</td>
