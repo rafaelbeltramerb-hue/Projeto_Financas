@@ -6,6 +6,8 @@
   <title>FinanFlow - Controle Financeiro</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SUPABASE CLIENT -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -60,7 +62,6 @@
 
   <!-- PAINEL PRINCIPAL (DASHBOARD) -->
   <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
-    <!-- Navbar -->
     <header class="glass sticky top-0 z-20 border-b border-slate-800 px-6 py-4 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="w-9 h-9 rounded-lg bg-brand-500/20 text-brand-500 flex items-center justify-center">
@@ -77,8 +78,6 @@
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-      
-      <!-- Cabeçalho e Botão de Ação -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 class="text-2xl font-bold">Visão Geral</h2>
@@ -91,7 +90,6 @@
         </button>
       </div>
 
-      <!-- Cards do Dashboard -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="glass p-5 rounded-2xl space-y-2">
           <div class="flex items-center justify-between text-slate-400">
@@ -126,7 +124,6 @@
         </div>
       </div>
 
-      <!-- Tabela de Transações -->
       <div class="glass rounded-2xl overflow-hidden">
         <div class="p-5 border-b border-slate-800 flex items-center justify-between">
           <h3 class="font-semibold">Histórico Financeiro</h3>
@@ -144,12 +141,10 @@
               </tr>
             </thead>
             <tbody id="transactions-list" class="divide-y divide-slate-800/50">
-              <!-- Renderizado dinamicamente -->
             </tbody>
           </table>
         </div>
       </div>
-
     </main>
   </div>
 
@@ -215,7 +210,6 @@
           </div>
         </div>
 
-        <!-- Opções Avançadas para Despesas (Fixa e Parcelada) -->
         <div id="expense-options" class="hidden border-t border-slate-800 pt-3 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs text-slate-400">Despesa Fixa Mensal?</span>
@@ -236,14 +230,13 @@
     </div>
   </div>
 
-  <!-- SCRIPT FRONTEND -->
   <script>
-    // Estado da Aplicação
-    let transactions = [
-      { id: 1, description: 'Salário Desenvolvimento', amount: 5000, type: 'income', category: 'Trabalho', dueDate: '2026-09-05', status: 'completed', isRecurring: true, installmentCurrent: 1, installmentTotal: 1 },
-      { id: 2, description: 'Aluguel do Apê', amount: 1800, type: 'expense', category: 'Moradia', dueDate: '2026-09-10', status: 'pending', isRecurring: true, installmentCurrent: 1, installmentTotal: 1 },
-      { id: 3, description: 'Notebook (1/5)', amount: 600, type: 'expense', category: 'Outros', dueDate: '2026-09-15', status: 'pending', isRecurring: false, installmentCurrent: 1, installmentTotal: 5 }
-    ];
+    // CONFIGURAÇÃO COM AS SUAS CHAVES DO SUPABASE
+    const SUPABASE_URL = 'https://bjwajyeeibinzhymhnjh.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqd2FqeWVlaWJpbnpoeW1obmpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODU0OTgsImV4cCI6MjEwMzc2MTQ5OH0.L9zqtWbGITQds2wltxDbUBwFJ4nERuGk2X2l3A2JejA';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let transactions = [];
 
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -257,7 +250,7 @@
       document.getElementById('user-display').innerText = email;
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
-      renderDashboard();
+      loadTransactionsFromDB();
     });
 
     function logout() {
@@ -265,7 +258,28 @@
       document.getElementById('login-view').classList.remove('hidden');
     }
 
-    // Modal Control
+    // Carregar do Banco
+    async function loadTransactionsFromDB() {
+      const { data, error } = await db.from('transactions').select('*').order('due_date', { ascending: true });
+      if (error) {
+        console.error('Erro ao buscar dados:', error);
+        return;
+      }
+      transactions = data.map(item => ({
+        id: item.id,
+        description: item.description,
+        amount: parseFloat(item.amount),
+        type: item.type,
+        category: item.category,
+        dueDate: item.due_date,
+        status: item.status,
+        isRecurring: item.is_recurring,
+        installmentCurrent: item.installment_current,
+        installmentTotal: item.installment_total
+      }));
+      renderDashboard();
+    }
+
     function openModal(editId = null) {
       const modal = document.getElementById('modal');
       const form = document.getElementById('transaction-form');
@@ -289,7 +303,6 @@
           else document.getElementById('type-expense').checked = true;
         }
       }
-      
       toggleFormFields();
       modal.classList.remove('hidden');
     }
@@ -305,8 +318,8 @@
       else expenseOptions.classList.add('hidden');
     }
 
-    // Submissão do Formulário
-    document.getElementById('transaction-form').addEventListener('submit', (e) => {
+    // Salvar ou Editar no Banco
+    document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
       const type = document.querySelector('input[name="type"]:checked').value;
@@ -319,54 +332,53 @@
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
       if (id) {
-        // Modo Edição
-        const index = transactions.findIndex(t => t.id == id);
-        if (index !== -1) {
-          transactions[index] = { ...transactions[index], description, amount, dueDate, category, status, type, isRecurring };
-        }
+        await db.from('transactions').update({
+          description, amount, type, category, due_date: dueDate, status, is_recurring: isRecurring
+        }).eq('id', id);
       } else {
-        // Modo Criação com Parcelamento
         const valPerInstallment = (type === 'expense' && installments > 1) ? amount / installments : amount;
-        
+        const newRows = [];
+
         for (let i = 0; i < (type === 'expense' ? installments : 1); i++) {
           const d = new Date(dueDate);
           d.setMonth(d.getMonth() + i);
 
-          transactions.push({
-            id: Date.now() + i,
+          newRows.push({
             description: installments > 1 ? `${description} (${i + 1}/${installments})` : description,
             amount: valPerInstallment,
             type,
             category,
-            dueDate: d.toISOString().split('T')[0],
+            due_date: d.toISOString().split('T')[0],
             status: i === 0 ? status : 'pending',
-            isRecurring,
-            installmentCurrent: i + 1,
-            installmentTotal: installments
+            is_recurring: isRecurring,
+            installment_current: i + 1,
+            installment_total: installments
           });
         }
+        await db.from('transactions').insert(newRows);
       }
 
       closeModal();
-      renderDashboard();
+      await loadTransactionsFromDB();
     });
 
-    // Alternar Pago / Pendente
-    function toggleStatus(id) {
+    // Alternar Status no Banco
+    async function toggleStatus(id) {
       const item = transactions.find(t => t.id === id);
       if (item) {
-        item.status = item.status === 'completed' ? 'pending' : 'completed';
-        renderDashboard();
+        const newStatus = item.status === 'completed' ? 'pending' : 'completed';
+        await db.from('transactions').update({ status: newStatus }).eq('id', id);
+        await loadTransactionsFromDB();
       }
     }
 
-    // Excluir Item
-    function deleteTransaction(id) {
-      transactions = transactions.filter(t => t.id !== id);
-      renderDashboard();
+    // Excluir no Banco
+    async function deleteTransaction(id) {
+      await db.from('transactions').delete().eq('id', id);
+      await loadTransactionsFromDB();
     }
 
-    // Renderizar Dashboard e Cálculos
+    // Renderizar Interface
     function renderDashboard() {
       const listEl = document.getElementById('transactions-list');
       listEl.innerHTML = '';
@@ -413,7 +425,6 @@
         listEl.appendChild(tr);
       });
 
-      // Atualizar Cards
       document.getElementById('card-income').innerText = `R$ ${inc.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('card-expense').innerText = `R$ ${exp.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('card-balance').innerText = `R$ ${(inc - exp).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
