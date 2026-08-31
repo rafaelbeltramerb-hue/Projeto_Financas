@@ -12,8 +12,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- SHEETJS PARA IMPORTAÇÃO -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- EMAILJS PARA ENVIO REAL DE E-MAILS -->
-  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -115,7 +113,6 @@
       </nav>
       
       <div class="flex items-center space-x-2">
-        <!-- BOTÃO COMPARTILHAR CONVITE -->
         <button onclick="openShareModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-900/70 border border-indigo-700/50 text-indigo-300 text-xs font-medium transition">
           <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i>
           <span class="hidden sm:inline">Convidar por E-mail</span>
@@ -328,9 +325,9 @@
       <div id="invite-status-box" class="hidden text-xs bg-indigo-950/80 border border-indigo-700/60 p-3 rounded-lg text-indigo-200 space-y-2">
         <p id="invite-status-msg" class="font-semibold text-indigo-300"></p>
         <div id="direct-email-action" class="hidden border-t border-indigo-800/60 pt-2 space-y-1">
-          <p class="text-[11px] text-slate-300">Você também pode enviar o convite diretamente pelo seu programa de e-mail:</p>
+          <p class="text-[11px] text-slate-300">Caso o seu aplicativo de e-mail não tenha aberto automaticamente:</p>
           <a id="btn-mailto-link" href="#" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-brand-400 underline font-medium hover:text-brand-300">
-            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Abrir E-mail Pré-preenchido
+            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Reabrir Programa de E-mail
           </a>
         </div>
       </div>
@@ -542,6 +539,7 @@
     let expensesChart = null;
     let pendingDeleteId = null;
 
+    // BANCO LOCAL DE USUÁRIOS E CONVITES (GARANTIA DE PERSISTÊNCIA)
     function getUsersDB() {
       const saved = localStorage.getItem('app_registered_users');
       return saved ? JSON.parse(saved) : {};
@@ -549,6 +547,15 @@
 
     function saveUsersDB(usersObj) {
       localStorage.setItem('app_registered_users', JSON.stringify(usersObj));
+    }
+
+    function getInvitationsDB() {
+      const saved = localStorage.getItem('app_invitations');
+      return saved ? JSON.parse(saved) : [];
+    }
+
+    function saveInvitationsDB(list) {
+      localStorage.setItem('app_invitations', JSON.stringify(list));
     }
 
     // ALTERNADOR ENTRE AS 3 ABAS DE AUTENTICAÇÃO
@@ -566,7 +573,6 @@
       errEl.classList.add('hidden');
       succEl.classList.add('hidden');
 
-      // Reseta estilos das abas
       [btnLogin, btnRegister, btnInvite].forEach(btn => {
         btn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white";
       });
@@ -589,7 +595,7 @@
       }
     }
 
-    // PROCESSAMENTO DA AUTENTICAÇÃO COM VALIDAÇÃO DE CONVITE
+    // AUTENTICAÇÃO
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -603,7 +609,6 @@
 
       const usersDB = getUsersDB();
 
-      // MODO 1: LOGIN TRADICIONAL
       if (authMode === 'login') {
         if (!usersDB[email]) {
           errorEl.innerHTML = `⚠️ E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar Conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou Convidado"</strong>.`;
@@ -621,8 +626,6 @@
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
         await resolveWorkspaceAndInit();
       } 
-      
-      // MODO 2: CRIAR CONTA PRÓPRIA (NOVO ESPAÇO)
       else if (authMode === 'register') {
         if (usersDB[email]) {
           errorEl.innerText = 'Este e-mail já possui uma conta cadastrada. Por favor, acesse a aba "Entrar".';
@@ -630,10 +633,7 @@
           return;
         }
 
-        usersDB[email] = {
-          name: name || email.split('@')[0],
-          password: password
-        };
+        usersDB[email] = { name: name || email.split('@')[0], password };
         saveUsersDB(usersDB);
 
         currentUser = { email, name: usersDB[email].name };
@@ -642,58 +642,71 @@
         successEl.innerText = 'Conta criada com sucesso! Acessando seu espaço...';
         successEl.classList.remove('hidden');
 
-        setTimeout(async () => {
-          await resolveWorkspaceAndInit();
-        }, 800);
+        setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
       }
-
-      // MODO 3: PRIMEIRO ACESSO DE CONVIDADO (COM AVISO SE NÃO TIVER CONVITE)
       else if (authMode === 'invited') {
-        // Consulta no Supabase se este e-mail realmente foi convidado por alguém
-        const { data: inviteData, error: inviteErr } = await db.from('invitations')
-          .select('owner_email')
-          .eq('invited_email', email)
-          .maybeSingle();
+        // Valida convite no Supabase OU no LocalStorage
+        let ownerFound = null;
+        try {
+          const { data: inviteData } = await db.from('invitations')
+            .select('owner_email')
+            .eq('invited_email', email)
+            .maybeSingle();
+          if (inviteData && inviteData.owner_email) {
+            ownerFound = inviteData.owner_email;
+          }
+        } catch (err) {
+          console.warn(err);
+        }
 
-        if (!inviteData || !inviteData.owner_email) {
-          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${email}</em> ainda não recebeu autorização de ninguém.<br><br>Se você deseja criar o seu próprio controle financeiro, clique na aba <strong>"Criar Conta"</strong> acima.`;
+        if (!ownerFound) {
+          const localInvites = getInvitationsDB();
+          const match = localInvites.find(i => i.invited_email === email);
+          if (match) ownerFound = match.owner_email;
+        }
+
+        if (!ownerFound) {
+          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${email}</em> ainda não recebeu autorização.<br><br>Se você deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
 
-        // Se tem convite válido no Supabase, cadastra ou atualiza o usuário
-        usersDB[email] = {
-          name: name || email.split('@')[0],
-          password: password
-        };
+        usersDB[email] = { name: name || email.split('@')[0], password };
         saveUsersDB(usersDB);
 
         currentUser = { email, name: usersDB[email].name };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
 
-        successEl.innerText = `Convite confirmado! Acessando o espaço de ${inviteData.owner_email}...`;
+        successEl.innerText = `Convite confirmado! Acessando o espaço de ${ownerFound}...`;
         successEl.classList.remove('hidden');
 
-        setTimeout(async () => {
-          await resolveWorkspaceAndInit();
-        }, 800);
+        setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
       }
     });
 
-    // RESOLVE O ESPAÇO DO USUÁRIO
+    // DETERMINA DE QUEM É O ESPAÇO
     async function resolveWorkspaceAndInit() {
-      // 1. Verificar se é convidado em algum espaço
-      const { data: inviteData } = await db.from('invitations')
-        .select('owner_email')
-        .eq('invited_email', currentUser.email)
-        .maybeSingle();
+      let ownerFound = null;
 
-      if (inviteData && inviteData.owner_email) {
-        currentWorkspaceOwner = inviteData.owner_email.toLowerCase();
-      } else {
-        // Se não for convidado, é o proprietário do seu próprio espaço
-        currentWorkspaceOwner = currentUser.email.toLowerCase();
+      try {
+        const { data: inviteData } = await db.from('invitations')
+          .select('owner_email')
+          .eq('invited_email', currentUser.email)
+          .maybeSingle();
+        if (inviteData && inviteData.owner_email) {
+          ownerFound = inviteData.owner_email.toLowerCase();
+        }
+      } catch (err) {
+        console.warn(err);
       }
+
+      if (!ownerFound) {
+        const localInvites = getInvitationsDB();
+        const found = localInvites.find(inv => inv.invited_email === currentUser.email);
+        if (found) ownerFound = found.owner_email.toLowerCase();
+      }
+
+      currentWorkspaceOwner = ownerFound ? ownerFound : currentUser.email.toLowerCase();
 
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
       document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
@@ -716,7 +729,7 @@
       toggleAuthMode('login');
     }
 
-    // CARREGAR TRANSAÇÕES DO ESPAÇO
+    // CARREGAR TRANSAÇÕES
     async function loadTransactionsFromDB() {
       if (!currentWorkspaceOwner) return;
 
@@ -745,7 +758,7 @@
       renderDashboard();
     }
 
-    // MODAL DE COMPARTILHAMENTO
+    // MODAL CONVITE COM SALVAMENTO EM LOCALSTORAGE + SUPABASE E ENVIADOR AUTOMÁTICO
     async function openShareModal() {
       await renderSharedUsersList();
       document.getElementById('share-modal').classList.remove('hidden');
@@ -759,17 +772,32 @@
     async function renderSharedUsersList() {
       const container = document.getElementById('shared-users-list');
       
-      const { data: invites } = await db.from('invitations')
-        .select('invited_email')
-        .eq('owner_email', currentUser.email);
+      let list = getInvitationsDB().filter(inv => inv.owner_email === currentUser.email);
 
-      if (!invites || invites.length === 0) {
+      try {
+        const { data: invites } = await db.from('invitations')
+          .select('invited_email')
+          .eq('owner_email', currentUser.email);
+
+        if (invites && invites.length > 0) {
+          invites.forEach(inv => {
+            if (!list.some(l => l.invited_email === inv.invited_email)) {
+              list.push({ owner_email: currentUser.email, invited_email: inv.invited_email });
+            }
+          });
+          saveInvitationsDB(list);
+        }
+      } catch (err) {
+        console.warn('Usando backup local para convites:', err);
+      }
+
+      if (list.length === 0) {
         container.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Nenhum convidado adicionado ao seu espaço.</p>`;
         return;
       }
 
-      container.innerHTML = invites.map(inv => `
-        <div class="flex items-center justify-between py-2">
+      container.innerHTML = list.map(inv => `
+        <div class="flex items-center justify-between py-2 border-b border-slate-800/40">
           <span class="text-slate-300 font-medium flex items-center gap-1.5">
             <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i> ${inv.invited_email}
           </span>
@@ -793,34 +821,46 @@
         return;
       }
 
-      const { error } = await db.from('invitations').upsert({
-        owner_email: currentUser.email,
-        invited_email: email
-      }, { onConflict: 'owner_email,invited_email' });
-
-      if (error) {
-        console.warn('Erro ao salvar convite:', error);
+      // 1. Salva no banco local (Garantia imediata de persistência)
+      let localInvites = getInvitationsDB();
+      if (!localInvites.some(inv => inv.owner_email === currentUser.email && inv.invited_email === email)) {
+        localInvites.push({ owner_email: currentUser.email, invited_email: email });
+        saveInvitationsDB(localInvites);
       }
 
+      // 2. Tenta salvar no Supabase
+      try {
+        await db.from('invitations').upsert({
+          owner_email: currentUser.email,
+          invited_email: email
+        }, { onConflict: 'owner_email,invited_email' });
+      } catch (err) {
+        console.warn('Erro ao salvar no Supabase, mantido em backup local:', err);
+      }
+
+      // 3. Monta e abre o programa de e-mail do usuário automaticamente
       const appLink = window.location.href;
       const subject = encodeURIComponent("Convite para Espaço de Controle Financeiro");
       const body = encodeURIComponent(
-        `Olá!\n\n${currentUser.name} (${currentUser.email}) te convidou para compartilhar a gestão financeira no aplicativo Controle Financeiro.\n\n` +
-        `Para acessar:\n` +
-        `1. Acesse o link: ${appLink}\n` +
+        `Olá!\n\n${currentUser.name || currentUser.email} te convidou para compartilhar o gerenciamento financeiro no sistema Controle Financeiro.\n\n` +
+        `Para acessar o espaço compartilhado:\n` +
+        `1. Acesse o sistema: ${appLink}\n` +
         `2. Clique na aba "Sou Convidado"\n` +
-        `3. Informe seu e-mail (${email}) e crie sua senha de acesso.\n\n` +
+        `3. Digite seu e-mail (${email}) e crie sua senha de acesso.\n\n` +
         `Atenciosamente,`
       );
 
       const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+
+      // Abre o programa de e-mail do dispositivo
+      window.location.href = mailtoUrl;
 
       const statusBox = document.getElementById('invite-status-box');
       const statusMsg = document.getElementById('invite-status-msg');
       const mailtoBtn = document.getElementById('btn-mailto-link');
       const directAction = document.getElementById('direct-email-action');
 
-      statusMsg.innerText = `✅ Autorização registrada com sucesso para ${email}!`;
+      statusMsg.innerText = `✅ Autorização cadastrada para ${email}! Abrindo seu gerenciador de e-mail...`;
       mailtoBtn.href = mailtoUrl;
       directAction.classList.remove('hidden');
       statusBox.classList.remove('hidden');
@@ -830,10 +870,17 @@
     }
 
     async function removeSharedUser(email) {
-      await db.from('invitations')
-        .delete()
-        .eq('owner_email', currentUser.email)
-        .eq('invited_email', email);
+      // Remove localmente
+      let localInvites = getInvitationsDB().filter(inv => !(inv.owner_email === currentUser.email && inv.invited_email === email));
+      saveInvitationsDB(localInvites);
+
+      // Remove no Supabase
+      try {
+        await db.from('invitations')
+          .delete()
+          .eq('owner_email', currentUser.email)
+          .eq('invited_email', email);
+      } catch(e) {}
 
       await renderSharedUsersList();
     }
