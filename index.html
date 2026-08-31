@@ -51,14 +51,15 @@
       </div>
 
       <form id="login-form" class="space-y-4">
+        <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 p-3 rounded-lg text-center font-medium border border-rose-500/20"></div>
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">E-mail</label>
-          <input type="email" id="login-email" required value="demo@finanflow.com" 
+          <input type="email" id="login-email" required placeholder="seu@email.com" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
-          <input type="password" id="login-password" required value="123456" 
+          <input type="password" id="login-password" required placeholder="••••••" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
         </div>
         <button type="submit" 
@@ -111,7 +112,7 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
       
-      <!-- CONTROLES FIXOS SUPERIORES (MÊS & NOVA TRANSAÇÃO) -->
+      <!-- CONTROLES FIXOS SUPERIORES -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass p-4 rounded-2xl">
         <div>
           <h2 id="page-title" class="text-xl font-bold">Painel de Controle</h2>
@@ -180,7 +181,6 @@
 
           <!-- BLOCO DIREITO: PENDÊNCIAS ANTERIORES, PRÓXIMAS E ALERTAS -->
           <div class="space-y-6">
-            <!-- ANTERIORES NÃO CONSOLIDADAS -->
             <div class="glass p-5 rounded-2xl space-y-3">
               <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Anteriores não consolidadas</h3>
               <div class="max-h-40 overflow-y-auto">
@@ -198,7 +198,6 @@
               </div>
             </div>
 
-            <!-- PRÓXIMAS NÃO CONSOLIDADAS -->
             <div class="glass p-5 rounded-2xl space-y-3">
               <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Próximas não consolidadas</h3>
               <div class="max-h-48 overflow-y-auto">
@@ -216,7 +215,6 @@
               </div>
             </div>
 
-            <!-- PRÓXIMAS COM ALERTA -->
             <div class="glass p-5 rounded-2xl space-y-3 border-l-4 border-amber-500">
               <h3 class="font-bold text-amber-400 text-base border-b border-slate-800 pb-2 flex items-center gap-2">
                 <i data-lucide="alert-circle" class="w-4 h-4"></i> Próximas com alerta
@@ -301,7 +299,7 @@
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">E-mail</label>
+          <label class="block text-xs text-slate-400 mb-1">E-mail de Acesso</label>
           <input type="email" id="profile-email" required placeholder="seuemail@exemplo.com" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
         </div>
@@ -328,7 +326,7 @@
         <button onclick="closeImportModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <p class="text-xs text-slate-400">Selecione uma planilha Excel (<code>.xls</code>, <code>.xlsx</code>) ou <code>.csv</code> contendo colunas como: <strong>Descrição, Valor, Vencimento, Categoria, Tipo</strong>.</p>
+      <p class="text-xs text-slate-400">Selecione uma planilha Excel (<code>.xls</code>, <code>.xlsx</code>) ou <code>.csv</code> contendo colunas como: <strong>Descrição, Valor, Data Ocorrência, Categoria</strong>.</p>
 
       <div class="space-y-4">
         <input type="file" id="file-input" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white hover:file:bg-brand-500 cursor-pointer">
@@ -436,7 +434,7 @@
                 <option value="Gastos Esporádicos">Gastos Esporádicos</option>
                 <option value="Gastos Pessoais">Gastos Pessoais</option>
                 <option value="Impostos">Impostos</option>
-                <option value="Trabalho">Trabalho / Salário</option>
+                <option value="Salário">Salário</option>
                 <option value="Outros">Outros</option>
               </optgroup>
             </select>
@@ -480,10 +478,17 @@
     let transactions = [];
     let expensesChart = null;
     let pendingDeleteId = null;
-    let currentUser = {
-      name: 'Rafael Beltrame',
-      email: 'demo@finanflow.com'
-    };
+
+    // GERENCIAMENTO PERSISTENTE DO USUÁRIO NO LOCALSTORAGE
+    function getStoredUser() {
+      const saved = localStorage.getItem('app_user');
+      if (saved) return JSON.parse(saved);
+      const defaultUser = { name: 'Rafael Beltrame', email: 'demo@finanflow.com', password: '123' };
+      localStorage.setItem('app_user', JSON.stringify(defaultUser));
+      return defaultUser;
+    }
+
+    let currentUser = getStoredUser();
 
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -520,17 +525,31 @@
       }
     }
 
-    // Login
+    // LOGIN AUTÊNTICO COM O USUÁRIO SALVO
     document.getElementById('login-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      currentUser.email = document.getElementById('login-email').value;
-      document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
-      document.getElementById('login-view').classList.add('hidden');
-      document.getElementById('dashboard-view').classList.remove('hidden');
-      loadTransactionsFromDB();
+      const inputEmail = document.getElementById('login-email').value.trim();
+      const inputPassword = document.getElementById('login-password').value;
+      const errorEl = document.getElementById('login-error');
+
+      const savedUser = getStoredUser();
+
+      if (inputEmail === savedUser.email && inputPassword === savedUser.password) {
+        currentUser = savedUser;
+        document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('dashboard-view').classList.remove('hidden');
+        errorEl.classList.add('hidden');
+        loadTransactionsFromDB();
+      } else {
+        errorEl.innerText = 'E-mail ou senha incorretos!';
+        errorEl.classList.remove('hidden');
+      }
     });
 
     function logout() {
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-password').value = '';
       document.getElementById('dashboard-view').classList.add('hidden');
       document.getElementById('login-view').classList.remove('hidden');
     }
@@ -545,12 +564,23 @@
     function closeProfileModal() {
       document.getElementById('profile-modal').classList.add('hidden');
     }
+
     function saveProfile(e) {
       e.preventDefault();
-      currentUser.name = document.getElementById('profile-name').value;
-      currentUser.email = document.getElementById('profile-email').value;
+      const newName = document.getElementById('profile-name').value.trim();
+      const newEmail = document.getElementById('profile-email').value.trim();
+      const newPassword = document.getElementById('profile-password').value;
+
+      currentUser.name = newName;
+      currentUser.email = newEmail;
+      if (newPassword && newPassword.trim() !== '') {
+        currentUser.password = newPassword;
+      }
+
+      localStorage.setItem('app_user', JSON.stringify(currentUser));
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
       closeProfileModal();
+      alert('Perfil e dados de acesso salvos com sucesso!');
     }
 
     // Modal Importação
@@ -575,7 +605,6 @@
       reader.onload = async (e) => {
         try {
           const data = new Uint8Array(e.target.result);
-          // Habilita a leitura nativa de datas do Excel (cellDates: true)
           const workbook = XLSX.read(data, { type: 'array', cellDates: true });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonRows = XLSX.utils.sheet_to_json(firstSheet);
@@ -588,12 +617,9 @@
           const newTransactions = [];
           for (const row of jsonRows) {
             const description = row['Descrição'] || row['Descricao'] || row['description'] || 'Importado';
-            
-            // Captura o valor numérico bruto
             const rawAmount = parseFloat(row['Valor'] || row['valor'] || row['amount'] || 0);
             if (rawAmount === 0 || isNaN(rawAmount)) continue;
 
-            // Define se é receita ou despesa com base no sinal do valor (ou na coluna Tipo, se houver)
             let type = rawAmount < 0 ? 'expense' : 'income';
             if (row['Tipo'] || row['tipo'] || row['type']) {
               const typeStr = String(row['Tipo'] || row['tipo'] || row['type']).toLowerCase();
@@ -601,9 +627,7 @@
               if (typeStr.includes('despesa') || typeStr.includes('expense')) type = 'expense';
             }
 
-            // Mapeia colunas de data incluindo 'Data Ocorrência'
             const rawDate = row['Data Ocorrência'] || row['Data Ocorrencia'] || row['Data'] || row['Vencimento'] || row['due_date'];
-            
             let dueDate = new Date().toISOString().split('T')[0];
             if (rawDate) {
               if (rawDate instanceof Date) {
@@ -652,6 +676,7 @@
       };
       reader.readAsArrayBuffer(file);
     }
+
     // Carregar Banco de Dados
     async function loadTransactionsFromDB() {
       const { data, error } = await db.from('transactions').select('*').order('due_date', { ascending: true });
@@ -760,8 +785,14 @@
       }
     }
 
-    // AVISO E EXCLUSÃO DE TRANSAÇÃO
+    // AVISO E VERIFICAÇÃO DE EXCLUSÃO
     function deleteTransaction(id) {
+      const item = transactions.find(t => t.id === id);
+      if (item && item.status === 'completed') {
+        alert('Não é possível excluir uma transação com status Pago / Recebido! Altere o status para "Pendente" caso realmente deseje excluí-la.');
+        return;
+      }
+
       pendingDeleteId = id;
       document.getElementById('delete-modal').classList.remove('hidden');
     }
@@ -898,7 +929,9 @@
             <button onclick="openModal(${t.id})" title="Editar" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
               <i data-lucide="pencil" class="w-4 h-4"></i>
             </button>
-            <button onclick="deleteTransaction(${t.id})" title="Excluir" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition">
+            <button onclick="deleteTransaction(${t.id})" 
+              title="${isPaid ? 'Não é possível excluir um lançamento já concluído' : 'Excluir'}" 
+              class="p-1.5 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-600' : 'hover:bg-slate-800 text-slate-400 hover:text-rose-400'}">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </td>
