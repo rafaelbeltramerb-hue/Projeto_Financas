@@ -647,7 +647,6 @@
       else if (authMode === 'invited') {
         let ownerFound = null;
 
-        // Tenta buscar no Supabase se este email foi convidado por alguém
         try {
           const { data: inviteData } = await db.from('invitations')
             .select('owner_email')
@@ -660,7 +659,6 @@
           console.warn('Erro ao verificar convite no Supabase:', err);
         }
 
-        // Backup local caso Supabase falhe ou esteja offline
         if (!ownerFound) {
           const localInvites = getInvitationsDB();
           const match = localInvites.find(i => i.invited_email === email);
@@ -708,7 +706,6 @@
         if (found) ownerFound = found.owner_email.toLowerCase();
       }
 
-      // Se for convidado, o dono do espaço é quem o convidou. Se não, o dono é ele mesmo.
       currentWorkspaceOwner = ownerFound ? ownerFound : currentUser.email.toLowerCase();
 
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
@@ -736,7 +733,6 @@
     async function loadTransactionsFromDB() {
       if (!currentWorkspaceOwner) return;
 
-      // Busca todas as transações pertencentes ao workspace do criador
       const { data, error } = await db.from('transactions')
         .select('*')
         .eq('owner_email', currentWorkspaceOwner)
@@ -825,14 +821,12 @@
         return;
       }
 
-      // 1. Salva no banco local
       let localInvites = getInvitationsDB();
       if (!localInvites.some(inv => inv.owner_email === currentUser.email && inv.invited_email === email)) {
         localInvites.push({ owner_email: currentUser.email, invited_email: email });
         saveInvitationsDB(localInvites);
       }
 
-      // 2. Salva no Supabase (Permite sincronização entre computadores diferentes)
       try {
         await db.from('invitations').upsert({
           owner_email: currentUser.email,
@@ -842,7 +836,6 @@
         console.warn('Erro ao salvar convite no Supabase:', err);
       }
 
-      // 3. Abre app de e-mail automaticamente
       const appLink = window.location.href;
       const subject = encodeURIComponent("Convite para Espaço de Controle Financeiro");
       const body = encodeURIComponent(
@@ -1087,7 +1080,7 @@
       return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
     }
 
-    // ADICIONAR / EDITAR TRANSAÇÃO
+    // ADICIONAR / EDITAR TRANSAÇÃO COM GERADO AUTOMÁTICO DE MESES SUBSEQUENTES
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -1101,17 +1094,50 @@
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
       if (id) {
+        // Atualiza a transação principal
         await db.from('transactions').update({
-          description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: isRecurring
+          description, 
+          amount: totalAmount, 
+          type, 
+          category, 
+          due_date: dueDate, 
+          status, 
+          is_recurring: isRecurring
         }).eq('id', id);
+
+        // Se marcou "Lançamento Fixo Mensal" ao editar, cria automaticamente os próximos 24 meses caso ainda não existam
+        if (isRecurring) {
+          const futureRows = [];
+          for (let i = 1; i <= 24; i++) {
+            futureRows.push({
+              description,
+              amount: totalAmount,
+              type,
+              category,
+              due_date: addMonthsToDate(dueDate, i),
+              status: 'pending',
+              is_recurring: true,
+              user_email: currentUser.email,
+              owner_email: currentWorkspaceOwner
+            });
+          }
+          await db.from('transactions').insert(futureRows);
+        }
       } else {
         const newRows = [];
         if (isRecurring) {
-          for (let i = 0; i < 12; i++) {
+          // Lança o mês atual + os 24 meses subsequentes para Receitas ou Despesas
+          for (let i = 0; i < 24; i++) {
             newRows.push({
-              description, amount: totalAmount, type, category,
-              due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
-              is_recurring: true, user_email: currentUser.email, owner_email: currentWorkspaceOwner
+              description,
+              amount: totalAmount,
+              type,
+              category,
+              due_date: addMonthsToDate(dueDate, i),
+              status: i === 0 ? status : 'pending',
+              is_recurring: true,
+              user_email: currentUser.email,
+              owner_email: currentWorkspaceOwner
             });
           }
         } else if (installments > 1) {
@@ -1119,15 +1145,27 @@
           for (let i = 0; i < installments; i++) {
             newRows.push({
               description: `${description} (${i + 1}/${installments})`,
-              amount: installmentValue, type, category,
-              due_date: addMonthsToDate(dueDate, i), status: i === 0 ? status : 'pending',
-              is_recurring: false, user_email: currentUser.email, owner_email: currentWorkspaceOwner
+              amount: installmentValue,
+              type,
+              category,
+              due_date: addMonthsToDate(dueDate, i),
+              status: i === 0 ? status : 'pending',
+              is_recurring: false,
+              user_email: currentUser.email,
+              owner_email: currentWorkspaceOwner
             });
           }
         } else {
           newRows.push({
-            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false,
-            user_email: currentUser.email, owner_email: currentWorkspaceOwner
+            description,
+            amount: totalAmount,
+            type,
+            category,
+            due_date: dueDate,
+            status,
+            is_recurring: false,
+            user_email: currentUser.email,
+            owner_email: currentWorkspaceOwner
           });
         }
         await db.from('transactions').insert(newRows);
