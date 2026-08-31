@@ -8,6 +8,11 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- SUPABASE CLIENT -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- CHART.JS PARA O GRÁFICO DE PIZZA -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SHEETJS PARA IMPORTAR EXCEL (XLS/XLSX/CSV) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -75,7 +80,11 @@
       </div>
       
       <div class="flex items-center space-x-3">
-        <!-- BOTÃO PERFIL DO USUÁRIO -->
+        <button onclick="openImportModal()" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+          <i data-lucide="file-up" class="w-4 h-4 text-brand-400"></i>
+          <span>Importar (XLS/CSV)</span>
+        </button>
+
         <button onclick="openProfileModal()" class="flex items-center space-x-2 p-2 rounded-lg hover:bg-slate-800 text-slate-300 transition">
           <div class="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold">
             <i data-lucide="user" class="w-4 h-4"></i>
@@ -90,15 +99,14 @@
     </header>
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-      <!-- CABEÇALHO COM SELETOR MENSAL -->
+      <!-- CABEÇALHO MENSAL -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 class="text-2xl font-bold">Visão Geral</h2>
-          <p class="text-xs sm:text-sm text-slate-400">Acompanhe suas despesas e receitas mensalmente</p>
+          <h2 class="text-2xl font-bold">Painel de Controle</h2>
+          <p class="text-xs sm:text-sm text-slate-400">Resumo consolidado das movimentações financeiras</p>
         </div>
 
         <div class="flex items-center gap-3">
-          <!-- SELETOR DE MÊS -->
           <div class="flex items-center space-x-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 shadow-sm">
             <i data-lucide="calendar" class="w-4 h-4 text-brand-500"></i>
             <span class="text-xs text-slate-400 hidden sm:inline">Mês:</span>
@@ -113,45 +121,115 @@
         </div>
       </div>
 
-      <!-- CARDS MENSIAIS -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="glass p-5 rounded-2xl space-y-2">
-          <div class="flex items-center justify-between text-slate-400">
-            <span class="text-xs font-medium uppercase tracking-wider">Receitas do Mês</span>
-            <div class="p-2 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="arrow-up-right" class="w-4 h-4"></i></div>
+      <!-- GRID NO ESTILO DA IMAGEM 2 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- BLROCO ESQUERDO: ENTRADAS/SAÍDAS + GRÁFICO DE PIZZA -->
+        <div class="space-y-6">
+          <!-- CARD ENTRADAS E SAÍDAS -->
+          <div class="glass p-5 rounded-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+              <h3 class="font-bold text-slate-200 text-base">Entradas e saídas</h3>
+              <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                <input type="checkbox" id="chk-include-previous" onchange="renderDashboard()" checked class="accent-brand-600 rounded">
+                <span>Incluir saldo anterior</span>
+              </label>
+            </div>
+            
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between items-center text-slate-400">
+                <span>Saldo anterior</span>
+                <span id="txt-previous-balance" class="font-semibold text-rose-400">R$ 0,00</span>
+              </div>
+              <div class="flex justify-between items-center text-slate-400">
+                <span>Entradas</span>
+                <span id="txt-month-income" class="font-semibold text-slate-300">R$ 0,00</span>
+              </div>
+              <div class="flex justify-between items-center text-slate-400">
+                <span>Saídas</span>
+                <span id="txt-month-expense" class="font-semibold text-rose-400">-R$ 0,00</span>
+              </div>
+              <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-lg font-bold">
+                <span>Total</span>
+                <span id="txt-total-balance" class="text-2xl text-rose-500">R$ 0,00</span>
+              </div>
+            </div>
           </div>
-          <p id="card-income" class="text-2xl font-bold text-emerald-400">R$ 0,00</p>
+
+          <!-- CARD GRÁFICO DE DESPESAS POR CATEGORIA -->
+          <div class="glass p-5 rounded-2xl space-y-3">
+            <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Despesas por Categoria</h3>
+            <div class="w-full flex items-center justify-center p-2" style="max-height: 260px;">
+              <canvas id="expensesChart"></canvas>
+            </div>
+          </div>
         </div>
 
-        <div class="glass p-5 rounded-2xl space-y-2">
-          <div class="flex items-center justify-between text-slate-400">
-            <span class="text-xs font-medium uppercase tracking-wider">Despesas Pagas</span>
-            <div class="p-2 rounded-lg bg-rose-500/10 text-rose-400"><i data-lucide="arrow-down-left" class="w-4 h-4"></i></div>
+        <!-- BLOCO DIREITO: PENDÊNCIAS ANTERIORES, PRÓXIMAS E ALERTAS -->
+        <div class="space-y-6">
+          <!-- ANTERIORES NÃO CONSOLIDADAS -->
+          <div class="glass p-5 rounded-2xl space-y-3">
+            <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Anteriores não consolidadas</h3>
+            <div class="max-h-40 overflow-y-auto">
+              <table class="w-full text-xs text-left">
+                <thead class="text-slate-500 border-b border-slate-800">
+                  <tr>
+                    <th class="pb-2">Transação</th>
+                    <th class="pb-2">Data</th>
+                    <th class="pb-2 text-right">Valor (R$)</th>
+                  </tr>
+                </thead>
+                <tbody id="list-previous-pending" class="divide-y divide-slate-800/40 text-slate-300">
+                </tbody>
+              </table>
+            </div>
           </div>
-          <p id="card-expense" class="text-2xl font-bold text-rose-400">R$ 0,00</p>
+
+          <!-- PRÓXIMAS NÃO CONSOLIDADAS -->
+          <div class="glass p-5 rounded-2xl space-y-3">
+            <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Próximas não consolidadas</h3>
+            <div class="max-h-48 overflow-y-auto">
+              <table class="w-full text-xs text-left">
+                <thead class="text-slate-500 border-b border-slate-800">
+                  <tr>
+                    <th class="pb-2">Transação</th>
+                    <th class="pb-2">Data</th>
+                    <th class="pb-2 text-right">Valor (R$)</th>
+                  </tr>
+                </thead>
+                <tbody id="list-next-pending" class="divide-y divide-slate-800/40 text-slate-300">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- PRÓXIMAS COM ALERTA -->
+          <div class="glass p-5 rounded-2xl space-y-3 border-l-4 border-amber-500">
+            <h3 class="font-bold text-amber-400 text-base border-b border-slate-800 pb-2 flex items-center gap-2">
+              <i data-lucide="alert-circle" class="w-4 h-4"></i> Próximas com alerta
+            </h3>
+            <div class="max-h-36 overflow-y-auto">
+              <table class="w-full text-xs text-left">
+                <thead class="text-slate-500 border-b border-slate-800">
+                  <tr>
+                    <th class="pb-2">Transação</th>
+                    <th class="pb-2">Data</th>
+                    <th class="pb-2 text-right">Valor (R$)</th>
+                  </tr>
+                </thead>
+                <tbody id="list-alerts" class="divide-y divide-slate-800/40 text-slate-300">
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        <div class="glass p-5 rounded-2xl space-y-2">
-          <div class="flex items-center justify-between text-slate-400">
-            <span class="text-xs font-medium uppercase tracking-wider">Saldo do Mês</span>
-            <div class="p-2 rounded-lg bg-brand-500/10 text-brand-400"><i data-lucide="dollar-sign" class="w-4 h-4"></i></div>
-          </div>
-          <p id="card-balance" class="text-2xl font-bold">R$ 0,00</p>
-        </div>
-
-        <div class="glass p-5 rounded-2xl space-y-2">
-          <div class="flex items-center justify-between text-slate-400">
-            <span class="text-xs font-medium uppercase tracking-wider">A Pagar no Mês</span>
-            <div class="p-2 rounded-lg bg-amber-500/10 text-amber-400"><i data-lucide="clock" class="w-4 h-4"></i></div>
-          </div>
-          <p id="card-pending" class="text-2xl font-bold text-amber-400">R$ 0,00</p>
-        </div>
       </div>
 
-      <!-- TABELA DE HISTÓRICO -->
-      <div class="glass rounded-2xl overflow-hidden">
+      <!-- TABELA COMPLETA DE HISTÓRICO -->
+      <div class="glass rounded-2xl overflow-hidden mt-8">
         <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-          <h3 class="font-semibold">Histórico de Transações do Mês Selecionado</h3>
+          <h3 class="font-semibold text-slate-200">Histórico Completo do Mês Selecionado</h3>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm">
@@ -208,9 +286,31 @@
     </div>
   </div>
 
+  <!-- MODAL IMPORTAR ARQUIVO (XLS/XLSX/CSV) -->
+  <div id="import-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-lg font-bold flex items-center gap-2"><i data-lucide="file-up" class="w-5 h-5 text-brand-500"></i> Importar Lançamentos</h3>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <p class="text-xs text-slate-400">Selecione uma planilha Excel (<code>.xls</code>, <code>.xlsx</code>) ou <code>.csv</code> contendo colunas como: <strong>Descrição, Valor, Vencimento, Categoria, Tipo</strong>.</p>
+
+      <div class="space-y-4">
+        <input type="file" id="file-input" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white hover:file:bg-brand-500 cursor-pointer">
+        <div id="import-status" class="text-xs text-emerald-400 hidden"></div>
+      </div>
+
+      <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
+        <button type="button" onclick="closeImportModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
+        <button type="button" onclick="processImportFile()" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition">Importar Dados</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DE CADASTRO / EDIÇÃO DE TRANSAÇÕES -->
   <div id="modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-lg p-6 rounded-2xl shadow-2xl space-y-4">
+    <div class="glass w-full max-w-lg p-6 rounded-2xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 id="modal-title" class="text-lg font-bold">Nova Transação</h3>
         <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -232,7 +332,7 @@
 
         <div>
           <label class="block text-xs text-slate-400 mb-1">Descrição</label>
-          <input type="text" id="tx-description" required placeholder="Ex: Salário, Aluguel, Supermercado" 
+          <input type="text" id="tx-description" required placeholder="Ex: Supermercado, Aluguel, Salário" 
             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
         </div>
 
@@ -249,18 +349,65 @@
           </div>
         </div>
 
+        <!-- CATEGORIAS AMPLIADAS -->
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs text-slate-400 mb-1">Categoria</label>
             <select id="tx-category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
-              <option value="Trabalho">Trabalho / Salário</option>
-              <option value="Moradia">Moradia</option>
-              <option value="Alimentação">Alimentação</option>
-              <option value="Transporte">Transporte</option>
-              <option value="Lazer">Lazer</option>
-              <option value="Outros">Outros</option>
+              <option value="Transferência">Transferência</option>
+
+              <optgroup label="Alimentação">
+                <option value="Açougue">Açougue</option>
+                <option value="Almoço">Almoço</option>
+                <option value="Café/Lanches">Café/Lanches</option>
+                <option value="Feira">Feira</option>
+                <option value="Guloseimas">Guloseimas</option>
+                <option value="Padaria">Padaria</option>
+                <option value="Restaurante">Restaurante</option>
+                <option value="Supermercado">Supermercado</option>
+              </optgroup>
+
+              <optgroup label="Animal de Estimação">
+                <option value="Pet Shop">Pet Shop</option>
+                <option value="Ração">Ração</option>
+                <option value="Remédio - pet">Remédio - pet</option>
+                <option value="Veterinário">Veterinário</option>
+              </optgroup>
+
+              <optgroup label="Casa">
+                <option value="Água">Água</option>
+                <option value="Aluguel">Aluguel</option>
+                <option value="Condomínio">Condomínio</option>
+                <option value="Empregada Doméstica">Empregada Doméstica</option>
+                <option value="Gás">Gás</option>
+                <option value="Internet">Internet</option>
+                <option value="Lavanderia">Lavanderia</option>
+                <option value="Luz">Luz</option>
+                <option value="Manutenção da Casa">Manutenção da Casa</option>
+                <option value="Materiais de Limpeza">Materiais de Limpeza</option>
+                <option value="Telefone">Telefone</option>
+                <option value="TV por assinatura">TV por assinatura</option>
+              </optgroup>
+
+              <optgroup label="Educação">
+                <option value="Cursos">Cursos</option>
+                <option value="Escola">Escola</option>
+                <option value="Faculdade">Faculdade</option>
+                <option value="Livraria">Livraria</option>
+                <option value="Material Escolar">Material Escolar</option>
+                <option value="Pós-Graduação">Pós-Graduação</option>
+              </optgroup>
+
+              <optgroup label="Outros">
+                <option value="Gastos Esporádicos">Gastos Esporádicos</option>
+                <option value="Gastos Pessoais">Gastos Pessoais</option>
+                <option value="Impostos">Impostos</option>
+                <option value="Trabalho">Trabalho / Salário</option>
+                <option value="Outros">Outros</option>
+              </optgroup>
             </select>
           </div>
+
           <div>
             <label class="block text-xs text-slate-400 mb-1">Status Inicial</label>
             <select id="tx-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
@@ -297,6 +444,7 @@
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let transactions = [];
+    let expensesChart = null;
     let currentUser = {
       name: 'Rafael Beltrame',
       email: 'demo@finanflow.com'
@@ -307,7 +455,6 @@
       const today = new Date();
       document.getElementById('tx-date').value = today.toISOString().split('T')[0];
       
-      // Define mês/ano atual no filtro (Formato YYYY-MM)
       const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
       document.getElementById('month-filter').value = currentYearMonth;
     });
@@ -327,29 +474,95 @@
       document.getElementById('login-view').classList.remove('hidden');
     }
 
-    // Modal de Perfil do Usuário
+    // Modal Perfil
     function openProfileModal() {
       document.getElementById('profile-name').value = currentUser.name || '';
       document.getElementById('profile-email').value = currentUser.email || '';
       document.getElementById('profile-password').value = '';
       document.getElementById('profile-modal').classList.remove('hidden');
     }
-
     function closeProfileModal() {
       document.getElementById('profile-modal').classList.add('hidden');
     }
-
     function saveProfile(e) {
       e.preventDefault();
       currentUser.name = document.getElementById('profile-name').value;
       currentUser.email = document.getElementById('profile-email').value;
-      
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
       closeProfileModal();
       alert('Perfil do usuário atualizado com sucesso!');
     }
 
-    // Carregar do Banco
+    // Modal Importação
+    function openImportModal() {
+      document.getElementById('import-modal').classList.remove('hidden');
+      document.getElementById('import-status').classList.add('hidden');
+    }
+    function closeImportModal() {
+      document.getElementById('import-modal').classList.add('hidden');
+    }
+
+    // Processar Arquivo Excel / CSV
+    async function processImportFile() {
+      const fileInput = document.getElementById('file-input');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert('Por favor, selecione um arquivo.');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonRows = XLSX.utils.sheet_to_json(firstSheet);
+
+          if (jsonRows.length === 0) {
+            alert('Nenhum dado encontrado na planilha.');
+            return;
+          }
+
+          const newTransactions = [];
+          for (const row of jsonRows) {
+            const description = row['Descrição'] || row['Descricao'] || row['description'] || 'Importado';
+            const amount = parseFloat(row['Valor'] || row['valor'] || row['amount'] || 0);
+            const dueDate = row['Vencimento'] || row['Data'] || row['due_date'] || new Date().toISOString().split('T')[0];
+            const category = row['Categoria'] || row['category'] || 'Outros';
+            const type = (row['Tipo'] || row['type'] || 'expense').toLowerCase().includes('receita') ? 'income' : 'expense';
+
+            if (amount > 0) {
+              newTransactions.push({
+                description,
+                amount: Math.abs(amount),
+                type,
+                category,
+                due_date: String(dueDate).substring(0, 10),
+                status: 'pending'
+              });
+            }
+          }
+
+          if (newTransactions.length > 0) {
+            await db.from('transactions').insert(newTransactions);
+            const statusEl = document.getElementById('import-status');
+            statusEl.innerText = `${newTransactions.length} transações importadas com sucesso!`;
+            statusEl.classList.remove('hidden');
+            setTimeout(() => {
+              closeImportModal();
+              loadTransactionsFromDB();
+            }, 1500);
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Erro ao processar arquivo. Verifique se o formato está correto.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Carregar Banco de Dados
     async function loadTransactionsFromDB() {
       const { data, error } = await db.from('transactions').select('*').order('due_date', { ascending: true });
       if (error) {
@@ -364,9 +577,7 @@
         category: item.category,
         dueDate: item.due_date,
         status: item.status,
-        isRecurring: item.is_recurring,
-        installmentCurrent: item.installment_current,
-        installmentTotal: item.installment_total
+        isRecurring: item.is_recurring
       }));
       renderDashboard();
     }
@@ -388,7 +599,6 @@
           document.getElementById('tx-category').value = item.category;
           document.getElementById('tx-status').value = item.status;
           document.getElementById('tx-recurring').checked = item.isRecurring || false;
-          document.getElementById('tx-installments').value = item.installmentTotal || 1;
           
           if (item.type === 'income') document.getElementById('type-income').checked = true;
           else document.getElementById('type-expense').checked = true;
@@ -409,7 +619,7 @@
       else expenseOptions.classList.add('hidden');
     }
 
-    // Salvar ou Editar
+    // Salvar/Editar
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -441,9 +651,7 @@
             category,
             due_date: d.toISOString().split('T')[0],
             status: i === 0 ? status : 'pending',
-            is_recurring: isRecurring,
-            installment_current: i + 1,
-            installment_total: installments
+            is_recurring: isRecurring
           });
         }
         await db.from('transactions').insert(newRows);
@@ -453,7 +661,6 @@
       await loadTransactionsFromDB();
     });
 
-    // Alternar Status
     async function toggleStatus(id) {
       const item = transactions.find(t => t.id === id);
       if (item) {
@@ -463,29 +670,116 @@
       }
     }
 
-    // Excluir
     async function deleteTransaction(id) {
       await db.from('transactions').delete().eq('id', id);
       await loadTransactionsFromDB();
     }
 
-    // Renderizar Dashboard com Filtro Mensal
+    // Renderizar Dashboard com estilo da Imagem 2
     function renderDashboard() {
+      const selectedMonth = document.getElementById('month-filter').value; // Formato YYYY-MM
+      const includePrevious = document.getElementById('chk-include-previous').checked;
+
+      // Calcular Saldo Anterior (antes do mês selecionado)
+      let previousBalance = 0;
+      transactions.forEach(t => {
+        if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
+          if (t.type === 'income') previousBalance += t.amount;
+          else previousBalance -= t.amount;
+        }
+      });
+
+      // Transações do mês selecionado
+      const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
+
+      let monthIncome = 0;
+      let monthExpense = 0;
+      const categoryTotals = {};
+
+      monthTransactions.forEach(t => {
+        if (t.type === 'income') {
+          if (t.status === 'completed') monthIncome += t.amount;
+        } else {
+          if (t.status === 'completed') monthExpense += t.amount;
+          // Para o gráfico de pizza (despesas totais do mês)
+          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+        }
+      });
+
+      const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
+
+      // Atualizar valores do Bloco Entradas e saídas
+      document.getElementById('txt-previous-balance').innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      document.getElementById('txt-month-income').innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      
+      const totalEl = document.getElementById('txt-total-balance');
+      totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      if (totalBalance < 0) {
+        totalEl.className = 'text-2xl font-bold text-rose-500';
+      } else {
+        totalEl.className = 'text-2xl font-bold text-emerald-400';
+      }
+
+      // Renderizar Tabelas do Dashboard (Anteriores, Próximas, Alertas)
+      renderDashboardLists(selectedMonth);
+
+      // Renderizar Tabela Geral
+      renderFullHistoryTable(monthTransactions);
+
+      // Renderizar Gráfico de Pizza
+      renderCategoryChart(categoryTotals);
+
+      lucide.createIcons();
+    }
+
+    function renderDashboardLists(selectedMonth) {
+      const previousList = document.getElementById('list-previous-pending');
+      const nextList = document.getElementById('list-next-pending');
+      const alertsList = document.getElementById('list-alerts');
+
+      previousList.innerHTML = '';
+      nextList.innerHTML = '';
+      alertsList.innerHTML = '';
+
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      transactions.forEach(t => {
+        if (t.status !== 'pending') return;
+
+        const valFormatted = (t.type === 'expense' ? '-' : '+') + `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        const valColor = t.type === 'expense' ? 'text-rose-400' : 'text-emerald-400';
+
+        const rowHTML = `
+          <tr>
+            <td class="py-1.5 font-medium">${t.description}</td>
+            <td class="py-1.5 text-slate-400">${t.dueDate}</td>
+            <td class="py-1.5 text-right font-semibold ${valColor}">${valFormatted}</td>
+          </tr>
+        `;
+
+        // Anteriores não consolidadas (Vencimento anterior ao mês selecionado)
+        if (t.dueDate < selectedMonth + '-01') {
+          previousList.innerHTML += rowHTML;
+        }
+        // Próximas não consolidadas (No mês selecionado ou futuro)
+        else if (t.dueDate >= selectedMonth + '-01') {
+          nextList.innerHTML += rowHTML;
+        }
+
+        // Alertas (Vencidos ou a vencer nos próximos 5 dias)
+        const diffDays = Math.ceil((new Date(t.dueDate) - new Date(todayStr)) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 5) {
+          alertsList.innerHTML += rowHTML;
+        }
+      });
+    }
+
+    function renderFullHistoryTable(monthTransactions) {
       const listEl = document.getElementById('transactions-list');
       listEl.innerHTML = '';
 
-      const selectedMonth = document.getElementById('month-filter').value; // Formato YYYY-MM
-      
-      // Filtrar apenas transações do mês selecionado
-      const filteredTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
-
-      let inc = 0, exp = 0, pending = 0;
-
-      filteredTransactions.forEach(t => {
-        if (t.type === 'income' && t.status === 'completed') inc += t.amount;
-        if (t.type === 'expense' && t.status === 'completed') exp += t.amount;
-        if (t.type === 'expense' && t.status === 'pending') pending += t.amount;
-
+      monthTransactions.forEach(t => {
         const isIncome = t.type === 'income';
         const isPaid = t.status === 'completed';
 
@@ -520,23 +814,47 @@
         `;
         listEl.appendChild(tr);
       });
+    }
 
-      if (filteredTransactions.length === 0) {
-        listEl.innerHTML = `
-          <tr>
-            <td colspan="6" class="p-8 text-center text-slate-500">
-              Nenhuma transação encontrada para o mês selecionado.
-            </td>
-          </tr>
-        `;
+    // Gerador de Gráfico de Pizza (Chart.js)
+    function renderCategoryChart(categoryTotals) {
+      const ctx = document.getElementById('expensesChart').getContext('2d');
+      const labels = Object.keys(categoryTotals);
+      const dataValues = Object.values(categoryTotals);
+
+      if (expensesChart) {
+        expensesChart.destroy();
       }
 
-      document.getElementById('card-income').innerText = `R$ ${inc.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('card-expense').innerText = `R$ ${exp.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('card-balance').innerText = `R$ ${(inc - exp).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('card-pending').innerText = `R$ ${pending.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      if (labels.length === 0) {
+        return;
+      }
 
-      lucide.createIcons();
+      expensesChart = new Chart(ctx, {
+        type: 'pie',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: dataValues,
+            backgroundColor: [
+              '#10b981', '#f43f5e', '#6366f1', '#f59e0b', 
+              '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'
+            ],
+            borderWidth: 1,
+            borderColor: '#0f172a'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: '#94a3b8', font: { size: 11 } }
+            }
+          }
+        }
+      });
     }
   </script>
 </body>
