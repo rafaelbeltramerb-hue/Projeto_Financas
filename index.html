@@ -92,9 +92,15 @@
       </nav>
       
       <div class="flex items-center space-x-2">
+        <!-- BOTÃO COMPARTILHAR -->
+        <button onclick="openShareModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-900/70 border border-indigo-700/50 text-indigo-300 text-xs font-medium transition">
+          <i data-lucide="share-2" class="w-4 h-4 text-indigo-400"></i>
+          <span class="hidden sm:inline">Compartilhar</span>
+        </button>
+
         <button onclick="openImportModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
           <i data-lucide="file-up" class="w-4 h-4 text-brand-400"></i>
-          <span class="hidden md:inline">Importar (XLS/CSV)</span>
+          <span class="hidden md:inline">Importar</span>
         </button>
 
         <button onclick="openProfileModal()" class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 transition">
@@ -119,11 +125,28 @@
           <p id="page-subtitle" class="text-xs text-slate-400">Resumo consolidado das movimentações financeiras</p>
         </div>
 
-        <div class="flex items-center gap-3">
-          <div class="flex items-center space-x-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 shadow-sm">
-            <i data-lucide="calendar" class="w-4 h-4 text-brand-500"></i>
-            <span class="text-xs text-slate-400 hidden sm:inline">Mês:</span>
-            <input type="month" id="month-filter" onchange="renderDashboard()" class="bg-transparent text-xs sm:text-sm focus:outline-none text-slate-200 font-medium">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- SELETOR DE CONTA / VISUALIZAÇÃO COMPARTILHADA -->
+          <div class="flex items-center space-x-1.5 bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 shadow-sm">
+            <i data-lucide="users" class="w-4 h-4 text-indigo-400"></i>
+            <select id="account-view-filter" onchange="renderDashboard()" class="bg-transparent text-xs text-slate-200 font-medium focus:outline-none cursor-pointer">
+              <option value="my">Minhas Finanças</option>
+              <option value="all">Todas (Minhas + Compartilhadas)</option>
+            </select>
+          </div>
+
+          <!-- NAVEGAÇÃO DE MÊS COM SETAS -->
+          <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-1 shadow-sm">
+            <button onclick="changeMonth(-1)" title="Mês Anterior" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            </button>
+            <div class="flex items-center px-2 space-x-1.5">
+              <i data-lucide="calendar" class="w-4 h-4 text-brand-500"></i>
+              <input type="month" id="month-filter" onchange="renderDashboard()" class="bg-transparent text-xs sm:text-sm focus:outline-none text-slate-200 font-medium">
+            </div>
+            <button onclick="changeMonth(1)" title="Próximo Mês" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
           </div>
 
           <button onclick="openModal()" 
@@ -262,6 +285,41 @@
       </div>
 
     </main>
+  </div>
+
+  <!-- MODAL DE COMPARTILHAMENTO DE CONTAS -->
+  <div id="share-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-lg font-bold flex items-center gap-2 text-indigo-400">
+          <i data-lucide="share-2" class="w-5 h-5"></i> Compartilhar Finanças
+        </h3>
+        <button onclick="closeShareModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <p class="text-xs text-slate-400">
+        Adicione o e-mail do usuário (ex: parceiro, familiar ou sócio) para permitir que ele visualize e gerencie suas receitas e despesas.
+      </p>
+
+      <form id="share-form" onsubmit="addSharedUser(event)" class="flex space-x-2">
+        <input type="email" id="share-email-input" required placeholder="email@usuario.com" 
+          class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+        <button type="submit" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2 rounded-lg text-xs transition">
+          Adicionar
+        </button>
+      </form>
+
+      <div class="space-y-2 border-t border-slate-800 pt-3">
+        <h4 class="text-xs font-semibold text-slate-300">Usuários Autorizados:</h4>
+        <div id="shared-users-list" class="max-h-40 overflow-y-auto divide-y divide-slate-800/60 text-xs">
+          <!-- Lista gerada dinamicamente via JS -->
+        </div>
+      </div>
+
+      <div class="flex justify-end border-t border-slate-800 pt-3">
+        <button type="button" onclick="closeShareModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Fechar</button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
@@ -447,7 +505,7 @@
           </div>
         </div>
 
-        <!-- OPÇÕES DE RECORRÊNCIA E PARCELAMENTO (SUPORTA RECEITA E DESPESA) -->
+        <!-- OPÇÕES DE RECORRÊNCIA E PARCELAMENTO -->
         <div id="recurrence-options" class="border-t border-slate-800 pt-3 space-y-3">
           <div class="flex items-center justify-between">
             <label for="tx-recurring" class="text-xs text-slate-300 font-medium cursor-pointer">
@@ -495,6 +553,100 @@
 
     let currentUser = getStoredUser();
 
+    // GERENCIAMENTO DE COMPARTILHAMENTO DE CONTAS
+    function getSharedEmails() {
+      const saved = localStorage.getItem(`shared_with_${currentUser.email}`);
+      return saved ? JSON.parse(saved) : [];
+    }
+
+    function saveSharedEmails(list) {
+      localStorage.setItem(`shared_with_${currentUser.email}`, JSON.stringify(list));
+      updateAccountFilterOptions();
+    }
+
+    function updateAccountFilterOptions() {
+      const filterSelect = document.getElementById('account-view-filter');
+      const currentValue = filterSelect.value;
+      const sharedList = getSharedEmails();
+
+      filterSelect.innerHTML = `
+        <option value="my">Minhas Finanças</option>
+        <option value="all">Todas (Minhas + Compartilhadas)</option>
+      `;
+
+      sharedList.forEach(email => {
+        const opt = document.createElement('option');
+        opt.value = email;
+        opt.innerText = `Finanças de ${email}`;
+        filterSelect.appendChild(opt);
+      });
+
+      if ([...filterSelect.options].some(o => o.value === currentValue)) {
+        filterSelect.value = currentValue;
+      } else {
+        filterSelect.value = 'my';
+      }
+    }
+
+    function openShareModal() {
+      renderSharedUsersList();
+      document.getElementById('share-modal').classList.remove('hidden');
+    }
+
+    function closeShareModal() {
+      document.getElementById('share-modal').classList.add('hidden');
+    }
+
+    function renderSharedUsersList() {
+      const container = document.getElementById('shared-users-list');
+      const sharedList = getSharedEmails();
+
+      if (sharedList.length === 0) {
+        container.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Nenhum usuário adicionado para compartilhamento.</p>`;
+        return;
+      }
+
+      container.innerHTML = sharedList.map(email => `
+        <div class="flex items-center justify-between py-2">
+          <span class="text-slate-300 font-medium">${email}</span>
+          <button onclick="removeSharedUser('${email}') text-xs text-rose-400 hover:text-rose-300 transition" class="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function addSharedUser(e) {
+      e.preventDefault();
+      const input = document.getElementById('share-email-input');
+      const email = input.value.trim().toLowerCase();
+      if (!email) return;
+
+      if (email === currentUser.email.toLowerCase()) {
+        alert('Você já é o proprietário desta conta.');
+        return;
+      }
+
+      const list = getSharedEmails();
+      if (!list.includes(email)) {
+        list.push(email);
+        saveSharedEmails(list);
+        input.value = '';
+        renderSharedUsersList();
+        renderDashboard();
+      }
+    }
+
+    function removeSharedUser(email) {
+      let list = getSharedEmails();
+      list = list.filter(e => e !== email);
+      saveSharedEmails(list);
+      renderSharedUsersList();
+      renderDashboard();
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
       const today = new Date();
@@ -502,7 +654,26 @@
       
       const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
       document.getElementById('month-filter').value = currentYearMonth;
+
+      updateAccountFilterOptions();
     });
+
+    // NAVEGAÇÃO ENTRE MESES COM AS SETAS < E >
+    function changeMonth(delta) {
+      const monthInput = document.getElementById('month-filter');
+      if (!monthInput.value) return;
+
+      const [yearStr, monthStr] = monthInput.value.split('-');
+      let year = parseInt(yearStr, 10);
+      let month = parseInt(monthStr, 10) - 1 + delta;
+
+      const targetDate = new Date(year, month, 1);
+      const newYear = targetDate.getFullYear();
+      const newMonth = String(targetDate.getMonth() + 1).padStart(2, '0');
+
+      monthInput.value = `${newYear}-${newMonth}`;
+      renderDashboard();
+    }
 
     function switchTab(tabName) {
       const tabDashboard = document.getElementById('tab-dashboard');
@@ -550,6 +721,8 @@
         document.getElementById('login-view').classList.add('hidden');
         document.getElementById('dashboard-view').classList.remove('hidden');
         errorEl.classList.add('hidden');
+        
+        updateAccountFilterOptions();
         loadTransactionsFromDB();
       } else {
         errorEl.innerText = 'E-mail ou senha incorretos!';
@@ -660,7 +833,8 @@
               type,
               category,
               due_date: dueDate,
-              status: 'pending'
+              status: 'pending',
+              user_email: currentUser.email
             });
           }
 
@@ -698,7 +872,8 @@
         category: item.category,
         dueDate: item.due_date,
         status: item.status,
-        isRecurring: item.is_recurring
+        isRecurring: item.is_recurring,
+        userEmail: item.user_email || currentUser.email
       }));
       renderDashboard();
     }
@@ -745,7 +920,7 @@
       }
     }
 
-    // CÁLCULO SEGURO DE DATAS FUTURAS (PRESERVA DIA DO MÊS / COMPATÍVEL COM ANOS BISSESTOS E MESES DE 28/30 DIAS)
+    // CÁLCULO SEGURO DE DATAS FUTURAS (PRESERVA DIA DO MÊS)
     function addMonthsToDate(dateStr, monthsToAdd) {
       const parts = dateStr.split('-');
       let year = parseInt(parts[0], 10);
@@ -764,7 +939,7 @@
       return `${targetYear}-${mStr}-${dStr}`;
     }
 
-    // SALVAR / REPLICAR LANÇAMENTOS (NOVO OU EDITADO)
+    // SALVAR / REPLICAR LANÇAMENTOS (NOVO OU EDITADO COM PERFIL DE USUÁRIO)
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
@@ -776,16 +951,15 @@
       const status = document.getElementById('tx-status').value;
       const isRecurring = document.getElementById('tx-recurring').checked;
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
+      const userEmail = currentUser.email;
 
       if (id) {
-        // === EDITANDO UM LANÇAMENTO EXISTENTE (EX: IMPORTADO) ===
+        // === EDITANDO UM LANÇAMENTO EXISTENTE ===
         if (isRecurring) {
-          // 1. Atualiza o lançamento do mês atual
           await db.from('transactions').update({
-            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: true
+            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: true, user_email: userEmail
           }).eq('id', id);
 
-          // 2. Gera os lançamentos recorrentes dos 11 meses subsequentes
           const newRows = [];
           for (let i = 1; i < 12; i++) {
             const nextDate = addMonthsToDate(dueDate, i);
@@ -796,14 +970,14 @@
               category,
               due_date: nextDate,
               status: 'pending',
-              is_recurring: true
+              is_recurring: true,
+              user_email: userEmail
             });
           }
           if (newRows.length > 0) {
             await db.from('transactions').insert(newRows);
           }
         } else if (installments > 1) {
-          // 1. Atualiza o lançamento atual como parcela 1
           const installmentValue = totalAmount / installments;
           const cleanDesc = description.replace(/\s*\(\d+\/\d+\)$/, '');
           
@@ -814,10 +988,10 @@
             category,
             due_date: dueDate,
             status,
-            is_recurring: false
+            is_recurring: false,
+            user_email: userEmail
           }).eq('id', id);
 
-          // 2. Gera as parcelas 2 até N nos meses seguintes
           const newRows = [];
           for (let i = 1; i < installments; i++) {
             const nextDate = addMonthsToDate(dueDate, i);
@@ -828,16 +1002,16 @@
               category,
               due_date: nextDate,
               status: 'pending',
-              is_recurring: false
+              is_recurring: false,
+              user_email: userEmail
             });
           }
           if (newRows.length > 0) {
             await db.from('transactions').insert(newRows);
           }
         } else {
-          // Lançamento pontual simples
           await db.from('transactions').update({
-            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false
+            description, amount: totalAmount, type, category, due_date: dueDate, status, is_recurring: false, user_email: userEmail
           }).eq('id', id);
         }
 
@@ -855,7 +1029,8 @@
               category,
               due_date: nextDate,
               status: i === 0 ? status : 'pending',
-              is_recurring: true
+              is_recurring: true,
+              user_email: userEmail
             });
           }
         } else if (installments > 1) {
@@ -869,7 +1044,8 @@
               category,
               due_date: nextDate,
               status: i === 0 ? status : 'pending',
-              is_recurring: false
+              is_recurring: false,
+              user_email: userEmail
             });
           }
         } else {
@@ -880,7 +1056,8 @@
             category,
             due_date: dueDate,
             status,
-            is_recurring: false
+            is_recurring: false,
+            user_email: userEmail
           });
         }
 
@@ -927,16 +1104,30 @@
     function renderDashboard() {
       const selectedMonth = document.getElementById('month-filter').value;
       const includePrevious = document.getElementById('chk-include-previous').checked;
+      const accountView = document.getElementById('account-view-filter').value;
+      const sharedEmails = getSharedEmails();
+
+      // FILTRAGEM POR CONTA / COMPARTILHAMENTO
+      let filteredTransactions = transactions.filter(t => {
+        const itemEmail = t.userEmail ? t.userEmail.toLowerCase() : currentUser.email.toLowerCase();
+        if (accountView === 'my') {
+          return itemEmail === currentUser.email.toLowerCase();
+        } else if (accountView === 'all') {
+          return itemEmail === currentUser.email.toLowerCase() || sharedEmails.includes(itemEmail);
+        } else {
+          return itemEmail === accountView.toLowerCase();
+        }
+      });
 
       let previousBalance = 0;
-      transactions.forEach(t => {
+      filteredTransactions.forEach(t => {
         if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
           if (t.type === 'income') previousBalance += t.amount;
           else previousBalance -= t.amount;
         }
       });
 
-      const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
+      const monthTransactions = filteredTransactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
 
       let monthIncome = 0;
       let monthExpense = 0;
@@ -965,14 +1156,14 @@
         totalEl.className = 'text-2xl font-bold text-emerald-400';
       }
 
-      renderDashboardLists(selectedMonth);
+      renderDashboardLists(selectedMonth, filteredTransactions);
       renderFullHistoryTable(monthTransactions);
       renderCategoryChart(categoryTotals);
 
       lucide.createIcons();
     }
 
-    function renderDashboardLists(selectedMonth) {
+    function renderDashboardLists(selectedMonth, activeTransactions) {
       const previousList = document.getElementById('list-previous-pending');
       const nextList = document.getElementById('list-next-pending');
       const alertsList = document.getElementById('list-alerts');
@@ -983,7 +1174,7 @@
 
       const todayStr = new Date().toISOString().split('T')[0];
 
-      transactions.forEach(t => {
+      activeTransactions.forEach(t => {
         if (t.status !== 'pending') return;
 
         const valFormatted = (t.type === 'expense' ? '-' : '+') + `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
