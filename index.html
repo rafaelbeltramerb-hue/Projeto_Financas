@@ -441,6 +441,32 @@
     </div>
   </div>
 
+  <!-- MODAL ESCOPO DE EDIÇÃO DE FIXOS -->
+  <div id="recurring-edit-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass w-full max-w-sm p-6 rounded-2xl shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto">
+        <i data-lucide="repeat" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="text-lg font-bold text-slate-100">Editar Lançamento Fixo</h3>
+        <p class="text-xs text-slate-400 mt-1">Este lançamento é recorrente. Como você deseja aplicar as alterações?</p>
+      </div>
+      <div class="space-y-2 pt-2">
+        <button onclick="confirmEditScope('single')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-2.5 px-4 rounded-xl text-xs transition border border-slate-700 flex items-center justify-center gap-2">
+          <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+          <span>Editar Somente Este Lançamento</span>
+        </button>
+        <button onclick="confirmEditScope('future')" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-2.5 px-4 rounded-xl text-xs transition shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2">
+          <i data-lucide="fast-forward" class="w-4 h-4"></i>
+          <span>Editar Todos deste Ponto em Diante</span>
+        </button>
+      </div>
+      <div class="pt-2">
+        <button onclick="closeRecurringModal()" class="text-xs text-slate-400 hover:text-white">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL EDITAR PERFIL DO USUÁRIO -->
   <div id="profile-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
@@ -592,6 +618,8 @@
     let userCategories = [];
     let expensesChart = null;
     let pendingDeleteIds = [];
+    let editScope = 'single'; // 'single' ou 'future'
+    let pendingEditId = null;
 
     // CONTROLE DO DROPDOWN DO USUÁRIO
     function toggleUserDropdown() {
@@ -742,7 +770,7 @@
         currentUser = { email, name: userName };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
 
-        successEl.innerText = `Convite confirmed! Acessando o espaço de ${ownerFound}...`;
+        successEl.innerText = `Convite confirmado! Acessando o espaço de ${ownerFound}...`;
         successEl.classList.remove('hidden');
 
         setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
@@ -1212,7 +1240,35 @@
       reader.readAsArrayBuffer(file);
     }
 
+    // ABRIR EDIÇÃO COM ESCOPO DE FIXO
     function openModal(editId = null) {
+      pendingEditId = editId;
+      editScope = 'single';
+
+      if (editId) {
+        const item = transactions.find(t => t.id == editId);
+        if (item && item.isRecurring) {
+          document.getElementById('recurring-edit-modal').classList.remove('hidden');
+          lucide.createIcons();
+          return;
+        }
+      }
+
+      showTransactionModal(editId);
+    }
+
+    function closeRecurringModal() {
+      document.getElementById('recurring-edit-modal').classList.add('hidden');
+      pendingEditId = null;
+    }
+
+    function confirmEditScope(scope) {
+      editScope = scope;
+      document.getElementById('recurring-edit-modal').classList.add('hidden');
+      showTransactionModal(pendingEditId);
+    }
+
+    function showTransactionModal(editId = null) {
       const modal = document.getElementById('modal');
       const form = document.getElementById('transaction-form');
       form.reset();
@@ -1238,6 +1294,7 @@
       }
       toggleFormFields();
       modal.classList.remove('hidden');
+      lucide.createIcons();
     }
 
     function closeModal() {
@@ -1285,16 +1342,48 @@
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
       if (id) {
-        // Apenas atualiza o registro específico sem duplicar futuros
-        await db.from('transactions').update({
-          description, 
-          amount: totalAmount, 
-          type, 
-          category, 
-          due_date: dueDate, 
-          status, 
-          is_recurring: isRecurring
-        }).eq('id', id);
+        const origItem = transactions.find(t => t.id == id);
+
+        if (editScope === 'future' && origItem && origItem.isRecurring) {
+          // Filtra todos os lançamentos fixos do mesmo espaço com a mesma descrição a partir dessa data
+          const futureItems = transactions.filter(t => 
+            t.ownerEmail === currentWorkspaceOwner &&
+            t.isRecurring &&
+            t.description === origItem.description &&
+            t.dueDate >= origItem.dueDate
+          );
+
+          // Ordena sequencialmente
+          futureItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || String(a.id).localeCompare(String(b.id)));
+
+          // Atualiza todos do ponto em diante recalculando as datas relativas
+          for (let i = 0; i < futureItems.length; i++) {
+            const fItem = futureItems[i];
+            const newDueDate = addMonthsToDate(dueDate, i);
+            const itemStatus = (fItem.id == origItem.id) ? status : fItem.status;
+
+            await db.from('transactions').update({
+              description: description,
+              amount: totalAmount,
+              type: type,
+              category: category,
+              due_date: newDueDate,
+              status: itemStatus,
+              is_recurring: isRecurring
+            }).eq('id', fItem.id);
+          }
+        } else {
+          // Atualiza apenas o registro específico
+          await db.from('transactions').update({
+            description, 
+            amount: totalAmount, 
+            type, 
+            category, 
+            due_date: dueDate, 
+            status, 
+            is_recurring: isRecurring
+          }).eq('id', id);
+        }
       } else {
         // Criação de novos lançamentos
         const newRows = [];
