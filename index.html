@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="dark">
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,73 +15,81 @@
 
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
           colors: {
-            brand: { 500: '#6366f1', 600: '#4f46e5' }
+            brand: { 
+              50: '#eep2ff',
+              100: '#e0e7ff',
+              500: '#6366f1', 
+              600: '#4f46e5',
+              700: '#4338ca' 
+            }
           }
         }
       }
     }
   </script>
   <style>
-    .glass {
-      background: rgba(30, 41, 59, 0.7);
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(226, 232, 240, 0.8);
     }
     input[type="month"]::-webkit-calendar-picker-indicator {
-      filter: invert(0.8);
       cursor: pointer;
+      opacity: 0.6;
+    }
+    input[type="month"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
 
   <!-- TELA DE LOGIN / CADASTRO / CONVITE -->
-  <div id="login-view" class="min-h-screen flex items-center justify-center p-4">
-    <div class="glass w-full max-w-md p-8 rounded-2xl shadow-2xl space-y-6">
+  <div id="login-view" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-100 via-indigo-50/30 to-slate-100">
+    <div class="glass-card w-full max-w-md p-8 rounded-3xl shadow-xl shadow-slate-200/50 space-y-6 bg-white">
       <div class="text-center space-y-2">
-        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-500/20 text-brand-500 mb-2">
-          <i data-lucide="wallet" class="w-6 h-6"></i>
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-50 text-brand-600 mb-1 shadow-sm border border-brand-100">
+          <i data-lucide="wallet" class="w-7 h-7"></i>
         </div>
-        <h1 class="text-2xl font-bold tracking-tight">Controle Financeiro</h1>
-        <p id="auth-subtitle" class="text-xs text-slate-400">Acesse sua conta para continuar</p>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Controle Financeiro</h1>
+        <p id="auth-subtitle" class="text-xs text-slate-500">Acesse sua conta para continuar</p>
       </div>
 
       <!-- SELETOR 3 ABAS DE AUTENTICAÇÃO -->
-      <div class="flex border-b border-slate-800 text-xs font-medium text-center">
-        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold">Entrar</button>
-        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white">Criar Conta</button>
-        <button id="btn-invite-mode" onclick="toggleAuthMode('invited')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white">Sou Convidado</button>
+      <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-medium text-center">
+        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 py-2 rounded-lg bg-white text-brand-600 font-semibold shadow-sm transition">Entrar</button>
+        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Criar Conta</button>
+        <button id="btn-invite-mode" onclick="toggleAuthMode('invited')" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition">Sou Convidado</button>
       </div>
 
       <!-- FORMULÁRIO DE AUTENTICAÇÃO -->
       <form id="login-form" class="space-y-4">
-        <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 p-3 rounded-lg text-center font-medium border border-rose-500/20"></div>
-        <div id="login-success" class="hidden text-xs text-emerald-400 bg-emerald-500/10 p-3 rounded-lg text-center font-medium border border-emerald-500/20"></div>
+        <div id="login-error" class="hidden text-xs text-rose-600 bg-rose-50 p-3 rounded-xl text-center font-medium border border-rose-200"></div>
+        <div id="login-success" class="hidden text-xs text-emerald-600 bg-emerald-50 p-3 rounded-xl text-center font-medium border border-emerald-200"></div>
 
         <div id="name-field-container" class="hidden">
-          <label class="block text-xs font-medium text-slate-400 mb-1">Seu Nome</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Seu Nome</label>
           <input type="text" id="login-name" placeholder="Como deseja ser chamado" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Seu E-mail</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Seu E-mail</label>
           <input type="email" id="login-email" required placeholder="seu@email.com" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Senha</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Senha</label>
           <input type="password" id="login-password" required placeholder="••••••" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:border-brand-500 transition">
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
         </div>
 
         <button type="submit" id="btn-auth-submit"
-          class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-2.5 rounded-lg transition duration-200 shadow-lg shadow-brand-600/30">
+          class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-xl transition duration-200 shadow-md shadow-brand-500/20">
           Entrar na Conta
         </button>
       </form>
@@ -89,75 +97,75 @@
   </div>
 
   <!-- PAINEL PRINCIPAL -->
-  <div id="dashboard-view" class="hidden min-h-screen flex flex-col">
+  <div id="dashboard-view" class="hidden min-h-screen flex flex-col bg-slate-50">
     <!-- HEADER -->
-    <header class="glass sticky top-0 z-20 border-b border-slate-800 px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200 px-4 sm:px-8 py-3 flex flex-wrap items-center justify-between gap-3 shadow-sm">
       <div class="flex items-center space-x-3">
-        <div class="w-9 h-9 rounded-lg bg-brand-500/20 text-brand-500 flex items-center justify-center">
+        <div class="w-10 h-10 rounded-xl bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shadow-sm">
           <i data-lucide="wallet" class="w-5 h-5"></i>
         </div>
         <div class="flex flex-col">
-          <span class="font-bold text-sm sm:text-base leading-tight">Controle Financeiro</span>
-          <span id="shared-badge-header" class="text-[10px] text-indigo-400 font-medium">Espaço: <span id="workspace-owner-label">Próprio</span></span>
+          <span class="font-bold text-slate-900 text-sm sm:text-base leading-tight">Controle Financeiro</span>
+          <span id="shared-badge-header" class="text-[11px] text-brand-600 font-medium">Espaço: <span id="workspace-owner-label" class="font-semibold">Próprio</span></span>
         </div>
       </div>
 
       <!-- BOTÕES NAVEGAÇÃO -->
-      <nav class="flex space-x-1 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
-        <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5">
+      <nav class="flex space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+        <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5">
           <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
         </button>
-        <button id="btn-tab-transactions" onclick="switchTab('transactions')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5">
+        <button id="btn-tab-transactions" onclick="switchTab('transactions')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
           <i data-lucide="receipt" class="w-4 h-4"></i> Lançamentos Mensais
         </button>
       </nav>
       
       <!-- MENU UNIFICADO (USUÁRIO E AÇÕES) -->
       <div class="relative">
-        <button id="btn-user-dropdown" onclick="toggleUserDropdown()" class="flex items-center space-x-2.5 p-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 transition focus:outline-none">
-          <div class="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold">
+        <button id="btn-user-dropdown" onclick="toggleUserDropdown()" class="flex items-center space-x-2.5 p-1.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-slate-700 transition focus:outline-none">
+          <div class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-xs font-bold">
             <i data-lucide="user" class="w-4 h-4"></i>
           </div>
-          <span id="user-display" class="text-xs font-medium">Usuário</span>
+          <span id="user-display" class="text-xs font-semibold max-w-[100px] truncate">Usuário</span>
           <i data-lucide="chevron-down" id="user-dropdown-arrow" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"></i>
         </button>
 
         <!-- SUBMENU DROPDOWN -->
-        <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 glass rounded-xl shadow-2xl border border-slate-800/80 py-1.5 z-50 divide-y divide-slate-800/60">
+        <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 divide-y divide-slate-100">
           
           <!-- CABEÇALHO DO MENU -->
-          <div class="px-3.5 py-2">
-            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Conta Ativa</p>
-            <p id="dropdown-user-name" class="text-xs font-bold text-slate-100 truncate">Usuário</p>
+          <div class="px-4 py-2.5">
+            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Conta Ativa</p>
+            <p id="dropdown-user-name" class="text-xs font-bold text-slate-800 truncate">Usuário</p>
           </div>
 
           <!-- AÇÕES UNIFICADAS -->
           <div class="py-1">
-            <button onclick="closeUserDropdown(); openCategoriesModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
-              <i data-lucide="tags" class="w-4 h-4 text-brand-400"></i>
+            <button onclick="closeUserDropdown(); openCategoriesModal();" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="tags" class="w-4 h-4 text-brand-600"></i>
               <span>Categorias</span>
             </button>
 
-            <button onclick="closeUserDropdown(); openImportModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
-              <i data-lucide="file-up" class="w-4 h-4 text-brand-400"></i>
-              <span>Importar</span>
+            <button onclick="closeUserDropdown(); openImportModal();" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="file-up" class="w-4 h-4 text-brand-600"></i>
+              <span>Importar Planilha</span>
             </button>
 
-            <button onclick="closeUserDropdown(); openShareModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
-              <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i>
+            <button onclick="closeUserDropdown(); openShareModal();" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="user-plus" class="w-4 h-4 text-indigo-600"></i>
               <span>Convidar por E-mail</span>
             </button>
 
-            <button onclick="closeUserDropdown(); openProfileModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
-              <i data-lucide="user-cog" class="w-4 h-4 text-slate-400"></i>
+            <button onclick="closeUserDropdown(); openProfileModal();" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="user-cog" class="w-4 h-4 text-slate-500"></i>
               <span>Meu Perfil</span>
             </button>
           </div>
 
           <!-- AÇÃO DE SAIR -->
           <div class="py-1">
-            <button onclick="closeUserDropdown(); logout();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-rose-400 hover:bg-rose-500/10 transition text-left font-medium">
-              <i data-lucide="log-out" class="w-4 h-4 text-rose-400"></i>
+            <button onclick="closeUserDropdown(); logout();" class="w-full flex items-center gap-2.5 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 transition text-left font-semibold">
+              <i data-lucide="log-out" class="w-4 h-4 text-rose-600"></i>
               <span>Sair</span>
             </button>
           </div>
@@ -169,29 +177,29 @@
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
       
       <!-- CONTROLES SUPERIORES -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass p-4 rounded-2xl">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
         <div>
-          <h2 id="page-title" class="text-xl font-bold">Painel de Controle</h2>
-          <p id="page-subtitle" class="text-xs text-slate-400">Lançamentos do Espaço Compartilhado</p>
+          <h2 id="page-title" class="text-xl font-bold text-slate-900">Painel de Controle</h2>
+          <p id="page-subtitle" class="text-xs text-slate-500">Acompanhe e gerencie as finanças do espaço</p>
         </div>
 
         <div class="flex flex-wrap items-center gap-3">
           <!-- NAVEGAÇÃO DE MÊS -->
-          <div class="flex items-center bg-slate-900 border border-slate-700 rounded-xl p-1 shadow-sm">
-            <button onclick="changeMonth(-1)" title="Mês Anterior" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
+          <div class="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-sm">
+            <button onclick="changeMonth(-1)" title="Mês Anterior" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 transition">
               <i data-lucide="chevron-left" class="w-4 h-4"></i>
             </button>
             <div class="flex items-center px-2 space-x-1.5">
-              <i data-lucide="calendar" class="w-4 h-4 text-brand-500"></i>
-              <input type="month" id="month-filter" onchange="renderDashboard()" class="bg-transparent text-xs sm:text-sm focus:outline-none text-slate-200 font-medium">
+              <i data-lucide="calendar" class="w-4 h-4 text-brand-600"></i>
+              <input type="month" id="month-filter" onchange="renderDashboard()" class="bg-transparent text-xs sm:text-sm focus:outline-none text-slate-800 font-semibold">
             </div>
-            <button onclick="changeMonth(1)" title="Próximo Mês" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
+            <button onclick="changeMonth(1)" title="Próximo Mês" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 transition">
               <i data-lucide="chevron-right" class="w-4 h-4"></i>
             </button>
           </div>
 
           <button onclick="openModal()" 
-            class="inline-flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-500 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition shadow-lg shadow-brand-600/20">
+            class="inline-flex items-center justify-center space-x-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition shadow-md shadow-brand-500/20">
             <i data-lucide="plus" class="w-4 h-4"></i>
             <span>Nova Transação</span>
           </button>
@@ -203,37 +211,37 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           <div class="space-y-6">
-            <div class="glass p-5 rounded-2xl space-y-4">
-              <div class="flex items-center justify-between border-b border-slate-800 pb-2">
-                <h3 class="font-bold text-slate-200 text-base">Entradas e saídas</h3>
-                <label class="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+            <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base">Resumo Financeiro</h3>
+                <label class="flex items-center gap-2 text-xs text-slate-500 cursor-pointer hover:text-slate-700">
                   <input type="checkbox" id="chk-include-previous" onchange="renderDashboard()" checked class="accent-brand-600 rounded">
                   <span>Incluir saldo anterior</span>
                 </label>
               </div>
               
-              <div class="space-y-2 text-sm">
-                <div class="flex justify-between items-center text-slate-400">
+              <div class="space-y-3 text-sm">
+                <div class="flex justify-between items-center text-slate-600">
                   <span>Saldo anterior</span>
-                  <span id="txt-previous-balance" class="font-semibold text-rose-400">R$ 0,00</span>
+                  <span id="txt-previous-balance" class="font-semibold text-slate-800">R$ 0,00</span>
                 </div>
-                <div class="flex justify-between items-center text-slate-400">
-                  <span>Entradas</span>
-                  <span id="txt-month-income" class="font-semibold text-slate-300">R$ 0,00</span>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-1.5 text-emerald-700 font-medium"><i data-lucide="arrow-up-right" class="w-4 h-4"></i> Entradas</span>
+                  <span id="txt-month-income" class="font-semibold text-emerald-600">+R$ 0,00</span>
                 </div>
-                <div class="flex justify-between items-center text-slate-400">
-                  <span>Saídas</span>
-                  <span id="txt-month-expense" class="font-semibold text-rose-400">-R$ 0,00</span>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-1.5 text-rose-700 font-medium"><i data-lucide="arrow-down-left" class="w-4 h-4"></i> Saídas</span>
+                  <span id="txt-month-expense" class="font-semibold text-rose-600">-R$ 0,00</span>
                 </div>
-                <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-lg font-bold">
-                  <span>Total</span>
-                  <span id="txt-total-balance" class="text-2xl text-rose-500">R$ 0,00</span>
+                <div class="border-t border-slate-100 pt-3 flex justify-between items-center font-bold">
+                  <span class="text-slate-900">Total do Período</span>
+                  <span id="txt-total-balance" class="text-2xl text-slate-900">R$ 0,00</span>
                 </div>
               </div>
             </div>
 
-            <div class="glass p-5 rounded-2xl space-y-3">
-              <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Despesas por Categoria</h3>
+            <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <h3 class="font-bold text-slate-900 text-base border-b border-slate-100 pb-3">Despesas por Categoria</h3>
               <div class="w-full flex items-center justify-center p-2" style="max-height: 260px;">
                 <canvas id="expensesChart"></canvas>
               </div>
@@ -241,54 +249,54 @@
           </div>
 
           <div class="space-y-6">
-            <div class="glass p-5 rounded-2xl space-y-3">
-              <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Anteriores não consolidadas</h3>
+            <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <h3 class="font-bold text-slate-900 text-base border-b border-slate-100 pb-2">Anteriores não consolidadas</h3>
               <div class="max-h-40 overflow-y-auto">
                 <table class="w-full text-xs text-left">
-                  <thead class="text-slate-500 border-b border-slate-800">
+                  <thead class="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider">
                     <tr>
                       <th class="pb-2">Transação</th>
                       <th class="pb-2">Data</th>
                       <th class="pb-2 text-right">Valor (R$)</th>
                     </tr>
                   </thead>
-                  <tbody id="list-previous-pending" class="divide-y divide-slate-800/40 text-slate-300">
+                  <tbody id="list-previous-pending" class="divide-y divide-slate-100 text-slate-700">
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <div class="glass p-5 rounded-2xl space-y-3">
-              <h3 class="font-bold text-slate-200 text-base border-b border-slate-800 pb-2">Próximas não consolidadas</h3>
+            <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+              <h3 class="font-bold text-slate-900 text-base border-b border-slate-100 pb-2">Próximas não consolidadas</h3>
               <div class="max-h-48 overflow-y-auto">
                 <table class="w-full text-xs text-left">
-                  <thead class="text-slate-500 border-b border-slate-800">
+                  <thead class="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider">
                     <tr>
                       <th class="pb-2">Transação</th>
                       <th class="pb-2">Data</th>
                       <th class="pb-2 text-right">Valor (R$)</th>
                     </tr>
                   </thead>
-                  <tbody id="list-next-pending" class="divide-y divide-slate-800/40 text-slate-300">
+                  <tbody id="list-next-pending" class="divide-y divide-slate-100 text-slate-700">
                   </tbody>
                 </table>
               </div>
             </div>
 
-            <div class="glass p-5 rounded-2xl space-y-3 border-l-4 border-amber-500">
-              <h3 class="font-bold text-amber-400 text-base border-b border-slate-800 pb-2 flex items-center gap-2">
-                <i data-lucide="alert-circle" class="w-4 h-4"></i> Próximas com alerta
+            <div class="bg-amber-50/60 p-6 rounded-2xl border border-amber-200/80 shadow-sm space-y-3">
+              <h3 class="font-bold text-amber-800 text-base border-b border-amber-200/60 pb-2 flex items-center gap-2">
+                <i data-lucide="alert-circle" class="w-4 h-4 text-amber-600"></i> Próximas com alerta (Até 5 dias)
               </h3>
               <div class="max-h-36 overflow-y-auto">
                 <table class="w-full text-xs text-left">
-                  <thead class="text-slate-500 border-b border-slate-800">
+                  <thead class="text-amber-700/60 border-b border-amber-200/60 font-semibold">
                     <tr>
                       <th class="pb-2">Transação</th>
                       <th class="pb-2">Data</th>
                       <th class="pb-2 text-right">Valor (R$)</th>
                     </tr>
                   </thead>
-                  <tbody id="list-alerts" class="divide-y divide-slate-800/40 text-slate-300">
+                  <tbody id="list-alerts" class="divide-y divide-amber-200/40 text-amber-900">
                   </tbody>
                 </table>
               </div>
@@ -300,13 +308,13 @@
 
       <!-- TELA 2: LANÇAMENTOS MENSAIS UNIFICADOS -->
       <div id="tab-transactions" class="hidden space-y-6">
-        <div class="glass rounded-2xl overflow-hidden">
-          <div class="p-5 border-b border-slate-800 flex items-center justify-between">
-            <h3 class="font-semibold text-slate-200">Lançamentos do Mês Selecionado</h3>
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-slate-900 text-base">Lançamentos do Mês Selecionado</h3>
           </div>
           <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
-              <thead class="bg-slate-900/50 text-slate-400 border-b border-slate-800">
+              <thead class="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200/80 text-xs uppercase tracking-wider">
                 <tr>
                   <th class="p-4">Descrição</th>
                   <th class="p-4">Categoria</th>
@@ -316,7 +324,7 @@
                   <th class="p-4 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody id="transactions-list" class="divide-y divide-slate-800/50">
+              <tbody id="transactions-list" class="divide-y divide-slate-100">
               </tbody>
             </table>
           </div>
@@ -327,36 +335,36 @@
   </div>
 
   <!-- MODAL GERENCIAR CATEGORIAS -->
-  <div id="categories-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-lg font-bold flex items-center gap-2">
-          <i data-lucide="tags" class="w-5 h-5 text-brand-400"></i> Gerenciar Categorias
+  <div id="categories-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-6 rounded-3xl shadow-2xl space-y-4 max-h-[85vh] flex flex-col border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="tags" class="w-5 h-5 text-brand-600"></i> Gerenciar Categorias
         </h3>
-        <button onclick="closeCategoriesModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button onclick="closeCategoriesModal()" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <!-- FORMULÁRIO CATEGORIA -->
-      <form id="category-form" onsubmit="saveCategory(event)" class="space-y-3 bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+      <form id="category-form" onsubmit="saveCategory(event)" class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
         <input type="hidden" id="cat-id" value="">
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Nome da Categoria</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nome da Categoria</label>
           <input type="text" id="cat-name" required placeholder="Ex: Farmácia, Petshop..." 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
         </div>
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">Tipo</label>
-          <select id="cat-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo</label>
+          <select id="cat-type" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
             <option value="expense">Despesa</option>
             <option value="income">Receita</option>
             <option value="both">Ambos</option>
           </select>
         </div>
         <div class="flex items-center gap-2 pt-1">
-          <button type="submit" id="btn-save-cat" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-medium py-2 rounded-lg text-xs transition">
+          <button type="submit" id="btn-save-cat" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 rounded-xl text-xs transition shadow-sm">
             Adicionar Categoria
           </button>
-          <button type="button" id="btn-cancel-cat" onclick="resetCategoryForm()" class="hidden px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">
+          <button type="button" id="btn-cancel-cat" onclick="resetCategoryForm()" class="hidden px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs transition">
             Cancelar
           </button>
         </div>
@@ -364,242 +372,242 @@
 
       <!-- LISTA DE CATEGORIAS DA CONTA -->
       <div class="flex-1 overflow-y-auto space-y-2 pr-1">
-        <h4 class="text-xs font-semibold text-slate-400 mb-2">Suas Categorias Personalizadas:</h4>
+        <h4 class="text-xs font-semibold text-slate-500 mb-2">Suas Categorias Personalizadas:</h4>
         <div id="categories-list-container" class="space-y-2">
           <!-- Inserido via JS -->
         </div>
       </div>
 
-      <div class="flex justify-end border-t border-slate-800 pt-3">
-        <button type="button" onclick="closeCategoriesModal()" class="px-4 py-1.5 text-xs text-slate-400 hover:text-white">Fechar</button>
+      <div class="flex justify-end border-t border-slate-100 pt-3">
+        <button type="button" onclick="closeCategoriesModal()" class="px-4 py-1.5 text-xs text-slate-500 hover:text-slate-800">Fechar</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL CONVIDAR E ENVIAR E-MAIL REAL -->
-  <div id="share-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-lg font-bold flex items-center gap-2 text-indigo-400">
+  <div id="share-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-6 rounded-3xl shadow-2xl space-y-4 border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold flex items-center gap-2 text-indigo-600">
           <i data-lucide="send" class="w-5 h-5"></i> Convidar Usuário por E-mail
         </h3>
-        <button onclick="closeShareModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <p class="text-xs text-slate-400">
+      <p class="text-xs text-slate-500">
         Insira o e-mail da pessoa. Ela receberá permissão para acessar suas finanças na aba <strong>"Sou Convidado"</strong>.
       </p>
 
       <form id="share-form" onsubmit="addSharedUser(event)" class="space-y-3">
         <div>
-          <label class="block text-xs font-medium text-slate-400 mb-1">E-mail do Convidado</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">E-mail do Convidado</label>
           <input type="email" id="share-email-input" required placeholder="parceiro@email.com" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-indigo-500">
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
         </div>
         
-        <button type="submit" id="btn-send-invite" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-lg text-xs transition flex items-center justify-center gap-2">
+        <button type="submit" id="btn-send-invite" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-sm">
           <i data-lucide="mail" class="w-4 h-4"></i> Cadastrar Autorização & Enviar Convite
         </button>
       </form>
 
-      <div id="invite-status-box" class="hidden text-xs bg-indigo-950/80 border border-indigo-700/60 p-3 rounded-lg text-indigo-200 space-y-2">
-        <p id="invite-status-msg" class="font-semibold text-indigo-300"></p>
-        <div id="direct-email-action" class="hidden border-t border-indigo-800/60 pt-2 space-y-1">
-          <p class="text-[11px] text-slate-300">Caso o seu aplicativo de e-mail não tenha aberto automaticamente:</p>
-          <a id="btn-mailto-link" href="#" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-brand-400 underline font-medium hover:text-brand-300">
+      <div id="invite-status-box" class="hidden text-xs bg-indigo-50 border border-indigo-200 p-3 rounded-xl text-indigo-900 space-y-2">
+        <p id="invite-status-msg" class="font-semibold text-indigo-800"></p>
+        <div id="direct-email-action" class="hidden border-t border-indigo-200/60 pt-2 space-y-1">
+          <p class="text-[11px] text-indigo-700">Caso o seu aplicativo de e-mail não tenha aberto automaticamente:</p>
+          <a id="btn-mailto-link" href="#" target="_blank" class="inline-flex items-center gap-1.5 text-xs text-brand-600 underline font-semibold hover:text-brand-700">
             <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Reabrir Programa de E-mail
           </a>
         </div>
       </div>
 
-      <div class="space-y-2 border-t border-slate-800 pt-3">
-        <h4 class="text-xs font-semibold text-slate-300">Pessoas Autorizadas no seu Espaço:</h4>
-        <div id="shared-users-list" class="max-h-40 overflow-y-auto divide-y divide-slate-800/60 text-xs">
+      <div class="space-y-2 border-t border-slate-100 pt-3">
+        <h4 class="text-xs font-semibold text-slate-700">Pessoas Autorizadas no seu Espaço:</h4>
+        <div id="shared-users-list" class="max-h-40 overflow-y-auto divide-y divide-slate-100 text-xs">
         </div>
       </div>
 
-      <div class="flex justify-end border-t border-slate-800 pt-3">
-        <button type="button" onclick="closeShareModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Fechar</button>
+      <div class="flex justify-end border-t border-slate-100 pt-3">
+        <button type="button" onclick="closeShareModal()" class="px-4 py-2 text-sm text-slate-500 hover:text-slate-800">Fechar</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
-  <div id="delete-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-sm p-6 rounded-2xl shadow-2xl space-y-4 text-center">
-      <div class="w-12 h-12 bg-rose-500/20 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+  <div id="delete-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm p-6 rounded-3xl shadow-2xl space-y-4 text-center border border-slate-200">
+      <div class="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
         <i data-lucide="alert-triangle" class="w-6 h-6"></i>
       </div>
       <div>
-        <h3 class="text-lg font-bold text-slate-100">Excluir Lançamento?</h3>
-        <p id="delete-modal-msg" class="text-xs text-slate-400 mt-1">Esta ação removerá o lançamento do espaço compartilhado.</p>
+        <h3 class="text-lg font-bold text-slate-900">Excluir Lançamento?</h3>
+        <p id="delete-modal-msg" class="text-xs text-slate-500 mt-1">Esta ação removerá o lançamento do espaço compartilhado.</p>
       </div>
-      <div class="flex justify-center space-x-3 border-t border-slate-800 pt-4">
-        <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition">Cancelar</button>
-        <button onclick="confirmDeleteTransaction()" class="bg-rose-600 hover:bg-rose-500 text-white font-medium px-4 py-2 rounded-lg text-xs transition shadow-lg shadow-rose-600/30">Confirmar Exclusão</button>
+      <div class="flex justify-center space-x-3 border-t border-slate-100 pt-4">
+        <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition">Cancelar</button>
+        <button onclick="confirmDeleteTransaction()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2 rounded-xl text-xs transition shadow-sm">Confirmar Exclusão</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL ESCOPO DE EDIÇÃO DE FIXOS -->
-  <div id="recurring-edit-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-sm p-6 rounded-2xl shadow-2xl space-y-4 text-center">
-      <div class="w-12 h-12 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mx-auto">
+  <div id="recurring-edit-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm p-6 rounded-3xl shadow-2xl space-y-4 text-center border border-slate-200">
+      <div class="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
         <i data-lucide="repeat" class="w-6 h-6"></i>
       </div>
       <div>
-        <h3 class="text-lg font-bold text-slate-100">Editar Lançamento Fixo</h3>
-        <p class="text-xs text-slate-400 mt-1">Este lançamento é recorrente. Como você deseja aplicar as alterações?</p>
+        <h3 class="text-lg font-bold text-slate-900">Editar Lançamento Fixo</h3>
+        <p class="text-xs text-slate-500 mt-1">Este lançamento é recorrente. Como você deseja aplicar as alterações?</p>
       </div>
       <div class="space-y-2 pt-2">
-        <button onclick="confirmEditScope('single')" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium py-2.5 px-4 rounded-xl text-xs transition border border-slate-700 flex items-center justify-center gap-2">
-          <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+        <button onclick="confirmEditScope('single')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2.5 px-4 rounded-xl text-xs transition border border-slate-200 flex items-center justify-center gap-2">
+          <i data-lucide="file-text" class="w-4 h-4 text-slate-500"></i>
           <span>Editar Somente Este Lançamento</span>
         </button>
-        <button onclick="confirmEditScope('future')" class="w-full bg-brand-600 hover:bg-brand-500 text-white font-medium py-2.5 px-4 rounded-xl text-xs transition shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2">
+        <button onclick="confirmEditScope('future')" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 px-4 rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-2">
           <i data-lucide="fast-forward" class="w-4 h-4"></i>
           <span>Editar Todos deste Ponto em Diante</span>
         </button>
       </div>
       <div class="pt-2">
-        <button onclick="closeRecurringModal()" class="text-xs text-slate-400 hover:text-white">Cancelar</button>
+        <button onclick="closeRecurringModal()" class="text-xs text-slate-500 hover:text-slate-800">Cancelar</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL EDITAR PERFIL DO USUÁRIO -->
-  <div id="profile-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-lg font-bold flex items-center gap-2"><i data-lucide="user-cog" class="w-5 h-5 text-brand-500"></i> Meu Perfil</h3>
-        <button onclick="closeProfileModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+  <div id="profile-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-6 rounded-3xl shadow-2xl space-y-4 border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold flex items-center gap-2 text-slate-900"><i data-lucide="user-cog" class="w-5 h-5 text-brand-600"></i> Meu Perfil</h3>
+        <button onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <form id="profile-form" onsubmit="saveProfile(event)" class="space-y-4">
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Nome Completo</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Nome Completo</label>
           <input type="text" id="profile-name" required placeholder="Seu nome" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">E-mail de Acesso</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">E-mail de Acesso</label>
           <input type="email" id="profile-email" required readonly
-            class="w-full bg-slate-900/50 border border-slate-800 text-slate-400 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
+            class="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-xl px-3 py-2 text-sm cursor-not-allowed">
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Alterar Senha</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Alterar Senha</label>
           <input type="password" id="profile-password" placeholder="Nova senha se desejar alterar" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
         </div>
 
-        <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
-          <button type="button" onclick="closeProfileModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-          <button type="submit" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition">Salvar Alterações</button>
+        <div class="flex justify-end space-x-2 border-t border-slate-100 pt-3">
+          <button type="button" onclick="closeProfileModal()" class="px-4 py-2 text-sm text-slate-500 hover:text-slate-800">Cancelar</button>
+          <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition shadow-sm">Salvar Alterações</button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- MODAL IMPORTAR ARQUIVO -->
-  <div id="import-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 class="text-lg font-bold flex items-center gap-2"><i data-lucide="file-up" class="w-5 h-5 text-brand-500"></i> Importar Lançamentos</h3>
-        <button onclick="closeImportModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+  <div id="import-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-6 rounded-3xl shadow-2xl space-y-4 border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2"><i data-lucide="file-up" class="w-5 h-5 text-brand-600"></i> Importar Lançamentos</h3>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <p class="text-xs text-slate-400">Selecione uma planilha Excel (<code>.xls</code>, <code>.xlsx</code>) ou <code>.csv</code> contendo colunas como: <strong>Descrição, Valor, Data Ocorrência, Categoria</strong>.</p>
+      <p class="text-xs text-slate-500">Selecione uma planilha Excel (<code>.xls</code>, <code>.xlsx</code>) ou <code>.csv</code> contendo colunas como: <strong>Descrição, Valor, Data Ocorrência, Categoria</strong>.</p>
 
       <div class="space-y-4">
-        <input type="file" id="file-input" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-600 file:text-white hover:file:bg-brand-500 cursor-pointer">
-        <div id="import-status" class="text-xs text-emerald-400 hidden"></div>
+        <input type="file" id="file-input" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer">
+        <div id="import-status" class="text-xs text-emerald-600 font-semibold hidden"></div>
       </div>
 
-      <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
-        <button type="button" onclick="closeImportModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-        <button type="button" onclick="processImportFile()" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition">Importar Dados</button>
+      <div class="flex justify-end space-x-2 border-t border-slate-100 pt-3">
+        <button type="button" onclick="closeImportModal()" class="px-4 py-2 text-sm text-slate-500 hover:text-slate-800">Cancelar</button>
+        <button type="button" onclick="processImportFile()" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition shadow-sm">Importar Dados</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL DE CADASTRO / EDIÇÃO DE TRANSAÇÕES -->
-  <div id="modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-    <div class="glass w-full max-w-lg p-6 rounded-2xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <h3 id="modal-title" class="text-lg font-bold">Nova Transação</h3>
-        <button onclick="closeModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+  <div id="modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-lg p-6 rounded-3xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="modal-title" class="text-lg font-bold text-slate-900">Nova Transação</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
       <form id="transaction-form" class="space-y-4">
         <input type="hidden" id="tx-id">
 
         <div class="grid grid-cols-2 gap-3">
-          <label class="flex items-center justify-center p-3 rounded-xl border border-slate-700 cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-500/10">
+          <label class="flex items-center justify-center p-3 rounded-2xl border border-slate-200 bg-slate-50/50 cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50 transition">
             <input type="radio" name="type" value="income" id="type-income" class="sr-only" checked onchange="toggleFormFields()">
-            <span class="text-sm font-medium text-emerald-400 flex items-center gap-2"><i data-lucide="arrow-up-right" class="w-4 h-4"></i> Receita</span>
+            <span class="text-sm font-semibold text-emerald-600 flex items-center gap-2"><i data-lucide="arrow-up-right" class="w-4 h-4"></i> Receita</span>
           </label>
-          <label class="flex items-center justify-center p-3 rounded-xl border border-slate-700 cursor-pointer has-[:checked]:border-rose-500 has-[:checked]:bg-rose-500/10">
+          <label class="flex items-center justify-center p-3 rounded-2xl border border-slate-200 bg-slate-50/50 cursor-pointer has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50/50 transition">
             <input type="radio" name="type" value="expense" id="type-expense" class="sr-only" onchange="toggleFormFields()">
-            <span class="text-sm font-medium text-rose-400 flex items-center gap-2"><i data-lucide="arrow-down-left" class="w-4 h-4"></i> Despesa</span>
+            <span class="text-sm font-semibold text-rose-600 flex items-center gap-2"><i data-lucide="arrow-down-left" class="w-4 h-4"></i> Despesa</span>
           </label>
         </div>
 
         <div>
-          <label class="block text-xs text-slate-400 mb-1">Descrição</label>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Descrição</label>
           <input type="text" id="tx-description" required placeholder="Ex: Supermercado, Aluguel, Salário" 
-            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Valor Total (R$)</label>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Valor Total (R$)</label>
             <input type="text" id="tx-amount" required placeholder="0,00" oninput="formatAmountInput(this)"
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
           </div>
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Data de Vencimento</label>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Data de Vencimento</label>
             <input type="date" id="tx-date" required 
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Categoria</label>
-            <select id="tx-category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Categoria</label>
+            <select id="tx-category" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
               <!-- Preenchido dinamicamente via JS -->
             </select>
           </div>
 
           <div>
-            <label class="block text-xs text-slate-400 mb-1">Status Inicial</label>
-            <select id="tx-status" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Status Inicial</label>
+            <select id="tx-status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
               <option value="pending">Pendente</option>
               <option value="completed">Concluído / Pago</option>
             </select>
           </div>
         </div>
 
-        <div id="recurrence-options" class="border-t border-slate-800 pt-3 space-y-3">
+        <div id="recurrence-options" class="border-t border-slate-100 pt-3 space-y-3">
           <div class="flex items-center justify-between">
-            <label for="tx-recurring" class="text-xs text-slate-300 font-medium cursor-pointer">
+            <label for="tx-recurring" class="text-xs text-slate-700 font-semibold cursor-pointer">
               Lançamento Fixo Mensal? <span class="text-[10px] text-slate-400 font-normal">(sem data fim)</span>
             </label>
             <input type="checkbox" id="tx-recurring" onchange="toggleFormFields()" class="w-4 h-4 accent-brand-600 rounded cursor-pointer">
           </div>
           
           <div id="installments-container">
-            <label class="block text-xs text-slate-400 mb-1">Número de Parcelas</label>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Número de Parcelas</label>
             <input type="number" id="tx-installments" min="1" max="72" value="1" placeholder="1 para à vista" 
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+              class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
           </div>
         </div>
 
-        <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
-          <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-          <button type="submit" id="btn-submit-tx" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2">Salvar Lançamento</button>
+        <div class="flex justify-end space-x-2 border-t border-slate-100 pt-3">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-slate-500 hover:text-slate-800">Cancelar</button>
+          <button type="submit" id="btn-submit-tx" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-sm">Salvar Lançamento</button>
         </div>
       </form>
     </div>
@@ -620,6 +628,17 @@
     let pendingDeleteIds = [];
     let editScope = 'single'; // 'single' ou 'future'
     let pendingEditId = null;
+
+    // SEGURANÇA: FUNÇÃO DE ESCAPE CONTRA ATAQUES XSS
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
 
     // FUNÇÕES DE FORMATAÇÃO E PARSE DE MOEDA (MÁSCARA)
     function formatAmountInput(input) {
@@ -693,21 +712,21 @@
       succEl.classList.add('hidden');
 
       [btnLogin, btnRegister, btnInvite].forEach(btn => {
-        btn.className = "flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-white";
+        btn.className = "flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900 transition";
       });
 
       if (mode === 'login') {
-        btnLogin.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
+        btnLogin.className = "flex-1 py-2 rounded-lg bg-white text-brand-600 font-semibold shadow-sm transition";
         btnSubmit.innerText = "Entrar na Conta";
         subtitle.innerText = "Acesse sua conta para gerenciar suas finanças";
         nameContainer.classList.add('hidden');
       } else if (mode === 'register') {
-        btnRegister.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
+        btnRegister.className = "flex-1 py-2 rounded-lg bg-white text-brand-600 font-semibold shadow-sm transition";
         btnSubmit.innerText = "Criar Minha Conta";
         subtitle.innerText = "Crie seu espaço próprio e 100% isolado";
         nameContainer.classList.remove('hidden');
       } else if (mode === 'invited') {
-        btnInvite.className = "flex-1 pb-2 border-b-2 border-brand-500 text-brand-400 font-semibold";
+        btnInvite.className = "flex-1 py-2 rounded-lg bg-white text-brand-600 font-semibold shadow-sm transition";
         btnSubmit.innerText = "Validar Convite e Acessar";
         subtitle.innerText = "Acesse o espaço de quem te enviou um convite";
         nameContainer.classList.remove('hidden');
@@ -787,7 +806,7 @@
         }
 
         if (!ownerFound) {
-          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${email}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
+          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${escapeHTML(email)}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
@@ -899,23 +918,23 @@
       if (!container) return;
 
       if (userCategories.length === 0) {
-        container.innerHTML = `<p class="text-xs text-slate-500 py-3 text-center">Nenhuma categoria personalizada cadastrada.</p>`;
+        container.innerHTML = `<p class="text-xs text-slate-400 py-3 text-center">Nenhuma categoria personalizada cadastrada.</p>`;
         return;
       }
 
       container.innerHTML = userCategories.map(cat => `
-        <div class="flex items-center justify-between p-2.5 bg-slate-900/60 rounded-lg border border-slate-800">
+        <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
           <div>
-            <span class="text-sm font-medium text-slate-200">${cat.name}</span>
-            <span class="ml-2 text-[10px] px-2 py-0.5 rounded ${cat.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' : (cat.type === 'expense' ? 'bg-rose-500/10 text-rose-400' : 'bg-brand-500/10 text-brand-400')}">
+            <span class="text-xs font-semibold text-slate-800">${escapeHTML(cat.name)}</span>
+            <span class="ml-2 text-[10px] px-2 py-0.5 rounded-full font-medium ${cat.type === 'income' ? 'bg-emerald-100 text-emerald-700' : (cat.type === 'expense' ? 'bg-rose-100 text-rose-700' : 'bg-brand-100 text-brand-700')}">
               ${cat.type === 'income' ? 'Receita' : (cat.type === 'expense' ? 'Despesa' : 'Ambos')}
             </span>
           </div>
           <div class="flex items-center space-x-1">
-            <button onclick="editCategory('${cat.id}', '${cat.name.replace(/'/g, "\\'")}', '${cat.type}')" title="Editar" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white">
+            <button onclick="editCategory('${cat.id}', '${escapeHTML(cat.name).replace(/'/g, "\\'")}', '${cat.type}')" title="Editar" class="p-1 hover:bg-slate-200 rounded-lg text-slate-500 hover:text-slate-800 transition">
               <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
             </button>
-            <button onclick="deleteCategory('${cat.id}')" title="Excluir" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-rose-400">
+            <button onclick="deleteCategory('${cat.id}')" title="Excluir" class="p-1 hover:bg-rose-100 rounded-lg text-slate-500 hover:text-rose-600 transition">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
@@ -986,7 +1005,7 @@
         .select('*')
         .eq('owner_email', currentWorkspaceOwner)
         .order('due_date', { ascending: true })
-        .order('id', { ascending: true }); // Critério secundário para evitar troca de ordem
+        .order('id', { ascending: true });
 
       if (error) {
         console.error('Erro ao buscar lançamentos:', error);
@@ -1006,7 +1025,6 @@
         ownerEmail: item.owner_email
       }));
 
-      // Ordenação estável garantida no cliente
       transactions.sort((a, b) => {
         if (a.dueDate !== b.dueDate) {
           return a.dueDate.localeCompare(b.dueDate);
@@ -1045,16 +1063,16 @@
       }
 
       if (list.length === 0) {
-        container.innerHTML = `<p class="text-slate-500 text-[11px] py-2">Nenhum convidado adicionado ao seu espaço.</p>`;
+        container.innerHTML = `<p class="text-slate-400 text-[11px] py-2">Nenhum convidado adicionado ao seu espaço.</p>`;
         return;
       }
 
       container.innerHTML = list.map(inv => `
-        <div class="flex items-center justify-between py-2 border-b border-slate-800/40">
-          <span class="text-slate-300 font-medium flex items-center gap-1.5">
-            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-400"></i> ${inv.invited_email}
+        <div class="flex items-center justify-between py-2 border-b border-slate-100">
+          <span class="text-slate-700 font-medium flex items-center gap-1.5">
+            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-600"></i> ${escapeHTML(inv.invited_email)}
           </span>
-          <button onclick="removeSharedUser('${inv.invited_email}')" title="Remover permissão" class="p-1 text-rose-400 hover:bg-rose-500/10 rounded">
+          <button onclick="removeSharedUser('${escapeHTML(inv.invited_email)}')" title="Remover permissão" class="p-1 text-rose-500 hover:bg-rose-50 rounded-lg transition">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -1162,13 +1180,13 @@
       if (tabName === 'dashboard') {
         tabDashboard.classList.remove('hidden');
         tabTransactions.classList.add('hidden');
-        btnDashboard.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5";
-        btnTransactions.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5";
+        btnDashboard.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
+        btnTransactions.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
       } else {
         tabDashboard.classList.add('hidden');
         tabTransactions.classList.remove('hidden');
-        btnTransactions.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition bg-brand-600 text-white flex items-center gap-1.5";
-        btnDashboard.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white flex items-center gap-1.5";
+        btnTransactions.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
+        btnDashboard.className = "px-4 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
       }
     }
 
@@ -1382,7 +1400,6 @@
           const origItem = transactions.find(t => t.id == id);
 
           if (editScope === 'future' && origItem && origItem.isRecurring) {
-            // Filtra lançamentos fixos do mesmo espaço com a mesma descrição a partir desta data
             const futureItems = transactions.filter(t => 
               t.ownerEmail === currentWorkspaceOwner &&
               t.isRecurring &&
@@ -1390,10 +1407,8 @@
               t.dueDate >= origItem.dueDate
             );
 
-            // Ordena sequencialmente por data
             futureItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || String(a.id).localeCompare(String(b.id)));
 
-            // Monta o lote para envio em requisição única
             const updateRows = futureItems.map((fItem, i) => ({
               id: fItem.id,
               description: description,
@@ -1407,10 +1422,8 @@
               owner_email: currentWorkspaceOwner
             }));
 
-            // Executa requisição única em lote no Supabase
             const { error: batchErr } = await db.from('transactions').upsert(updateRows);
             
-            // Fallback em paralelo caso o BD rejeite upsert em massa
             if (batchErr) {
               console.warn('Fallback em paralelo ativado:', batchErr);
               await Promise.all(updateRows.map(row => 
@@ -1426,7 +1439,6 @@
               ));
             }
           } else {
-            // Atualiza apenas o registro específico
             await db.from('transactions').update({
               description, 
               amount: totalAmount, 
@@ -1438,7 +1450,6 @@
             }).eq('id', id);
           }
         } else {
-          // Criação de novos lançamentos
           const newRows = [];
           if (isRecurring) {
             for (let i = 0; i < 24; i++) {
@@ -1589,12 +1600,12 @@
       const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
 
       document.getElementById('txt-previous-balance').innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('txt-month-income').innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      document.getElementById('txt-month-income').innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       
       const totalEl = document.getElementById('txt-total-balance');
       totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      totalEl.className = totalBalance < 0 ? 'text-2xl font-bold text-rose-500' : 'text-2xl font-bold text-emerald-400';
+      totalEl.className = totalBalance < 0 ? 'text-2xl font-bold text-rose-600' : 'text-2xl font-bold text-emerald-600';
 
       renderDashboardLists(selectedMonth);
       renderFullHistoryTable(monthTransactions);
@@ -1619,13 +1630,13 @@
         if (t.status !== 'pending') return;
 
         const valFormatted = (t.type === 'expense' ? '-' : '+') + `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-        const valColor = t.type === 'expense' ? 'text-rose-400' : 'text-emerald-400';
+        const valColor = t.type === 'expense' ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold';
 
         const rowHTML = `
           <tr>
-            <td class="py-1.5 font-medium">${t.description}</td>
-            <td class="py-1.5 text-slate-400">${t.dueDate}</td>
-            <td class="py-1.5 text-right font-semibold ${valColor}">${valFormatted}</td>
+            <td class="py-2 font-medium">${escapeHTML(t.description)}</td>
+            <td class="py-2 text-slate-500">${escapeHTML(t.dueDate)}</td>
+            <td class="py-2 text-right ${valColor}">${valFormatted}</td>
           </tr>
         `;
 
@@ -1653,33 +1664,33 @@
         const isOtherUser = t.userEmail && t.userEmail !== currentUser.email;
 
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-800/30 transition border-b border-slate-800/40';
+        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
         tr.innerHTML = `
-          <td class="p-4 font-medium flex items-center gap-2">
-            ${t.description}
-            ${t.isRecurring ? '<span class="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded font-semibold">Fixo</span>' : ''}
-            ${isOtherUser ? `<span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded font-semibold" title="Adicionado por ${t.userEmail}">Por: ${t.userEmail.split('@')[0]}</span>` : ''}
+          <td class="p-4 font-semibold text-slate-800 flex items-center gap-2">
+            ${escapeHTML(t.description)}
+            ${t.isRecurring ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-bold">Fixo</span>' : ''}
+            ${isOtherUser ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-semibold" title="Adicionado por ${escapeHTML(t.userEmail)}">Por: ${escapeHTML(t.userEmail.split('@')[0])}</span>` : ''}
           </td>
-          <td class="p-4 text-slate-400">${t.category}</td>
-          <td class="p-4 text-slate-400">${t.dueDate}</td>
-          <td class="p-4 font-semibold ${isIncome ? 'text-emerald-400' : 'text-rose-400'}">
+          <td class="p-4 text-slate-600">${escapeHTML(t.category)}</td>
+          <td class="p-4 text-slate-500">${escapeHTML(t.dueDate)}</td>
+          <td class="p-4 font-bold ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
             ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
           </td>
           <td class="p-4">
-            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${isPaid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
               ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
             </span>
           </td>
           <td class="p-4 text-right space-x-1">
-            <button onclick="toggleStatus('${t.id}')" title="Confirmar/Cancelar status" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-emerald-400 transition">
+            <button onclick="toggleStatus('${t.id}')" title="Confirmar/Cancelar status" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition">
               <i data-lucide="${isPaid ? 'undo-2' : 'check-circle'}" class="w-4 h-4"></i>
             </button>
-            <button onclick="openModal('${t.id}')" title="Editar" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition">
+            <button onclick="openModal('${t.id}')" title="Editar" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition">
               <i data-lucide="pencil" class="w-4 h-4"></i>
             </button>
             <button onclick="deleteTransaction('${t.id}')" 
               title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
-              class="p-1.5 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-600' : 'hover:bg-slate-800 text-slate-400 hover:text-rose-400'}">
+              class="p-1.5 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </td>
@@ -1701,7 +1712,7 @@
       if (labels.length === 0) return;
 
       expensesChart = new Chart(ctx, {
-        type: 'pie',
+        type: 'doughnut',
         data: {
           labels: labels,
           datasets: [{
@@ -1710,8 +1721,8 @@
               '#10b981', '#f43f5e', '#6366f1', '#f59e0b', 
               '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'
             ],
-            borderWidth: 1,
-            borderColor: '#0f172a'
+            borderWidth: 2,
+            borderColor: '#ffffff'
           }]
         },
         options: {
@@ -1720,7 +1731,7 @@
           plugins: {
             legend: {
               position: 'right',
-              labels: { color: '#94a3b8', font: { size: 11 } }
+              labels: { color: '#475569', font: { size: 11, weight: '600' } }
             }
           }
         }
