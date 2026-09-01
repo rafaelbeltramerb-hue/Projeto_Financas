@@ -113,6 +113,11 @@
       </nav>
       
       <div class="flex items-center space-x-2">
+        <button onclick="openCategoriesModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
+          <i data-lucide="tags" class="w-4 h-4 text-brand-400"></i>
+          <span class="hidden md:inline">Categorias</span>
+        </button>
+
         <button onclick="openShareModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-900/70 border border-indigo-700/50 text-indigo-300 text-xs font-medium transition">
           <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i>
           <span class="hidden sm:inline">Convidar por E-mail</span>
@@ -296,6 +301,56 @@
     </main>
   </div>
 
+  <!-- MODAL GERENCIAR CATEGORIAS -->
+  <div id="categories-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="text-lg font-bold flex items-center gap-2">
+          <i data-lucide="tags" class="w-5 h-5 text-brand-400"></i> Gerenciar Categorias
+        </h3>
+        <button onclick="closeCategoriesModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- FORMULÁRIO CATEGORIA -->
+      <form id="category-form" onsubmit="saveCategory(event)" class="space-y-3 bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+        <input type="hidden" id="cat-id" value="">
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Nome da Categoria</label>
+          <input type="text" id="cat-name" required placeholder="Ex: Farmácia, Petshop..." 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-1">Tipo</label>
+          <select id="cat-type" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
+            <option value="expense">Despesa</option>
+            <option value="income">Receita</option>
+            <option value="both">Ambos</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <button type="submit" id="btn-save-cat" class="flex-1 bg-brand-600 hover:bg-brand-500 text-white font-medium py-2 rounded-lg text-xs transition">
+            Adicionar Categoria
+          </button>
+          <button type="button" id="btn-cancel-cat" onclick="resetCategoryForm()" class="hidden px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition">
+            Cancelar
+          </button>
+        </div>
+      </form>
+
+      <!-- LISTA DE CATEGORIAS DA CONTA -->
+      <div class="flex-1 overflow-y-auto space-y-2 pr-1">
+        <h4 class="text-xs font-semibold text-slate-400 mb-2">Suas Categorias Personalizadas:</h4>
+        <div id="categories-list-container" class="space-y-2">
+          <!-- Inserido via JS -->
+        </div>
+      </div>
+
+      <div class="flex justify-end border-t border-slate-800 pt-3">
+        <button type="button" onclick="closeCategoriesModal()" class="px-4 py-1.5 text-xs text-slate-400 hover:text-white">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL CONVIDAR E ENVIAR E-MAIL REAL -->
   <div id="share-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
     <div class="glass w-full max-w-md p-6 rounded-2xl shadow-2xl space-y-4">
@@ -463,34 +518,7 @@
           <div>
             <label class="block text-xs text-slate-400 mb-1">Categoria</label>
             <select id="tx-category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-500">
-              <option value="Transferência">Transferência</option>
-              <optgroup label="Alimentação">
-                <option value="Açougue">Açougue</option>
-                <option value="Almoço">Almoço</option>
-                <option value="Café/Lanches">Café/Lanches</option>
-                <option value="Feira">Feira</option>
-                <option value="Padaria">Padaria</option>
-                <option value="Restaurante">Restaurante</option>
-                <option value="Supermercado">Supermercado</option>
-              </optgroup>
-              <optgroup label="Casa">
-                <option value="Água">Água</option>
-                <option value="Aluguel">Aluguel</option>
-                <option value="Condomínio">Condomínio</option>
-                <option value="Gás">Gás</option>
-                <option value="Internet">Internet</option>
-                <option value="Luz">Luz</option>
-                <option value="Telefone">Telefone</option>
-              </optgroup>
-              <optgroup label="Educação">
-                <option value="Escola">Escola</option>
-                <option value="Faculdade">Faculdade</option>
-                <option value="Material Escolar">Material Escolar</option>
-              </optgroup>
-              <optgroup label="Outros">
-                <option value="Salário">Salário</option>
-                <option value="Outros">Outros</option>
-              </optgroup>
+              <!-- Preenchido dinamicamente via JS -->
             </select>
           </div>
 
@@ -532,10 +560,11 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqd2FqeWVlaWJpbnpoeW1obmpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODU0OTgsImV4cCI6MjEwMzc2MTQ5OH0.L9zqtWbGITQds2wltxDbUBwFJ4nERuGk2X2l3A2JejA';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let authMode = 'login'; // 'login', 'register', 'invited'
+    let authMode = 'login';
     let currentUser = null;
     let currentWorkspaceOwner = null;
     let transactions = [];
+    let userCategories = [];
     let expensesChart = null;
     let pendingDeleteIds = [];
 
@@ -589,7 +618,6 @@
       successEl.classList.add('hidden');
 
       if (authMode === 'login') {
-        // Busca usuário no Supabase
         const { data: users, error } = await db.from('users').select('*').eq('email', email);
 
         if (error || !users || users.length === 0) {
@@ -610,7 +638,6 @@
         await resolveWorkspaceAndInit();
       } 
       else if (authMode === 'register') {
-        // Verifica se usuário já existe
         const { data: existing } = await db.from('users').select('email').eq('email', email);
         if (existing && existing.length > 0) {
           errorEl.innerText = 'Este e-mail já possui uma conta cadastrada. Por favor, acesse a aba "Entrar".';
@@ -693,6 +720,7 @@
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
 
+      await loadCategoriesFromDB();
       await loadTransactionsFromDB();
     }
 
@@ -706,6 +734,137 @@
       document.getElementById('dashboard-view').classList.add('hidden');
       document.getElementById('login-view').classList.remove('hidden');
       toggleAuthMode('login');
+    }
+
+    // LÓGICA DE GERENCIAMENTO DE CATEGORIAS
+    async function loadCategoriesFromDB() {
+      if (!currentWorkspaceOwner) return;
+
+      const { data, error } = await db.from('categories')
+        .select('*')
+        .eq('owner_email', currentWorkspaceOwner)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.warn('Erro ao buscar categorias:', error);
+        return;
+      }
+
+      userCategories = data || [];
+      populateCategoryDropdown();
+      renderCategoriesList();
+    }
+
+    function populateCategoryDropdown() {
+      const select = document.getElementById('tx-category');
+      if (!select) return;
+
+      const currentSelected = select.value;
+      select.innerHTML = '';
+
+      const defaults = [
+        'Açougue', 'Almoço', 'Café/Lanches', 'Feira', 'Padaria', 'Restaurante', 'Supermercado',
+        'Água', 'Aluguel', 'Condomínio', 'Gás', 'Internet', 'Luz', 'Telefone',
+        'Escola', 'Faculdade', 'Material Escolar', 'Salário', 'Transferência', 'Outros'
+      ];
+
+      const customNames = userCategories.map(c => c.name);
+      const allCategories = Array.from(new Set([...defaults, ...customNames])).sort();
+
+      allCategories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+
+      if (currentSelected && allCategories.includes(currentSelected)) {
+        select.value = currentSelected;
+      }
+    }
+
+    function renderCategoriesList() {
+      const container = document.getElementById('categories-list-container');
+      if (!container) return;
+
+      if (userCategories.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-500 py-3 text-center">Nenhuma categoria personalizada cadastrada.</p>`;
+        return;
+      }
+
+      container.innerHTML = userCategories.map(cat => `
+        <div class="flex items-center justify-between p-2.5 bg-slate-900/60 rounded-lg border border-slate-800">
+          <div>
+            <span class="text-sm font-medium text-slate-200">${cat.name}</span>
+            <span class="ml-2 text-[10px] px-2 py-0.5 rounded ${cat.type === 'income' ? 'bg-emerald-500/10 text-emerald-400' : (cat.type === 'expense' ? 'bg-rose-500/10 text-rose-400' : 'bg-brand-500/10 text-brand-400')}">
+              ${cat.type === 'income' ? 'Receita' : (cat.type === 'expense' ? 'Despesa' : 'Ambos')}
+            </span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <button onclick="editCategory('${cat.id}', '${cat.name.replace(/'/g, "\\'")}', '${cat.type}')" title="Editar" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-white">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deleteCategory('${cat.id}')" title="Excluir" class="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-rose-400">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function openCategoriesModal() {
+      resetCategoryForm();
+      document.getElementById('categories-modal').classList.remove('hidden');
+    }
+
+    function closeCategoriesModal() {
+      document.getElementById('categories-modal').classList.add('hidden');
+    }
+
+    function resetCategoryForm() {
+      document.getElementById('cat-id').value = '';
+      document.getElementById('cat-name').value = '';
+      document.getElementById('cat-type').value = 'expense';
+      document.getElementById('btn-save-cat').innerText = 'Adicionar Categoria';
+      document.getElementById('btn-cancel-cat').classList.add('hidden');
+    }
+
+    function editCategory(id, name, type) {
+      document.getElementById('cat-id').value = id;
+      document.getElementById('cat-name').value = name;
+      document.getElementById('cat-type').value = type;
+      document.getElementById('btn-save-cat').innerText = 'Atualizar Categoria';
+      document.getElementById('btn-cancel-cat').classList.remove('hidden');
+    }
+
+    async function saveCategory(e) {
+      e.preventDefault();
+      const id = document.getElementById('cat-id').value;
+      const name = document.getElementById('cat-name').value.trim();
+      const type = document.getElementById('cat-type').value;
+
+      if (!name) return;
+
+      if (id) {
+        await db.from('categories').update({ name, type }).eq('id', id);
+      } else {
+        await db.from('categories').insert({
+          name,
+          type,
+          owner_email: currentWorkspaceOwner
+        });
+      }
+
+      resetCategoryForm();
+      await loadCategoriesFromDB();
+    }
+
+    async function deleteCategory(id) {
+      if (!confirm('Deseja realmente remover esta categoria personalizada?')) return;
+      await db.from('categories').delete().eq('id', id);
+      await loadCategoriesFromDB();
     }
 
     // CARREGAR TRANSAÇÕES UNIFICADAS DO ESPAÇO
@@ -928,6 +1087,7 @@
       document.getElementById('import-modal').classList.remove('hidden');
       document.getElementById('import-status').classList.add('hidden');
     }
+
     function closeImportModal() {
       document.getElementById('import-modal').classList.add('hidden');
     }
@@ -993,6 +1153,8 @@
       form.reset();
       document.getElementById('tx-id').value = '';
       document.getElementById('modal-title').innerText = editId ? 'Editar Transação' : 'Nova Transação';
+
+      populateCategoryDropdown();
 
       if (editId) {
         const item = transactions.find(t => t.id == editId);
