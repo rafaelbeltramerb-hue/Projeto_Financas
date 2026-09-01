@@ -599,7 +599,7 @@
 
         <div class="flex justify-end space-x-2 border-t border-slate-800 pt-3">
           <button type="button" onclick="closeModal()" class="px-4 py-2 text-sm text-slate-400 hover:text-white">Cancelar</button>
-          <button type="submit" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition">Salvar Lançamento</button>
+          <button type="submit" id="btn-submit-tx" class="bg-brand-600 hover:bg-brand-500 text-white font-medium px-4 py-2 rounded-lg text-sm transition flex items-center justify-center gap-2">Salvar Lançamento</button>
         </div>
       </form>
     </div>
@@ -1328,112 +1328,146 @@
       return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
     }
 
-    // ADICIONAR / EDITAR TRANSAÇÃO
+    // ADICIONAR / EDITAR TRANSAÇÃO (OTIMIZADO)
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const id = document.getElementById('tx-id').value;
-      const type = document.querySelector('input[name="type"]:checked').value;
-      const description = document.getElementById('tx-description').value.trim();
-      const totalAmount = parseFloat(document.getElementById('tx-amount').value);
-      const dueDate = document.getElementById('tx-date').value;
-      const category = document.getElementById('tx-category').value;
-      const status = document.getElementById('tx-status').value;
-      const isRecurring = document.getElementById('tx-recurring').checked;
-      const installments = parseInt(document.getElementById('tx-installments').value) || 1;
+      
+      const submitBtn = document.getElementById('btn-submit-tx');
+      const originalText = submitBtn ? submitBtn.innerHTML : 'Salvar Lançamento';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Salvando...';
+      }
 
-      if (id) {
-        const origItem = transactions.find(t => t.id == id);
+      try {
+        const id = document.getElementById('tx-id').value;
+        const type = document.querySelector('input[name="type"]:checked').value;
+        const description = document.getElementById('tx-description').value.trim();
+        const totalAmount = parseFloat(document.getElementById('tx-amount').value);
+        const dueDate = document.getElementById('tx-date').value;
+        const category = document.getElementById('tx-category').value;
+        const status = document.getElementById('tx-status').value;
+        const isRecurring = document.getElementById('tx-recurring').checked;
+        const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
-        if (editScope === 'future' && origItem && origItem.isRecurring) {
-          // Filtra todos os lançamentos fixos do mesmo espaço com a mesma descrição a partir dessa data
-          const futureItems = transactions.filter(t => 
-            t.ownerEmail === currentWorkspaceOwner &&
-            t.isRecurring &&
-            t.description === origItem.description &&
-            t.dueDate >= origItem.dueDate
-          );
+        if (id) {
+          const origItem = transactions.find(t => t.id == id);
 
-          // Ordena sequencialmente
-          futureItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || String(a.id).localeCompare(String(b.id)));
+          if (editScope === 'future' && origItem && origItem.isRecurring) {
+            // Filtra lançamentos fixos do mesmo espaço com a mesma descrição a partir desta data
+            const futureItems = transactions.filter(t => 
+              t.ownerEmail === currentWorkspaceOwner &&
+              t.isRecurring &&
+              t.description === origItem.description &&
+              t.dueDate >= origItem.dueDate
+            );
 
-          // Atualiza todos do ponto em diante recalculando as datas relativas
-          for (let i = 0; i < futureItems.length; i++) {
-            const fItem = futureItems[i];
-            const newDueDate = addMonthsToDate(dueDate, i);
-            const itemStatus = (fItem.id == origItem.id) ? status : fItem.status;
+            // Ordena sequencialmente por data
+            futureItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || String(a.id).localeCompare(String(b.id)));
 
-            await db.from('transactions').update({
+            // Monta o lote para envio em requisição única
+            const updateRows = futureItems.map((fItem, i) => ({
+              id: fItem.id,
               description: description,
               amount: totalAmount,
               type: type,
               category: category,
-              due_date: newDueDate,
-              status: itemStatus,
+              due_date: addMonthsToDate(dueDate, i),
+              status: (fItem.id == origItem.id) ? status : fItem.status,
+              is_recurring: isRecurring,
+              user_email: fItem.userEmail || currentUser.email,
+              owner_email: currentWorkspaceOwner
+            }));
+
+            // Executa requisição única em lote no Supabase
+            const { error: batchErr } = await db.from('transactions').upsert(updateRows);
+            
+            // Fallback em paralelo caso o BD rejeite upsert em massa
+            if (batchErr) {
+              console.warn('Fallback em paralelo ativado:', batchErr);
+              await Promise.all(updateRows.map(row => 
+                db.from('transactions').update({
+                  description: row.description,
+                  amount: row.amount,
+                  type: row.type,
+                  category: row.category,
+                  due_date: row.due_date,
+                  status: row.status,
+                  is_recurring: row.is_recurring
+                }).eq('id', row.id)
+              ));
+            }
+          } else {
+            // Atualiza apenas o registro específico
+            await db.from('transactions').update({
+              description, 
+              amount: totalAmount, 
+              type, 
+              category, 
+              due_date: dueDate, 
+              status, 
               is_recurring: isRecurring
-            }).eq('id', fItem.id);
+            }).eq('id', id);
           }
         } else {
-          // Atualiza apenas o registro específico
-          await db.from('transactions').update({
-            description, 
-            amount: totalAmount, 
-            type, 
-            category, 
-            due_date: dueDate, 
-            status, 
-            is_recurring: isRecurring
-          }).eq('id', id);
-        }
-      } else {
-        // Criação de novos lançamentos
-        const newRows = [];
-        if (isRecurring) {
-          for (let i = 0; i < 24; i++) {
+          // Criação de novos lançamentos
+          const newRows = [];
+          if (isRecurring) {
+            for (let i = 0; i < 24; i++) {
+              newRows.push({
+                description,
+                amount: totalAmount,
+                type,
+                category,
+                due_date: addMonthsToDate(dueDate, i),
+                status: i === 0 ? status : 'pending',
+                is_recurring: true,
+                user_email: currentUser.email,
+                owner_email: currentWorkspaceOwner
+              });
+            }
+          } else if (installments > 1) {
+            const installmentValue = totalAmount / installments;
+            for (let i = 0; i < installments; i++) {
+              newRows.push({
+                description: `${description} (${i + 1}/${installments})`,
+                amount: installmentValue,
+                type,
+                category,
+                due_date: addMonthsToDate(dueDate, i),
+                status: i === 0 ? status : 'pending',
+                is_recurring: false,
+                user_email: currentUser.email,
+                owner_email: currentWorkspaceOwner
+              });
+            }
+          } else {
             newRows.push({
               description,
               amount: totalAmount,
               type,
               category,
-              due_date: addMonthsToDate(dueDate, i),
-              status: i === 0 ? status : 'pending',
-              is_recurring: true,
-              user_email: currentUser.email,
-              owner_email: currentWorkspaceOwner
-            });
-          }
-        } else if (installments > 1) {
-          const installmentValue = totalAmount / installments;
-          for (let i = 0; i < installments; i++) {
-            newRows.push({
-              description: `${description} (${i + 1}/${installments})`,
-              amount: installmentValue,
-              type,
-              category,
-              due_date: addMonthsToDate(dueDate, i),
-              status: i === 0 ? status : 'pending',
+              due_date: dueDate,
+              status,
               is_recurring: false,
               user_email: currentUser.email,
               owner_email: currentWorkspaceOwner
             });
           }
-        } else {
-          newRows.push({
-            description,
-            amount: totalAmount,
-            type,
-            category,
-            due_date: dueDate,
-            status,
-            is_recurring: false,
-            user_email: currentUser.email,
-            owner_email: currentWorkspaceOwner
-          });
+          await db.from('transactions').insert(newRows);
         }
-        await db.from('transactions').insert(newRows);
-      }
 
-      closeModal();
-      await loadTransactionsFromDB();
+        closeModal();
+        await loadTransactionsFromDB();
+      } catch (err) {
+        console.error('Erro ao salvar lançamento:', err);
+        alert('Ocorreu um erro ao salvar o lançamento.');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
     });
 
     async function toggleStatus(id) {
