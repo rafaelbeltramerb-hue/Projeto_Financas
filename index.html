@@ -929,7 +929,8 @@
       const { data, error } = await db.from('transactions')
         .select('*')
         .eq('owner_email', currentWorkspaceOwner)
-        .order('due_date', { ascending: true });
+        .order('due_date', { ascending: true })
+        .order('id', { ascending: true }); // Critério secundário para evitar troca de ordem
 
       if (error) {
         console.error('Erro ao buscar lançamentos:', error);
@@ -948,6 +949,14 @@
         userEmail: item.user_email,
         ownerEmail: item.owner_email
       }));
+
+      // Ordenação estável garantida no cliente
+      transactions.sort((a, b) => {
+        if (a.dueDate !== b.dueDate) {
+          return a.dueDate.localeCompare(b.dueDate);
+        }
+        return String(a.id).localeCompare(String(b.id));
+      });
 
       renderDashboard();
     }
@@ -1276,6 +1285,7 @@
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
       if (id) {
+        // Apenas atualiza o registro específico sem duplicar futuros
         await db.from('transactions').update({
           description, 
           amount: totalAmount, 
@@ -1285,25 +1295,8 @@
           status, 
           is_recurring: isRecurring
         }).eq('id', id);
-
-        if (isRecurring) {
-          const futureRows = [];
-          for (let i = 1; i <= 24; i++) {
-            futureRows.push({
-              description,
-              amount: totalAmount,
-              type,
-              category,
-              due_date: addMonthsToDate(dueDate, i),
-              status: 'pending',
-              is_recurring: true,
-              user_email: currentUser.email,
-              owner_email: currentWorkspaceOwner
-            });
-          }
-          await db.from('transactions').insert(futureRows);
-        }
       } else {
+        // Criação de novos lançamentos
         const newRows = [];
         if (isRecurring) {
           for (let i = 0; i < 24; i++) {
