@@ -113,10 +113,10 @@
       <!-- BOTÕES NAVEGAÇÃO -->
       <nav class="flex space-x-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
         <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5">
-          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+          <i data-lucide="bar-chart-3" class="w-4 h-4"></i> Dashboard
         </button>
         <button id="btn-tab-transactions" onclick="switchTab('transactions')" class="px-4 py-1.5 rounded-lg text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
-          <i data-lucide="receipt" class="w-4 h-4"></i> Lançamentos Mensais
+          <i data-lucide="arrow-left-right" class="w-4 h-4"></i> Lançamentos Mensais
         </button>
       </nav>
       
@@ -749,7 +749,7 @@
         const { data: users, error } = await db.from('users').select('*').eq('email', email);
 
         if (error || !users || users.length === 0) {
-          errorEl.innerHTML = `⚠️ E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar Conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou Convidado"</strong>.`;
+          errorEl.innerHTML = `E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar Conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou Convidado"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
@@ -806,7 +806,7 @@
         }
 
         if (!ownerFound) {
-          errorEl.innerHTML = `🚫 <strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${escapeHTML(email)}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
+          errorEl.innerHTML = `<strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${escapeHTML(email)}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
@@ -1120,7 +1120,7 @@
       const mailtoBtn = document.getElementById('btn-mailto-link');
       const directAction = document.getElementById('direct-email-action');
 
-      statusMsg.innerText = `✅ Autorização cadastrada para ${email}! Abrindo seu gerenciador de e-mail...`;
+      statusMsg.innerText = `Autorização cadastrada para ${email}! Abrindo seu gerenciador de e-mail...`;
       mailtoBtn.href = mailtoUrl;
       directAction.classList.remove('hidden');
       statusBox.classList.remove('hidden');
@@ -1677,13 +1677,16 @@
             ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
           </td>
           <td class="p-4">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'}">
+              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5 ${isPaid ? 'text-emerald-600' : 'text-rose-600'}"></i>
               ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
             </span>
           </td>
           <td class="p-4 text-right space-x-1">
-            <button onclick="toggleStatus('${t.id}')" title="Confirmar/Cancelar status" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-emerald-600 transition">
-              <i data-lucide="${isPaid ? 'undo-2' : 'check-circle'}" class="w-4 h-4"></i>
+            <button onclick="toggleStatus('${t.id}')" 
+              title="${isPaid ? 'Confirmado (Clique para cancelar / marcar como pendente)' : 'Pendente (Clique para confirmar pagamento/recebimento)'}" 
+              class="p-1.5 rounded-lg transition-all ${isPaid ? 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200' : 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200'}">
+              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-4 h-4"></i>
             </button>
             <button onclick="openModal('${t.id}')" title="Editar" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition">
               <i data-lucide="pencil" class="w-4 h-4"></i>
