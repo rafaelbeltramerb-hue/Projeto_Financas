@@ -112,32 +112,57 @@
         </button>
       </nav>
       
-      <div class="flex items-center space-x-2">
-        <button onclick="openCategoriesModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
-          <i data-lucide="tags" class="w-4 h-4 text-brand-400"></i>
-          <span class="hidden md:inline">Categorias</span>
-        </button>
-
-        <button onclick="openShareModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-indigo-900/40 hover:bg-indigo-900/70 border border-indigo-700/50 text-indigo-300 text-xs font-medium transition">
-          <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i>
-          <span class="hidden sm:inline">Convidar por E-mail</span>
-        </button>
-
-        <button onclick="openImportModal()" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition">
-          <i data-lucide="file-up" class="w-4 h-4 text-brand-400"></i>
-          <span class="hidden md:inline">Importar</span>
-        </button>
-
-        <button onclick="openProfileModal()" class="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-slate-800 text-slate-300 transition">
+      <!-- MENU UNIFICADO (USUÁRIO E AÇÕES) -->
+      <div class="relative">
+        <button id="btn-user-dropdown" onclick="toggleUserDropdown()" class="flex items-center space-x-2.5 p-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-200 transition focus:outline-none">
           <div class="w-7 h-7 rounded-full bg-brand-500/20 text-brand-400 flex items-center justify-center text-xs font-bold">
             <i data-lucide="user" class="w-4 h-4"></i>
           </div>
-          <span id="user-display" class="text-xs font-medium hidden lg:inline">Usuário</span>
+          <span id="user-display" class="text-xs font-medium">Usuário</span>
+          <i data-lucide="chevron-down" id="user-dropdown-arrow" class="w-3.5 h-3.5 text-slate-400 transition-transform duration-200"></i>
         </button>
 
-        <button onclick="logout()" title="Sair" class="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition">
-          <i data-lucide="log-out" class="w-4 h-4"></i>
-        </button>
+        <!-- SUBMENU DROPDOWN -->
+        <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-56 glass rounded-xl shadow-2xl border border-slate-800/80 py-1.5 z-50 divide-y divide-slate-800/60">
+          
+          <!-- CABEÇALHO DO MENU -->
+          <div class="px-3.5 py-2">
+            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Conta Ativa</p>
+            <p id="dropdown-user-name" class="text-xs font-bold text-slate-100 truncate">Usuário</p>
+          </div>
+
+          <!-- AÇÕES UNIFICADAS -->
+          <div class="py-1">
+            <button onclick="closeUserDropdown(); openCategoriesModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
+              <i data-lucide="tags" class="w-4 h-4 text-brand-400"></i>
+              <span>Categorias</span>
+            </button>
+
+            <button onclick="closeUserDropdown(); openImportModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
+              <i data-lucide="file-up" class="w-4 h-4 text-brand-400"></i>
+              <span>Importar</span>
+            </button>
+
+            <button onclick="closeUserDropdown(); openShareModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
+              <i data-lucide="user-plus" class="w-4 h-4 text-indigo-400"></i>
+              <span>Convidar por E-mail</span>
+            </button>
+
+            <button onclick="closeUserDropdown(); openProfileModal();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-slate-300 hover:bg-slate-800/80 hover:text-white transition text-left">
+              <i data-lucide="user-cog" class="w-4 h-4 text-slate-400"></i>
+              <span>Meu Perfil</span>
+            </button>
+          </div>
+
+          <!-- AÇÃO DE SAIR -->
+          <div class="py-1">
+            <button onclick="closeUserDropdown(); logout();" class="w-full flex items-center gap-2.5 px-3.5 py-2 text-xs text-rose-400 hover:bg-rose-500/10 transition text-left font-medium">
+              <i data-lucide="log-out" class="w-4 h-4 text-rose-400"></i>
+              <span>Sair</span>
+            </button>
+          </div>
+
+        </div>
       </div>
     </header>
 
@@ -568,6 +593,34 @@
     let expensesChart = null;
     let pendingDeleteIds = [];
 
+    // CONTROLE DO DROPDOWN DO USUÁRIO
+    function toggleUserDropdown() {
+      const menu = document.getElementById('user-dropdown-menu');
+      const arrow = document.getElementById('user-dropdown-arrow');
+      if (menu) {
+        menu.classList.toggle('hidden');
+        if (arrow) arrow.classList.toggle('rotate-180');
+      }
+    }
+
+    function closeUserDropdown() {
+      const menu = document.getElementById('user-dropdown-menu');
+      const arrow = document.getElementById('user-dropdown-arrow');
+      if (menu && !menu.classList.contains('hidden')) {
+        menu.classList.add('hidden');
+        if (arrow) arrow.classList.remove('rotate-180');
+      }
+    }
+
+    // FECHAR DROPDOWN AO CLICAR FORA
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('user-dropdown-menu');
+      const button = document.getElementById('btn-user-dropdown');
+      if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target)) {
+        closeUserDropdown();
+      }
+    });
+
     // ALTERNADOR ENTRE AS 3 ABAS DE AUTENTICAÇÃO
     function toggleAuthMode(mode) {
       authMode = mode;
@@ -689,7 +742,7 @@
         currentUser = { email, name: userName };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
 
-        successEl.innerText = `Convite confirmado! Acessando o espaço de ${ownerFound}...`;
+        successEl.innerText = `Convite confirmed! Acessando o espaço de ${ownerFound}...`;
         successEl.classList.remove('hidden');
 
         setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
@@ -714,7 +767,9 @@
 
       currentWorkspaceOwner = ownerFound ? ownerFound : currentUser.email.toLowerCase();
 
-      document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
+      const userNameDisplay = currentUser.name || currentUser.email;
+      document.getElementById('user-display').innerText = userNameDisplay;
+      document.getElementById('dropdown-user-name').innerText = userNameDisplay;
       document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
       
       document.getElementById('login-view').classList.add('hidden');
@@ -1079,6 +1134,7 @@
 
       localStorage.setItem('app_current_user', JSON.stringify(currentUser));
       document.getElementById('user-display').innerText = currentUser.name;
+      document.getElementById('dropdown-user-name').innerText = currentUser.name;
       closeProfileModal();
       alert('Perfil atualizado com sucesso!');
     }
