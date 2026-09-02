@@ -540,7 +540,7 @@
         <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <form id="transaction-form" class="space-y-3">
+      <form id="transaction-form" onsubmit="saveTransaction(event)" class="space-y-3">
         <input type="hidden" id="tx-id">
 
         <div class="grid grid-cols-2 gap-2">
@@ -629,6 +629,10 @@
     let editScope = 'single'; // 'single' ou 'future'
     let pendingEditId = null;
 
+    // GERENCIAMENTO DE ATUALIZAÇÃO EM LOTE PARA STATUS (CLIQUES RÁPIDOS)
+    let statusUpdateTimer = null;
+    const pendingStatusMap = new Map(); // id -> newStatus
+
     // SEGURANÇA: FUNÇÃO DE ESCAPE CONTRA ATAQUES XSS
     function escapeHTML(str) {
       if (str === null || str === undefined) return '';
@@ -638,6 +642,56 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    // FUNÇÕES DE DATA E STATUS INTELIGENTE CENTRALIZADO
+    function getTodayString() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getTransactionStatusDetails(t) {
+      const isIncome = t.type === 'income';
+      const isPaid = t.status === 'completed';
+      const todayStr = getTodayString();
+
+      if (isPaid) {
+        return {
+          label: isIncome ? 'Recebido' : 'Pago',
+          badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+          icon: 'check-circle-2',
+          iconColor: 'text-emerald-600',
+          isPaid: true,
+          btnClass: 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200',
+          btnTitle: 'Confirmado (Clique para cancelar / marcar como pendente)'
+        };
+      }
+
+      const isOverdue = Boolean(t.dueDate && t.dueDate < todayStr);
+      if (isOverdue) {
+        return {
+          label: 'Atrasado',
+          badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200/80',
+          icon: 'alert-circle',
+          iconColor: 'text-rose-600',
+          isPaid: false,
+          btnClass: 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200',
+          btnTitle: 'Atrasado (Clique para confirmar pagamento/recebimento)'
+        };
+      } else {
+        return {
+          label: 'Pendente',
+          badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/80',
+          icon: 'clock',
+          iconColor: 'text-amber-600',
+          isPaid: false,
+          btnClass: 'text-amber-600 bg-amber-50 hover:bg-emerald-50 hover:text-emerald-600 border border-amber-200',
+          btnTitle: 'Pendente (Clique para confirmar pagamento/recebimento)'
+        };
+      }
     }
 
     // FUNÇÕES DE FORMATAÇÃO E PARSE DE MOEDA (MÁSCARA)
@@ -855,6 +909,10 @@
     }
 
     function logout() {
+      // Envia atualizações pendentes antes de sair
+      if (pendingStatusMap.size > 0) {
+        flushStatusUpdates();
+      }
       localStorage.removeItem('app_current_user');
       currentUser = null;
       currentWorkspaceOwner = null;
@@ -868,49 +926,40 @@
 
     // LÓGICA DE GERENCIAMENTO DE CATEGORIAS
     async function loadCategoriesFromDB() {
-      if (!currentWorkspaceOwner) return;
+      try {
+        const { data, error } = await db
+          .from('categories')
+          .select('*')
+          .eq('workspace_owner', currentWorkspaceOwner);
 
-      const { data, error } = await db.from('categories')
-        .select('*')
-        .eq('owner_email', currentWorkspaceOwner)
-        .order('name', { ascending: true });
+        if (error) throw error;
 
-      if (error) {
-        console.warn('Erro ao buscar categorias:', error);
-        return;
+        userCategories = data || [];
+        populateCategoryDropdown();
+        renderCategoriesList();
+      } catch (err) {
+        console.error('Erro ao carregar categorias:', err);
       }
-
-      userCategories = data || [];
-      populateCategoryDropdown();
-      renderCategoriesList();
     }
 
     function populateCategoryDropdown() {
       const select = document.getElementById('tx-category');
       if (!select) return;
 
-      const currentSelected = select.value;
       select.innerHTML = '';
+      
+      // Categorias Padrão
+      const defaultCategories = ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Salário', 'Investimentos', 'Outros'];
+      const customCatNames = userCategories.map(c => c.name);
+      
+      const allNames = Array.from(new Set([...defaultCategories, ...customCatNames]));
 
-      const defaults = [
-        'Açougue', 'Almoço', 'Café/Lanches', 'Feira', 'Padaria', 'Restaurante', 'Supermercado',
-        'Água', 'Aluguel', 'Condomínio', 'Gás', 'Internet', 'Luz', 'Telefone',
-        'Escola', 'Faculdade', 'Material Escolar', 'Salário', 'Transferência', 'Outros'
-      ];
-
-      const customNames = userCategories.map(c => c.name);
-      const allCategories = Array.from(new Set([...defaults, ...customNames])).sort();
-
-      allCategories.forEach(cat => {
+      allNames.forEach(cat => {
         const opt = document.createElement('option');
         opt.value = cat;
-        opt.textContent = cat;
+        opt.innerText = cat;
         select.appendChild(opt);
       });
-
-      if (currentSelected && allCategories.includes(currentSelected)) {
-        select.value = currentSelected;
-      }
     }
 
     function renderCategoriesList() {
@@ -918,55 +967,24 @@
       if (!container) return;
 
       if (userCategories.length === 0) {
-        container.innerHTML = `<p class="text-xs text-slate-400 py-2 text-center">Nenhuma categoria personalizada cadastrada.</p>`;
+        container.innerHTML = '<p class="text-xs text-slate-400 italic">Nenhuma categoria personalizada cadastrada.</p>';
         return;
       }
 
       container.innerHTML = userCategories.map(cat => `
-        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
+        <div class="flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200 text-xs">
           <div>
-            <span class="text-xs font-semibold text-slate-800">${escapeHTML(cat.name)}</span>
-            <span class="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cat.type === 'income' ? 'bg-emerald-100 text-emerald-700' : (cat.type === 'expense' ? 'bg-rose-100 text-rose-700' : 'bg-brand-100 text-brand-700')}">
-              ${cat.type === 'income' ? 'Receita' : (cat.type === 'expense' ? 'Despesa' : 'Ambos')}
-            </span>
+            <span class="font-semibold text-slate-800">${escapeHTML(cat.name)}</span>
+            <span class="text-[10px] text-slate-400 ml-1">(${cat.type === 'expense' ? 'Despesa' : cat.type === 'income' ? 'Receita' : 'Ambos'})</span>
           </div>
           <div class="flex items-center space-x-1">
-            <button onclick="editCategory('${cat.id}', '${escapeHTML(cat.name).replace(/'/g, "\\'")}', '${cat.type}')" title="Editar" class="p-1 hover:bg-slate-200 rounded-md text-slate-500 hover:text-slate-800 transition">
-              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-            </button>
-            <button onclick="deleteCategory('${cat.id}')" title="Excluir" class="p-1 hover:bg-rose-100 rounded-md text-slate-500 hover:text-rose-600 transition">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
+            <button onclick="editCategory('${cat.id}')" class="p-1 text-slate-400 hover:text-brand-600 transition"><i data-lucide="pencil" class="w-3.5 h-3.5"></i></button>
+            <button onclick="deleteCategory('${cat.id}')" class="p-1 text-slate-400 hover:text-rose-600 transition"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
           </div>
         </div>
       `).join('');
 
       lucide.createIcons();
-    }
-
-    function openCategoriesModal() {
-      resetCategoryForm();
-      document.getElementById('categories-modal').classList.remove('hidden');
-    }
-
-    function closeCategoriesModal() {
-      document.getElementById('categories-modal').classList.add('hidden');
-    }
-
-    function resetCategoryForm() {
-      document.getElementById('cat-id').value = '';
-      document.getElementById('cat-name').value = '';
-      document.getElementById('cat-type').value = 'expense';
-      document.getElementById('btn-save-cat').innerText = 'Adicionar Categoria';
-      document.getElementById('btn-cancel-cat').classList.add('hidden');
-    }
-
-    function editCategory(id, name, type) {
-      document.getElementById('cat-id').value = id;
-      document.getElementById('cat-name').value = name;
-      document.getElementById('cat-type').value = type;
-      document.getElementById('btn-save-cat').innerText = 'Atualizar Categoria';
-      document.getElementById('btn-cancel-cat').classList.remove('hidden');
     }
 
     async function saveCategory(e) {
@@ -980,90 +998,655 @@
       if (id) {
         await db.from('categories').update({ name, type }).eq('id', id);
       } else {
-        await db.from('categories').insert({
-          name,
-          type,
-          owner_email: currentWorkspaceOwner
-        });
+        await db.from('categories').insert({ name, type, workspace_owner: currentWorkspaceOwner });
       }
 
       resetCategoryForm();
       await loadCategoriesFromDB();
     }
 
-    async function deleteCategory(id) {
-      if (!confirm('Deseja realmente remover esta categoria personalizada?')) return;
-      await db.from('categories').delete().eq('id', id);
-      await loadCategoriesFromDB();
+    function editCategory(id) {
+      const cat = userCategories.find(c => c.id == id);
+      if (!cat) return;
+      document.getElementById('cat-id').value = cat.id;
+      document.getElementById('cat-name').value = cat.name;
+      document.getElementById('cat-type').value = cat.type;
+      document.getElementById('btn-save-cat').innerText = 'Salvar Categoria';
+      document.getElementById('btn-cancel-cat').classList.remove('hidden');
     }
 
-    // CARREGAR TRANSAÇÕES UNIFICADAS DO ESPAÇO
+    function resetCategoryForm() {
+      document.getElementById('cat-id').value = '';
+      document.getElementById('cat-name').value = '';
+      document.getElementById('cat-type').value = 'expense';
+      document.getElementById('btn-save-cat').innerText = 'Adicionar Categoria';
+      document.getElementById('btn-cancel-cat').classList.add('hidden');
+    }
+
+    async function deleteCategory(id) {
+      if (confirm('Deseja excluir esta categoria?')) {
+        await db.from('categories').delete().eq('id', id);
+        await loadCategoriesFromDB();
+      }
+    }
+
+    function openCategoriesModal() {
+      document.getElementById('categories-modal').classList.remove('hidden');
+    }
+
+    function closeCategoriesModal() {
+      document.getElementById('categories-modal').classList.add('hidden');
+      resetCategoryForm();
+    }
+
+    // CARREGAR LANÇAMENTOS
     async function loadTransactionsFromDB() {
       if (!currentWorkspaceOwner) return;
 
-      const { data, error } = await db.from('transactions')
+      pendingStatusMap.clear(); // Limpa atualizações pendentes para sincronia total
+
+      const { data, error } = await db
+        .from('transactions')
         .select('*')
-        .eq('owner_email', currentWorkspaceOwner)
-        .order('due_date', { ascending: true })
-        .order('id', { ascending: true });
+        .eq('workspace_owner', currentWorkspaceOwner)
+        .order('dueDate', { ascending: true });
 
       if (error) {
-        console.error('Erro ao buscar lançamentos:', error);
+        console.error('Erro ao carregar lançamentos:', error);
         return;
       }
 
-      transactions = (data || []).map(item => ({
-        id: item.id,
-        description: item.description,
-        amount: parseFloat(item.amount),
-        type: item.type,
-        category: item.category,
-        dueDate: item.due_date,
-        status: item.status,
-        isRecurring: item.is_recurring,
-        userEmail: item.user_email,
-        ownerEmail: item.owner_email
-      }));
-
-      transactions.sort((a, b) => {
-        if (a.dueDate !== b.dueDate) {
-          return a.dueDate.localeCompare(b.dueDate);
-        }
-        return String(a.id).localeCompare(String(b.id));
-      });
-
+      transactions = data || [];
       renderDashboard();
     }
 
-    // ABRIR E GERENCIAR MODAL DE CONVITE
-    async function openShareModal() {
-      await renderSharedUsersList();
+    // ALTERAR STATUS (OTIMIZAÇÃO ULTRA-RÁPIDA EM LOTE)
+    async function toggleStatus(id) {
+      const item = transactions.find(t => t.id == id);
+      if (!item) return;
+
+      const previousStatus = item.status;
+      const newStatus = previousStatus === 'completed' ? 'pending' : 'completed';
+
+      // 1. Atualização Otimista local instantânea em memória
+      item.status = newStatus;
+
+      // 2. Atualização cirúrgica na linha do DOM + recalculo dos resumos (sem reconstruir a tabela inteira)
+      const rowUpdated = updateSingleRowUI(id);
+      renderDashboard(rowUpdated ? { skipFullTableRebuild: true } : {});
+
+      // 3. Adiciona ao lote de sincronização em segundo plano
+      pendingStatusMap.set(String(id), newStatus);
+
+      // 4. Temporizador com debounce para enviar alterações acumuladas ao Supabase
+      clearTimeout(statusUpdateTimer);
+      statusUpdateTimer = setTimeout(flushStatusUpdates, 250);
+    }
+
+    // ATUALIZAÇÃO DIRETA DA LINHA NA TABELA SEM DESTRUIR ELEMENTOS
+    function updateSingleRowUI(id) {
+      const t = transactions.find(item => item.id == id);
+      if (!t) return false;
+
+      const statusCell = document.getElementById(`tx-status-cell-${id}`);
+      const actionsCell = document.getElementById(`tx-actions-cell-${id}`);
+
+      if (!statusCell || !actionsCell) return false; // Se a linha não estiver visível na aba atual
+
+      const details = getTransactionStatusDetails(t);
+
+      statusCell.innerHTML = `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.badgeClass}">
+          <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconColor}"></i>
+          ${escapeHTML(details.label)}
+        </span>
+      `;
+
+      actionsCell.innerHTML = `
+        <button onclick="toggleStatus('${t.id}')" 
+          title="${details.btnTitle}" 
+          class="p-1 rounded-lg transition-all ${details.btnClass}">
+          <i data-lucide="${details.isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
+          <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+        </button>
+        <button onclick="deleteTransaction('${t.id}')" 
+          title="${details.isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
+          class="p-1 rounded-lg transition ${details.isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      `;
+
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
+
+      return true;
+    }
+
+    // PROCESSA E ENVIA TODAS AS ATUALIZAÇÕES ACUMULADAS EM LOTE PARA O SUPABASE
+    async function flushStatusUpdates() {
+      if (pendingStatusMap.size === 0) return;
+
+      const batch = new Map(pendingStatusMap);
+      pendingStatusMap.clear();
+
+      const completedIds = [];
+      const pendingIds = [];
+
+      for (const [id, status] of batch.entries()) {
+        if (status === 'completed') completedIds.push(id);
+        else pendingIds.push(id);
+      }
+
+      try {
+        const promises = [];
+        if (completedIds.length > 0) {
+          promises.push(db.from('transactions').update({ status: 'completed' }).in('id', completedIds));
+        }
+        if (pendingIds.length > 0) {
+          promises.push(db.from('transactions').update({ status: 'pending' }).in('id', pendingIds));
+        }
+
+        const results = await Promise.all(promises);
+        const hasError = results.some(r => r && r.error);
+
+        if (hasError) {
+          throw new Error('Falha ao atualizar lançamentos no banco de dados');
+        }
+      } catch (err) {
+        console.error('Erro na sincronização de status em lote:', err);
+        await loadTransactionsFromDB(); // Recarrega se houver falha de conexão
+        alert('Ocorreu uma falha ao salvar algumas alterações de status. Os dados foram sincronizados.');
+      }
+    }
+
+    // ENVIA ATUALIZAÇÕES SE O USUÁRIO SAIR DA PÁGINA
+    window.addEventListener('beforeunload', () => {
+      if (pendingStatusMap.size > 0) {
+        flushStatusUpdates();
+      }
+    });
+
+    // NAVEGAÇÃO DE MÊS
+    function changeMonth(delta) {
+      const input = document.getElementById('month-filter');
+      if (!input.value) return;
+
+      const [year, month] = input.value.split('-').map(Number);
+      const date = new Date(year, month - 1 + delta, 1);
+      
+      const newYear = date.getFullYear();
+      const newMonth = String(date.getMonth() + 1).padStart(2, '0');
+      
+      input.value = `${newYear}-${newMonth}`;
+      renderDashboard();
+    }
+
+    // ALTERNADOR DE ABAS
+    function switchTab(tab) {
+      const btnDash = document.getElementById('btn-tab-dashboard');
+      const btnTrans = document.getElementById('btn-tab-transactions');
+      const tabDash = document.getElementById('tab-dashboard');
+      const tabTrans = document.getElementById('tab-transactions');
+
+      if (tab === 'dashboard') {
+        btnDash.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
+        btnTrans.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+        tabDash.classList.remove('hidden');
+        tabTrans.classList.add('hidden');
+      } else {
+        btnTrans.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
+        btnDash.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+        tabTrans.classList.remove('hidden');
+        tabDash.classList.add('hidden');
+      }
+      renderDashboard();
+    }
+
+    // RENDERIZAR PAINEL DASHBOARD E HISTÓRICO (PROCESSAMENTO EM ÚNICA PASSAGEM DE MEMÓRIA)
+    function renderDashboard(options = {}) {
+      if (!currentUser) return;
+
+      const monthFilterEl = document.getElementById('month-filter');
+      const selectedMonth = monthFilterEl ? monthFilterEl.value : '';
+      if (!selectedMonth) return;
+
+      const includePrevious = document.getElementById('chk-include-previous') ? document.getElementById('chk-include-previous').checked : true;
+      const firstDayOfMonth = selectedMonth + '-01';
+
+      const todayStr = getTodayString();
+      const in5Days = new Date();
+      in5Days.setDate(in5Days.getDate() + 5);
+      const in5DaysYr = in5Days.getFullYear();
+      const in5DaysMo = String(in5Days.getMonth() + 1).padStart(2, '0');
+      const in5DaysDy = String(in5Days.getDate()).padStart(2, '0');
+      const in5DaysStr = `${in5DaysYr}-${in5DaysMo}-${in5DaysDy}`;
+
+      let previousBalance = 0;
+      let monthIncome = 0;
+      let monthExpense = 0;
+      const categoryTotals = {};
+
+      const monthTransactions = [];
+      const prevPending = [];
+      const nextPending = [];
+      const alerts = [];
+
+      // PROCESSAMENTO EM UMA ÚNICA PASSAGEM DE MEMÓRIA (O(N))
+      for (let i = 0; i < transactions.length; i++) {
+        const t = transactions[i];
+        if (!t || !t.dueDate) continue;
+
+        const isCompleted = t.status === 'completed';
+        const isPending = !isCompleted;
+        const isIncome = t.type === 'income';
+        const isBeforeMonth = t.dueDate < firstDayOfMonth;
+        const isCurrentMonth = t.dueDate.startsWith(selectedMonth);
+
+        // 1. Saldo Anterior (Concluídos de meses anteriores)
+        if (isBeforeMonth && isCompleted) {
+          if (isIncome) previousBalance += t.amount;
+          else previousBalance -= t.amount;
+        }
+
+        // 2. Anteriores Pendentes
+        if (isBeforeMonth && isPending) {
+          prevPending.push(t);
+        }
+
+        // 3. Lançamentos do Mês Selecionado
+        if (isCurrentMonth) {
+          monthTransactions.push(t);
+
+          if (isCompleted) {
+            if (isIncome) {
+              monthIncome += t.amount;
+            } else {
+              monthExpense += t.amount;
+            }
+          }
+
+          if (!isIncome) {
+            categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+          }
+
+          if (isPending) {
+            nextPending.push(t);
+          }
+        }
+
+        // 4. Próximas com Alerta (Pendentes nos próximos 5 dias)
+        if (isPending && t.dueDate >= todayStr && t.dueDate <= in5DaysStr) {
+          alerts.push(t);
+        }
+      }
+
+      // Atualização dos Cards de Resumo
+      const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
+
+      const prevBalEl = document.getElementById('txt-previous-balance');
+      if (prevBalEl) prevBalEl.innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const monthIncEl = document.getElementById('txt-month-income');
+      if (monthIncEl) monthIncEl.innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const monthExpEl = document.getElementById('txt-month-expense');
+      if (monthExpEl) monthExpEl.innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const totalEl = document.getElementById('txt-total-balance');
+      if (totalEl) {
+        totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
+      }
+
+      // Renderizar tabelas resumidas
+      renderDashboardLists(prevPending, nextPending, alerts);
+
+      // Reconstrói a tabela completa de lançamentos apenas se não for atualização rápida de status
+      if (!options.skipFullTableRebuild) {
+        renderFullHistoryTable(monthTransactions);
+      }
+
+      renderCategoryChart(categoryTotals);
+
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
+    }
+
+    function renderDashboardLists(prevPending, nextPending, alerts) {
+      const prevList = document.getElementById('list-previous-pending');
+      const nextList = document.getElementById('list-next-pending');
+      const alertList = document.getElementById('list-alerts');
+
+      // 1. Anteriores Pendentes
+      if (prevList) {
+        prevList.innerHTML = prevPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente anterior</td></tr>' :
+          prevPending.map(t => `
+            <tr class="border-b border-slate-50">
+              <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
+
+      // 2. Próximas Pendentes do Mês
+      if (nextList) {
+        nextList.innerHTML = nextPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente no mês</td></tr>' :
+          nextPending.map(t => `
+            <tr class="border-b border-slate-50">
+              <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
+
+      // 3. Alertas (Até 5 Dias)
+      if (alertList) {
+        alertList.innerHTML = alerts.length === 0 ? '<tr><td colspan="3" class="py-2 text-amber-700/60 italic text-[11px]">Nenhum alerta para os próximos 5 dias</td></tr>' :
+          alerts.map(t => `
+            <tr class="border-b border-amber-100/60">
+              <td class="py-1 px-2 font-medium text-amber-900">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-amber-700/70 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-700':'text-rose-700'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
+    }
+
+    function renderFullHistoryTable(monthTransactions) {
+      const listEl = document.getElementById('transactions-list');
+      if (!listEl) return;
+
+      listEl.innerHTML = '';
+
+      if (monthTransactions.length === 0) {
+        listEl.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 text-xs">Nenhum lançamento encontrado para este mês.</td></tr>`;
+        return;
+      }
+
+      monthTransactions.forEach((t, index) => {
+        const isIncome = t.type === 'income';
+        const isOtherUser = t.userEmail && t.userEmail !== currentUser.email;
+        const details = getTransactionStatusDetails(t);
+
+        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
+        const borderIndicator = isIncome ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500';
+
+        const tr = document.createElement('tr');
+        tr.id = `tx-row-${t.id}`;
+        tr.className = `${bgClass} ${borderIndicator} hover:bg-indigo-50/60 transition border-b border-slate-200/60`;
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 font-semibold text-slate-800 flex items-center gap-1.5 text-xs">
+            ${escapeHTML(t.description)}
+            ${t.isRecurring ? '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold">Fixo</span>' : ''}
+            ${isOtherUser ? `<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold" title="Adicionado por ${escapeHTML(t.userEmail)}">Por: ${escapeHTML(t.userEmail.split('@')[0])}</span>` : ''}
+          </td>
+          <td class="py-2.5 px-3 text-slate-600 text-xs">${escapeHTML(t.category)}</td>
+          <td class="py-2.5 px-3 text-slate-500 text-xs">${escapeHTML(t.dueDate)}</td>
+          <td class="py-2.5 px-3 font-bold text-xs ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
+            ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+          </td>
+          <td class="py-2.5 px-3" id="tx-status-cell-${t.id}">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.badgeClass}">
+              <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconColor}"></i>
+              ${escapeHTML(details.label)}
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-right space-x-1" id="tx-actions-cell-${t.id}">
+            <button onclick="toggleStatus('${t.id}')" 
+              title="${details.btnTitle}" 
+              class="p-1 rounded-lg transition-all ${details.btnClass}">
+              <i data-lucide="${details.isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deleteTransaction('${t.id}')" 
+              title="${details.isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
+              class="p-1 rounded-lg transition ${details.isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </td>
+        `;
+        listEl.appendChild(tr);
+      });
+    }
+
+    function renderCategoryChart(categoryTotals) {
+      const ctx = document.getElementById('expensesChart');
+      if (!ctx) return;
+
+      const labels = Object.keys(categoryTotals);
+      const data = Object.values(categoryTotals);
+
+      if (expensesChart) {
+        expensesChart.data.labels = labels;
+        expensesChart.data.datasets[0].data = data;
+        expensesChart.update('none'); // Atualiza sem animação para melhor fluidez
+        return;
+      }
+
+      expensesChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: labels,
+          datasets: [{
+            data: data,
+            backgroundColor: [
+              '#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'
+            ]
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // AÇÕES DE EXCLUSÃO DE TRANSAÇÃO
+    function deleteTransaction(id) {
+      const t = transactions.find(item => item.id == id);
+      if (!t) return;
+
+      if (t.status === 'completed') {
+        alert('Não é possível excluir um lançamento já concluído/pago. Altere o status para pendente primeiro.');
+        return;
+      }
+
+      pendingDeleteIds = [t.id];
+      document.getElementById('delete-modal-msg').innerText = `Deseja excluir "${t.description}"?`;
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('delete-modal').classList.add('hidden');
+      pendingDeleteIds = [];
+    }
+
+    async function confirmDeleteTransaction() {
+      if (pendingDeleteIds.length === 0) return;
+
+      for (const id of pendingDeleteIds) {
+        if (pendingStatusMap.has(String(id))) {
+          pendingStatusMap.delete(String(id));
+        }
+        await db.from('transactions').delete().eq('id', id);
+      }
+
+      closeDeleteModal();
+      await loadTransactionsFromDB();
+    }
+
+    // MODAL SALVAR / EDITAR TRANSAÇÃO
+    function openModal(id = null) {
+      document.getElementById('transaction-form').reset();
+      document.getElementById('tx-id').value = '';
+      document.getElementById('modal-title').innerText = 'Nova Transação';
+
+      populateCategoryDropdown();
+
+      if (id) {
+        const t = transactions.find(item => item.id == id);
+        if (!t) return;
+
+        if (t.isRecurring) {
+          pendingEditId = id;
+          document.getElementById('recurring-edit-modal').classList.remove('hidden');
+          return;
+        }
+
+        populateFormForEdit(t);
+      } else {
+        document.getElementById('type-expense').checked = true;
+        document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+        toggleFormFields();
+        document.getElementById('modal').classList.remove('hidden');
+      }
+    }
+
+    function populateFormForEdit(t) {
+      document.getElementById('tx-id').value = t.id;
+      document.getElementById('modal-title').innerText = 'Editar Transação';
+
+      if (t.type === 'income') document.getElementById('type-income').checked = true;
+      else document.getElementById('type-expense').checked = true;
+
+      document.getElementById('tx-description').value = t.description;
+      document.getElementById('tx-amount').value = formatNumberToBRL(t.amount);
+      document.getElementById('tx-date').value = t.dueDate;
+      document.getElementById('tx-category').value = t.category;
+      document.getElementById('tx-status').value = t.status;
+      document.getElementById('tx-recurring').checked = t.isRecurring || false;
+
+      toggleFormFields();
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    function closeRecurringModal() {
+      document.getElementById('recurring-edit-modal').classList.add('hidden');
+      pendingEditId = null;
+    }
+
+    function confirmEditScope(scope) {
+      editScope = scope;
+      const t = transactions.find(item => item.id == pendingEditId);
+      closeRecurringModal();
+      if (t) populateFormForEdit(t);
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+      editScope = 'single';
+      pendingEditId = null;
+    }
+
+    function toggleFormFields() {
+      const isRecurring = document.getElementById('tx-recurring').checked;
+      const installmentsContainer = document.getElementById('installments-container');
+      if (isRecurring) {
+        installmentsContainer.classList.add('hidden');
+      } else {
+        installmentsContainer.classList.remove('hidden');
+      }
+    }
+
+    async function saveTransaction(e) {
+      e.preventDefault();
+
+      const id = document.getElementById('tx-id').value;
+      const type = document.querySelector('input[name="type"]:checked').value;
+      const description = document.getElementById('tx-description').value.trim();
+      const amountStr = document.getElementById('tx-amount').value;
+      const amount = parseBRLToFloat(amountStr);
+      const dueDate = document.getElementById('tx-date').value;
+      const category = document.getElementById('tx-category').value;
+      const status = document.getElementById('tx-status').value;
+      const isRecurring = document.getElementById('tx-recurring').checked;
+      const installments = parseInt(document.getElementById('tx-installments').value) || 1;
+
+      if (!description || !amount || !dueDate) return;
+
+      const payload = {
+        workspace_owner: currentWorkspaceOwner,
+        userEmail: currentUser.email,
+        type,
+        description,
+        amount,
+        dueDate,
+        category,
+        status,
+        isRecurring
+      };
+
+      if (id) {
+        if (editScope === 'future' && pendingEditId) {
+          const original = transactions.find(item => item.id == pendingEditId);
+          if (original) {
+            await db.from('transactions')
+              .update({ description, amount, category, type })
+              .eq('workspace_owner', currentWorkspaceOwner)
+              .eq('description', original.description)
+              .gte('dueDate', original.dueDate);
+          }
+        } else {
+          await db.from('transactions').update(payload).eq('id', id);
+        }
+      } else {
+        if (isRecurring) {
+          await db.from('transactions').insert(payload);
+        } else if (installments > 1) {
+          const installmentAmount = amount / installments;
+          const [yr, mo, dy] = dueDate.split('-').map(Number);
+          const newTxs = [];
+
+          for (let i = 0; i < installments; i++) {
+            const dateObj = new Date(yr, mo - 1 + i, dy);
+            const formattedDate = dateObj.toISOString().split('T')[0];
+            newTxs.push({
+              ...payload,
+              description: `${description} (${i + 1}/${installments})`,
+              amount: installmentAmount,
+              dueDate: formattedDate
+            });
+          }
+          await db.from('transactions').insert(newTxs);
+        } else {
+          await db.from('transactions').insert(payload);
+        }
+      }
+
+      closeModal();
+      await loadTransactionsFromDB();
+    }
+
+    // MODAL CONVIDAR POR E-MAIL
+    function openShareModal() {
       document.getElementById('share-modal').classList.remove('hidden');
-      document.getElementById('invite-status-box').classList.add('hidden');
+      loadSharedUsers();
     }
 
     function closeShareModal() {
       document.getElementById('share-modal').classList.add('hidden');
+      document.getElementById('invite-status-box').classList.add('hidden');
     }
 
-    async function renderSharedUsersList() {
+    async function loadSharedUsers() {
       const container = document.getElementById('shared-users-list');
-      let list = [];
+      if (!container) return;
 
-      try {
-        const { data: invites } = await db.from('invitations')
-          .select('invited_email')
-          .eq('owner_email', currentUser.email);
+      const { data: list } = await db.from('invitations').select('*').eq('owner_email', currentWorkspaceOwner);
 
-        if (invites && invites.length > 0) {
-          list = invites.map(inv => ({ owner_email: currentUser.email, invited_email: inv.invited_email }));
-        }
-      } catch (err) {
-        console.warn('Erro ao carregar lista de convites:', err);
-      }
-
-      if (list.length === 0) {
-        container.innerHTML = `<p class="text-slate-400 text-[11px] py-1.5">Nenhum convidado adicionado ao seu espaço.</p>`;
+      if (!list || list.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 italic">Nenhum convidado cadastrado.</p>';
         return;
       }
 
@@ -1072,7 +1655,7 @@
           <span class="text-slate-700 font-medium flex items-center gap-1">
             <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-600"></i> ${escapeHTML(inv.invited_email)}
           </span>
-          <button onclick="removeSharedUser('${escapeHTML(inv.invited_email)}')" title="Remover permissão" class="p-1 text-rose-500 hover:bg-rose-50 rounded-md transition">
+          <button onclick="removeSharedUser('${escapeHTML(inv.invited_email)}')" title="Remover permissão" class="p-1 text-rose-500 hover:bg-rose-50 rounded transition">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -1083,113 +1666,42 @@
 
     async function addSharedUser(e) {
       e.preventDefault();
-      const input = document.getElementById('share-email-input');
-      const email = input.value.trim().toLowerCase();
-      if (!email) return;
+      const emailInput = document.getElementById('share-email-input');
+      const invitedEmail = emailInput.value.trim().toLowerCase();
 
-      if (email === currentUser.email) {
-        alert('Você é o dono principal deste espaço.');
-        return;
-      }
+      if (!invitedEmail) return;
 
-      try {
-        await db.from('invitations').upsert({
-          owner_email: currentUser.email,
-          invited_email: email
-        }, { onConflict: 'owner_email,invited_email' });
-      } catch (err) {
-        console.warn('Erro ao salvar convite no Supabase:', err);
-      }
-
-      const appLink = window.location.href;
-      const subject = encodeURIComponent("Convite para Espaço de Controle Financeiro");
-      const body = encodeURIComponent(
-        `Olá!\n\n${currentUser.name || currentUser.email} te convidou para gerenciar as finanças de forma compartilhada no sistema Controle Financeiro.\n\n` +
-        `Para acessar:\n` +
-        `1. Acesse: ${appLink}\n` +
-        `2. Clique na aba "Sou Convidado"\n` +
-        `3. Digite seu e-mail (${email}) e escolha uma senha.\n\n` +
-        `Atenciosamente,`
-      );
-
-      const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
-      window.location.href = mailtoUrl;
+      await db.from('invitations').insert({ owner_email: currentUser.email, invited_email: invitedEmail });
 
       const statusBox = document.getElementById('invite-status-box');
       const statusMsg = document.getElementById('invite-status-msg');
-      const mailtoBtn = document.getElementById('btn-mailto-link');
+      const mailtoLink = document.getElementById('btn-mailto-link');
       const directAction = document.getElementById('direct-email-action');
 
-      statusMsg.innerText = `Autorização cadastrada para ${email}! Abrindo seu gerenciador de e-mail...`;
-      mailtoBtn.href = mailtoUrl;
-      directAction.classList.remove('hidden');
-      statusBox.classList.remove('hidden');
+      statusMsg.innerText = `Autorização para ${invitedEmail} cadastrada com sucesso!`;
+      
+      const subject = encodeURIComponent("Convite para Espaço Financeiro Compartilhado");
+      const body = encodeURIComponent(`Olá!\n\nVocê foi convidado por ${currentUser.name || currentUser.email} para compartilhar o painel financeiro.\n\nAcesse a aplicação, clique na aba "Sou Convidado" e informe seu e-mail (${invitedEmail}).`);
+      
+      const mailtoUrl = `mailto:${invitedEmail}?subject=${subject}&body=${body}`;
+      mailtoLink.href = mailtoUrl;
 
-      input.value = '';
-      await renderSharedUsersList();
+      statusBox.classList.remove('hidden');
+      directAction.classList.remove('hidden');
+
+      emailInput.value = '';
+      window.location.href = mailtoUrl;
+      await loadSharedUsers();
     }
 
     async function removeSharedUser(email) {
-      try {
-        await db.from('invitations')
-          .delete()
-          .eq('owner_email', currentUser.email)
-          .eq('invited_email', email);
-      } catch(e) {}
-
-      await renderSharedUsersList();
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      lucide.createIcons();
-      const today = new Date();
-      document.getElementById('tx-date').value = today.toISOString().split('T')[0];
-      
-      const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-      document.getElementById('month-filter').value = currentYearMonth;
-
-      const savedCurrent = localStorage.getItem('app_current_user');
-      if (savedCurrent) {
-        currentUser = JSON.parse(savedCurrent);
-        await resolveWorkspaceAndInit();
-      }
-    });
-
-    function changeMonth(delta) {
-      const monthInput = document.getElementById('month-filter');
-      if (!monthInput.value) return;
-
-      const [yearStr, monthStr] = monthInput.value.split('-');
-      let year = parseInt(yearStr, 10);
-      let month = parseInt(monthStr, 10) - 1 + delta;
-
-      const targetDate = new Date(year, month, 1);
-      const newYear = targetDate.getFullYear();
-      const newMonth = String(targetDate.getMonth() + 1).padStart(2, '0');
-
-      monthInput.value = `${newYear}-${newMonth}`;
-      renderDashboard();
-    }
-
-    function switchTab(tabName) {
-      const tabDashboard = document.getElementById('tab-dashboard');
-      const tabTransactions = document.getElementById('tab-transactions');
-      const btnDashboard = document.getElementById('btn-tab-dashboard');
-      const btnTransactions = document.getElementById('btn-tab-transactions');
-
-      if (tabName === 'dashboard') {
-        tabDashboard.classList.remove('hidden');
-        tabTransactions.classList.add('hidden');
-        btnDashboard.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
-        btnTransactions.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
-      } else {
-        tabDashboard.classList.add('hidden');
-        tabTransactions.classList.remove('hidden');
-        btnTransactions.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
-        btnDashboard.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+      if (confirm(`Remover autorização do e-mail ${email}?`)) {
+        await db.from('invitations').delete().eq('owner_email', currentWorkspaceOwner).eq('invited_email', email);
+        await loadSharedUsers();
       }
     }
 
+    // MODAL PERFIL
     function openProfileModal() {
       document.getElementById('profile-name').value = currentUser.name || '';
       document.getElementById('profile-email').value = currentUser.email || '';
@@ -1203,75 +1715,77 @@
 
     async function saveProfile(e) {
       e.preventDefault();
-      const newName = document.getElementById('profile-name').value.trim();
-      const newPassword = document.getElementById('profile-password').value;
+      const name = document.getElementById('profile-name').value.trim();
+      const password = document.getElementById('profile-password').value;
 
-      currentUser.name = newName;
-      
-      const updateData = { name: newName };
-      if (newPassword && newPassword.trim() !== '') {
-        updateData.password = newPassword;
-      }
+      const updateData = { name };
+      if (password) updateData.password = password;
 
       await db.from('users').update(updateData).eq('email', currentUser.email);
 
+      currentUser.name = name;
       localStorage.setItem('app_current_user', JSON.stringify(currentUser));
-      document.getElementById('user-display').innerText = currentUser.name;
-      document.getElementById('dropdown-user-name').innerText = currentUser.name;
+
+      document.getElementById('user-display').innerText = name;
+      document.getElementById('dropdown-user-name').innerText = name;
+
       closeProfileModal();
       alert('Perfil atualizado com sucesso!');
     }
 
+    // MODAL IMPORTAR PLANILHA
     function openImportModal() {
       document.getElementById('import-modal').classList.remove('hidden');
       document.getElementById('import-status').classList.add('hidden');
+      document.getElementById('file-input').value = '';
     }
 
     function closeImportModal() {
       document.getElementById('import-modal').classList.add('hidden');
     }
 
-    async function processImportFile() {
-      const fileInput = document.getElementById('file-input');
-      const file = fileInput.files[0];
-      if (!file) return;
+    function processImportFile() {
+      const input = document.getElementById('file-input');
+      if (!input.files || input.files.length === 0) {
+        alert('Selecione um arquivo .xlsx ou .csv');
+        return;
+      }
 
+      const file = input.files[0];
       const reader = new FileReader();
-      reader.onload = async (e) => {
+
+      reader.onload = async function(e) {
         try {
           const data = new Uint8Array(e.target.result);
-          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonRows = XLSX.utils.sheet_to_json(firstSheet);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet]);
 
-          const newTransactions = [];
-          for (const row of jsonRows) {
+          const newItems = [];
+          rows.forEach(row => {
             const description = row['Descrição'] || row['Descricao'] || row['description'] || 'Importado';
-            const rawAmount = parseFloat(row['Valor'] || row['valor'] || row['amount'] || 0);
-            if (rawAmount === 0 || isNaN(rawAmount)) continue;
+            const rawAmount = row['Valor'] || row['amount'] || 0;
+            const amount = Math.abs(typeof rawAmount === 'number' ? rawAmount : parseBRLToFloat(rawAmount));
+            const type = (rawAmount < 0 || (row['Tipo'] && row['Tipo'].toLowerCase().includes('desp'))) ? 'expense' : 'income';
+            const dueDate = row['Data Ocorrência'] || row['Data'] || row['dueDate'] || new Date().toISOString().split('T')[0];
+            const category = row['Categoria'] || row['category'] || 'Outros';
 
-            let type = rawAmount < 0 ? 'expense' : 'income';
-            const rawDate = row['Data Ocorrência'] || row['Data'] || row['due_date'];
-            let dueDate = new Date().toISOString().split('T')[0];
-            if (rawDate) {
-              dueDate = rawDate instanceof Date ? rawDate.toISOString().split('T')[0] : String(rawDate).split('T')[0];
-            }
-
-            newTransactions.push({
-              description,
-              amount: Math.abs(rawAmount),
+            newItems.push({
+              workspace_owner: currentWorkspaceOwner,
+              userEmail: currentUser.email,
+              description: String(description),
+              amount,
               type,
-              category: row['Categoria'] || 'Outros',
-              due_date: dueDate,
+              dueDate: String(dueDate),
+              category: String(category),
               status: 'pending',
-              user_email: currentUser.email,
-              owner_email: currentWorkspaceOwner
+              isRecurring: false
             });
-          }
+          });
 
-          if (newTransactions.length > 0) {
-            await db.from('transactions').insert(newTransactions);
-            document.getElementById('import-status').innerText = `${newTransactions.length} lançamentos importados no espaço!`;
+          if (newItems.length > 0) {
+            await db.from('transactions').insert(newItems);
+            document.getElementById('import-status').innerText = `${newItems.length} lançamentos importados com sucesso!`;
             document.getElementById('import-status').classList.remove('hidden');
             setTimeout(() => {
               closeImportModal();
@@ -1279,473 +1793,31 @@
             }, 1200);
           }
         } catch (err) {
-          console.error(err);
-          alert('Erro ao importar o arquivo.');
+          alert('Erro ao ler a planilha. Verifique o formato do arquivo.');
         }
       };
+
       reader.readAsArrayBuffer(file);
     }
 
-    // ABRIR EDIÇÃO COM ESCOPO DE FIXO
-    function openModal(editId = null) {
-      pendingEditId = editId;
-      editScope = 'single';
-
-      if (editId) {
-        const item = transactions.find(t => t.id == editId);
-        if (item && item.isRecurring) {
-          document.getElementById('recurring-edit-modal').classList.remove('hidden');
-          lucide.createIcons();
-          return;
-        }
-      }
-
-      showTransactionModal(editId);
-    }
-
-    function closeRecurringModal() {
-      document.getElementById('recurring-edit-modal').classList.add('hidden');
-      pendingEditId = null;
-    }
-
-    function confirmEditScope(scope) {
-      editScope = scope;
-      document.getElementById('recurring-edit-modal').classList.add('hidden');
-      showTransactionModal(pendingEditId);
-    }
-
-    function showTransactionModal(editId = null) {
-      const modal = document.getElementById('modal');
-      const form = document.getElementById('transaction-form');
-      form.reset();
-      document.getElementById('tx-id').value = '';
-      document.getElementById('modal-title').innerText = editId ? 'Editar Transação' : 'Nova Transação';
-
-      populateCategoryDropdown();
-
-      if (editId) {
-        const item = transactions.find(t => t.id == editId);
-        if (item) {
-          document.getElementById('tx-id').value = item.id;
-          document.getElementById('tx-description').value = item.description;
-          document.getElementById('tx-amount').value = formatNumberToBRL(item.amount);
-          document.getElementById('tx-date').value = item.dueDate;
-          document.getElementById('tx-category').value = item.category;
-          document.getElementById('tx-status').value = item.status;
-          document.getElementById('tx-recurring').checked = item.isRecurring || false;
-          
-          if (item.type === 'income') document.getElementById('type-income').checked = true;
-          else document.getElementById('type-expense').checked = true;
-        }
-      }
-      toggleFormFields();
-      modal.classList.remove('hidden');
+    // INICIALIZAÇÃO DA APLICAÇÃO
+    window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
-    }
 
-    function closeModal() {
-      document.getElementById('modal').classList.add('hidden');
-    }
+      const today = new Date();
+      const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      document.getElementById('month-filter').value = monthStr;
 
-    function toggleFormFields() {
-      const isRecurring = document.getElementById('tx-recurring').checked;
-      const installmentsContainer = document.getElementById('installments-container');
-      if (isRecurring) {
-        installmentsContainer.classList.add('hidden');
-        document.getElementById('tx-installments').value = '1';
-      } else {
-        installmentsContainer.classList.remove('hidden');
-      }
-    }
-
-    function addMonthsToDate(dateStr, monthsToAdd) {
-      const parts = dateStr.split('-');
-      let year = parseInt(parts[0], 10);
-      let month = parseInt(parts[1], 10) - 1;
-      let day = parseInt(parts[2], 10);
-
-      let targetTotalMonths = month + monthsToAdd;
-      let targetYear = year + Math.floor(targetTotalMonths / 12);
-      let targetMonth = (targetTotalMonths % 12 + 12) % 12;
-
-      let lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
-      let targetDay = Math.min(day, lastDay);
-
-      return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
-    }
-
-    // ADICIONAR / EDITAR TRANSAÇÃO (OTIMIZADO)
-    document.getElementById('transaction-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const submitBtn = document.getElementById('btn-submit-tx');
-      const originalText = submitBtn ? submitBtn.innerHTML : 'Salvar Lançamento';
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.innerText = 'Salvando...';
-      }
-
-      try {
-        const id = document.getElementById('tx-id').value;
-        const type = document.querySelector('input[name="type"]:checked').value;
-        const description = document.getElementById('tx-description').value.trim();
-        const totalAmount = parseBRLToFloat(document.getElementById('tx-amount').value);
-        const dueDate = document.getElementById('tx-date').value;
-        const category = document.getElementById('tx-category').value;
-        const status = document.getElementById('tx-status').value;
-        const isRecurring = document.getElementById('tx-recurring').checked;
-        const installments = parseInt(document.getElementById('tx-installments').value) || 1;
-
-        if (id) {
-          const origItem = transactions.find(t => t.id == id);
-
-          if (editScope === 'future' && origItem && origItem.isRecurring) {
-            const futureItems = transactions.filter(t => 
-              t.ownerEmail === currentWorkspaceOwner &&
-              t.isRecurring &&
-              t.description === origItem.description &&
-              t.dueDate >= origItem.dueDate
-            );
-
-            futureItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || String(a.id).localeCompare(String(b.id)));
-
-            const updateRows = futureItems.map((fItem, i) => ({
-              id: fItem.id,
-              description: description,
-              amount: totalAmount,
-              type: type,
-              category: category,
-              due_date: addMonthsToDate(dueDate, i),
-              status: (fItem.id == origItem.id) ? status : fItem.status,
-              is_recurring: isRecurring,
-              user_email: fItem.userEmail || currentUser.email,
-              owner_email: currentWorkspaceOwner
-            }));
-
-            const { error: batchErr } = await db.from('transactions').upsert(updateRows);
-            
-            if (batchErr) {
-              console.warn('Fallback em paralelo ativado:', batchErr);
-              await Promise.all(updateRows.map(row => 
-                db.from('transactions').update({
-                  description: row.description,
-                  amount: row.amount,
-                  type: row.type,
-                  category: row.category,
-                  due_date: row.due_date,
-                  status: row.status,
-                  is_recurring: row.is_recurring
-                }).eq('id', row.id)
-              ));
-            }
-          } else {
-            await db.from('transactions').update({
-              description, 
-              amount: totalAmount, 
-              type, 
-              category, 
-              due_date: dueDate, 
-              status, 
-              is_recurring: isRecurring
-            }).eq('id', id);
-          }
-        } else {
-          const newRows = [];
-          if (isRecurring) {
-            for (let i = 0; i < 24; i++) {
-              newRows.push({
-                description,
-                amount: totalAmount,
-                type,
-                category,
-                due_date: addMonthsToDate(dueDate, i),
-                status: i === 0 ? status : 'pending',
-                is_recurring: true,
-                user_email: currentUser.email,
-                owner_email: currentWorkspaceOwner
-              });
-            }
-          } else if (installments > 1) {
-            const installmentValue = totalAmount / installments;
-            for (let i = 0; i < installments; i++) {
-              newRows.push({
-                description: `${description} (${i + 1}/${installments})`,
-                amount: installmentValue,
-                type,
-                category,
-                due_date: addMonthsToDate(dueDate, i),
-                status: i === 0 ? status : 'pending',
-                is_recurring: false,
-                user_email: currentUser.email,
-                owner_email: currentWorkspaceOwner
-              });
-            }
-          } else {
-            newRows.push({
-              description,
-              amount: totalAmount,
-              type,
-              category,
-              due_date: dueDate,
-              status,
-              is_recurring: false,
-              user_email: currentUser.email,
-              owner_email: currentWorkspaceOwner
-            });
-          }
-          await db.from('transactions').insert(newRows);
-        }
-
-        closeModal();
-        await loadTransactionsFromDB();
-      } catch (err) {
-        console.error('Erro ao salvar lançamento:', err);
-        alert('Ocorreu um erro ao salvar o lançamento.');
-      } finally {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = originalText;
+      const savedUser = localStorage.getItem('app_current_user');
+      if (savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser);
+          await resolveWorkspaceAndInit();
+        } catch (e) {
+          localStorage.removeItem('app_current_user');
         }
       }
     });
-
-    async function toggleStatus(id) {
-      const item = transactions.find(t => t.id == id);
-      if (item) {
-        const newStatus = item.status === 'completed' ? 'pending' : 'completed';
-        await db.from('transactions').update({ status: newStatus }).eq('id', id);
-        await loadTransactionsFromDB();
-      }
-    }
-
-    function deleteTransaction(id) {
-      const item = transactions.find(t => t.id == id);
-      if (!item) return;
-
-      const match = item.description.match(/^(.+)\s\(\d+\/\d+\)$/);
-
-      if (match) {
-        const baseTitle = match[1];
-        const relatedParcelas = transactions.filter(t => {
-          const m = t.description.match(/^(.+)\s\(\d+\/\d+\)$/);
-          return m && m[1] === baseTitle;
-        });
-
-        const hasPaid = relatedParcelas.some(t => t.status === 'completed');
-        if (hasPaid) {
-          alert('Não é possível excluir este parcelamento pois existe pelo menos uma parcela paga/concluída.');
-          return;
-        }
-
-        pendingDeleteIds = relatedParcelas.map(t => t.id);
-      } else {
-        if (item.status === 'completed') {
-          alert('Lançamentos concluídos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
-          return;
-        }
-        pendingDeleteIds = [item.id];
-      }
-
-      const msgEl = document.getElementById('delete-modal-msg');
-      if (msgEl) {
-        msgEl.innerText = pendingDeleteIds.length > 1
-          ? `Esta ação removerá todas as ${pendingDeleteIds.length} parcelas do espaço compartilhado.`
-          : 'Esta ação removerá o lançamento do espaço compartilhado.';
-      }
-
-      document.getElementById('delete-modal').classList.remove('hidden');
-    }
-
-    function closeDeleteModal() {
-      pendingDeleteIds = [];
-      document.getElementById('delete-modal').classList.add('hidden');
-    }
-
-    async function confirmDeleteTransaction() {
-      if (pendingDeleteIds && pendingDeleteIds.length > 0) {
-        await db.from('transactions').delete().in('id', pendingDeleteIds);
-        closeDeleteModal();
-        await loadTransactionsFromDB();
-      }
-    }
-
-    function renderDashboard() {
-      if (!currentUser) return;
-      const selectedMonth = document.getElementById('month-filter').value;
-      const includePrevious = document.getElementById('chk-include-previous').checked;
-
-      let previousBalance = 0;
-      transactions.forEach(t => {
-        if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
-          if (t.type === 'income') previousBalance += t.amount;
-          else previousBalance -= t.amount;
-        }
-      });
-
-      const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
-
-      let monthIncome = 0;
-      let monthExpense = 0;
-      const categoryTotals = {};
-
-      monthTransactions.forEach(t => {
-        if (t.type === 'income') {
-          if (t.status === 'completed') monthIncome += t.amount;
-        } else {
-          if (t.status === 'completed') monthExpense += t.amount;
-          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-        }
-      });
-
-      const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
-
-      document.getElementById('txt-previous-balance').innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('txt-month-income').innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      
-      const totalEl = document.getElementById('txt-total-balance');
-      totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
-
-      renderDashboardLists(selectedMonth);
-      renderFullHistoryTable(monthTransactions);
-      renderCategoryChart(categoryTotals);
-
-      lucide.createIcons();
-    }
-
-    function renderDashboardLists(selectedMonth) {
-      const previousList = document.getElementById('list-previous-pending');
-      const nextList = document.getElementById('list-next-pending');
-      const alertsList = document.getElementById('list-alerts');
-
-      previousList.innerHTML = '';
-      nextList.innerHTML = '';
-      alertsList.innerHTML = '';
-
-      const todayObj = new Date();
-      todayObj.setHours(0, 0, 0, 0);
-
-      let prevIdx = 0, nextIdx = 0, alertIdx = 0;
-
-      transactions.forEach(t => {
-        if (t.status !== 'pending') return;
-
-        const valFormatted = (t.type === 'expense' ? '-' : '+') + `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-        const valColor = t.type === 'expense' ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold';
-
-        const getRowHTML = (idx) => `
-          <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'} hover:bg-slate-100/70 transition border-b border-slate-100">
-            <td class="py-1.5 px-2 font-medium text-slate-800">${escapeHTML(t.description)}</td>
-            <td class="py-1.5 px-2 text-slate-500">${escapeHTML(t.dueDate)}</td>
-            <td class="py-1.5 px-2 text-right ${valColor}">${valFormatted}</td>
-          </tr>
-        `;
-
-        if (t.dueDate < selectedMonth + '-01') {
-          previousList.innerHTML += getRowHTML(prevIdx++);
-        } else if (t.dueDate >= selectedMonth + '-01') {
-          nextList.innerHTML += getRowHTML(nextIdx++);
-        }
-
-        const dueObj = new Date(t.dueDate + 'T00:00:00');
-        const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
-        if (diffDays <= 5) {
-          alertsList.innerHTML += getRowHTML(alertIdx++);
-        }
-      });
-    }
-
-    function renderFullHistoryTable(monthTransactions) {
-      const listEl = document.getElementById('transactions-list');
-      listEl.innerHTML = '';
-
-      monthTransactions.forEach((t, index) => {
-        const isIncome = t.type === 'income';
-        const isPaid = t.status === 'completed';
-        const isOtherUser = t.userEmail && t.userEmail !== currentUser.email;
-
-        // ZEBREAMENTO E DIFERENCIAÇÃO VISUAL DAS LINHAS
-        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
-        const borderIndicator = isIncome ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500';
-
-        const tr = document.createElement('tr');
-        tr.className = `${bgClass} ${borderIndicator} hover:bg-indigo-50/60 transition border-b border-slate-200/60`;
-        tr.innerHTML = `
-          <td class="py-2.5 px-3 font-semibold text-slate-800 flex items-center gap-1.5 text-xs">
-            ${escapeHTML(t.description)}
-            ${t.isRecurring ? '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold">Fixo</span>' : ''}
-            ${isOtherUser ? `<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold" title="Adicionado por ${escapeHTML(t.userEmail)}">Por: ${escapeHTML(t.userEmail.split('@')[0])}</span>` : ''}
-          </td>
-          <td class="py-2.5 px-3 text-slate-600 text-xs">${escapeHTML(t.category)}</td>
-          <td class="py-2.5 px-3 text-slate-500 text-xs">${escapeHTML(t.dueDate)}</td>
-          <td class="py-2.5 px-3 font-bold text-xs ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
-            ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
-          </td>
-          <td class="py-2.5 px-3">
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'}">
-              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3 h-3 ${isPaid ? 'text-emerald-600' : 'text-rose-600'}"></i>
-              ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
-            </span>
-          </td>
-          <td class="py-2.5 px-3 text-right space-x-1">
-            <button onclick="toggleStatus('${t.id}')" 
-              title="${isPaid ? 'Confirmado (Clique para cancelar / marcar como pendente)' : 'Pendente (Clique para confirmar pagamento/recebimento)'}" 
-              class="p-1 rounded-lg transition-all ${isPaid ? 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200' : 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200'}">
-              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
-            </button>
-            <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
-              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
-            </button>
-            <button onclick="deleteTransaction('${t.id}')" 
-              title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
-              class="p-1 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-          </td>
-        `;
-        listEl.appendChild(tr);
-      });
-    }
-
-    function renderCategoryChart(categoryTotals) {
-      const ctx = document.getElementById('expensesChart').getContext('2d');
-      const labels = Object.keys(categoryTotals);
-      const dataValues = Object.values(categoryTotals);
-
-      if (expensesChart) {
-        expensesChart.destroy();
-        expensesChart = null;
-      }
-
-      if (labels.length === 0) return;
-
-      expensesChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: dataValues,
-            backgroundColor: [
-              '#10b981', '#f43f5e', '#6366f1', '#f59e0b', 
-              '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'
-            ],
-            borderWidth: 2,
-            borderColor: '#ffffff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: { color: '#475569', font: { size: 10, weight: '600' } }
-            }
-          }
-        }
-      });
-    }
   </script>
 </body>
 </html>
