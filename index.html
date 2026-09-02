@@ -1509,12 +1509,28 @@
       }
     });
 
+    // ALTERAR STATUS (OTIMIZAÇÃO OPTIMISTIC UI - RESPOSTA INSTANTÂNEA EM <1MS)
     async function toggleStatus(id) {
       const item = transactions.find(t => t.id == id);
-      if (item) {
-        const newStatus = item.status === 'completed' ? 'pending' : 'completed';
-        await db.from('transactions').update({ status: newStatus }).eq('id', id);
-        await loadTransactionsFromDB();
+      if (!item) return;
+
+      const previousStatus = item.status;
+      const newStatus = previousStatus === 'completed' ? 'pending' : 'completed';
+
+      // 1. Atualização Otimista local instantânea
+      item.status = newStatus;
+      renderDashboard();
+
+      // 2. Envio da alteração para o Supabase em segundo plano
+      try {
+        const { error } = await db.from('transactions').update({ status: newStatus }).eq('id', id);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Erro ao atualizar status no servidor:', err);
+        // Reverte se a conexão falhar
+        item.status = previousStatus;
+        renderDashboard();
+        alert('Falha de conexão ao salvar alteração. O lançamento foi revertido ao estado anterior.');
       }
     }
 
@@ -1561,11 +1577,30 @@
       document.getElementById('delete-modal').classList.add('hidden');
     }
 
+    // EXCLUIR TRANSAÇÕES (OTIMIZAÇÃO OPTIMISTIC UI - RESPOSTA INSTANTÂNEA)
     async function confirmDeleteTransaction() {
-      if (pendingDeleteIds && pendingDeleteIds.length > 0) {
-        await db.from('transactions').delete().in('id', pendingDeleteIds);
-        closeDeleteModal();
-        await loadTransactionsFromDB();
+      if (!pendingDeleteIds || pendingDeleteIds.length === 0) return;
+
+      const idsToDelete = [...pendingDeleteIds];
+      closeDeleteModal();
+
+      // Backup do estado local para reversão caso ocorra erro no servidor
+      const backupTransactions = [...transactions];
+
+      // 1. Remoção Otimista local instantânea na tela
+      transactions = transactions.filter(t => !idsToDelete.includes(t.id));
+      renderDashboard();
+
+      // 2. Processa exclusão no Supabase em segundo plano
+      try {
+        const { error } = await db.from('transactions').delete().in('id', idsToDelete);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Erro ao excluir lançamento no servidor:', err);
+        // Reverte e restaura o estado original caso falhe
+        transactions = backupTransactions;
+        renderDashboard();
+        alert('Ocorreu um erro de rede ao excluir. Os lançamentos foram restaurados.');
       }
     }
 
@@ -1708,43 +1743,54 @@
       });
     }
 
+    // ATUALIZAÇÃO OTIMIZADA DO GRÁFICO (REAPROVEITA A INSTÂNCIA SEM PISCAR A TELA)
     function renderCategoryChart(categoryTotals) {
-      const ctx = document.getElementById('expensesChart').getContext('2d');
+      const canvas = document.getElementById('expensesChart');
+      if (!canvas) return;
+
       const labels = Object.keys(categoryTotals);
       const dataValues = Object.values(categoryTotals);
 
-      if (expensesChart) {
-        expensesChart.destroy();
-        expensesChart = null;
+      if (labels.length === 0) {
+        if (expensesChart) {
+          expensesChart.destroy();
+          expensesChart = null;
+        }
+        return;
       }
 
-      if (labels.length === 0) return;
-
-      expensesChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: labels,
-          datasets: [{
-            data: dataValues,
-            backgroundColor: [
-              '#10b981', '#f43f5e', '#6366f1', '#f59e0b', 
-              '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'
-            ],
-            borderWidth: 2,
-            borderColor: '#ffffff'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: {
-              position: 'right',
-              labels: { color: '#475569', font: { size: 10, weight: '600' } }
+      if (expensesChart) {
+        expensesChart.data.labels = labels;
+        expensesChart.data.datasets[0].data = dataValues;
+        expensesChart.update('none'); // Atualização instantânea sem engasgo de animação
+      } else {
+        const ctx = canvas.getContext('2d');
+        expensesChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: dataValues,
+              backgroundColor: [
+                '#10b981', '#f43f5e', '#6366f1', '#f59e0b', 
+                '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'
+              ],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: { color: '#475569', font: { size: 10, weight: '600' } }
+              }
             }
           }
-        }
-      });
+        });
+      }
     }
   </script>
 </body>
