@@ -98,6 +98,15 @@
 
   <!-- PAINEL PRINCIPAL -->
   <div id="dashboard-view" class="hidden min-h-screen flex flex-col bg-slate-50">
+    <!-- BANNER DE ERRO DE BANCO DE DADOS -->
+    <div id="db-error-banner" class="hidden bg-rose-600 text-white text-xs px-4 py-2 flex items-center justify-between font-medium shadow-md">
+      <div class="flex items-center space-x-2">
+        <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+        <span id="db-error-msg">Erro ao conectar com o banco de dados.</span>
+      </div>
+      <button onclick="loadTransactionsFromDB()" class="bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded text-[11px] font-semibold transition">Tentar Novamente</button>
+    </div>
+
     <!-- HEADER -->
     <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 shadow-sm">
       <div class="flex items-center space-x-2.5">
@@ -133,13 +142,11 @@
         <!-- SUBMENU DROPDOWN -->
         <div id="user-dropdown-menu" class="hidden absolute right-0 mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 divide-y divide-slate-100">
           
-          <!-- CABEÇALHO DO MENU -->
           <div class="px-3 py-2">
             <p class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Conta Ativa</p>
             <p id="dropdown-user-name" class="text-xs font-bold text-slate-800 truncate">Usuário</p>
           </div>
 
-          <!-- AÇÕES UNIFICADAS -->
           <div class="py-1">
             <button onclick="closeUserDropdown(); openCategoriesModal();" class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
               <i data-lucide="tags" class="w-3.5 h-3.5 text-brand-600"></i>
@@ -162,7 +169,6 @@
             </button>
           </div>
 
-          <!-- AÇÃO DE SAIR -->
           <div class="py-1">
             <button onclick="closeUserDropdown(); logout();" class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 transition text-left font-semibold">
               <i data-lucide="log-out" class="w-3.5 h-3.5 text-rose-600"></i>
@@ -344,7 +350,6 @@
         <button onclick="closeCategoriesModal()" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <!-- FORMULÁRIO CATEGORIA -->
       <form id="category-form" onsubmit="saveCategory(event)" class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
         <input type="hidden" id="cat-id" value="">
         <div>
@@ -370,11 +375,9 @@
         </div>
       </form>
 
-      <!-- LISTA DE CATEGORIAS DA CONTA -->
       <div class="flex-1 overflow-y-auto space-y-1.5 pr-1">
         <h4 class="text-[11px] font-semibold text-slate-500 mb-1">Suas Categorias Personalizadas:</h4>
         <div id="categories-list-container" class="space-y-1.5">
-          <!-- Inserido via JS -->
         </div>
       </div>
 
@@ -577,7 +580,6 @@
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-0.5">Categoria</label>
             <select id="tx-category" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
-              <!-- Preenchido dinamicamente via JS -->
             </select>
           </div>
 
@@ -626,60 +628,12 @@
     let userCategories = [];
     let expensesChart = null;
     let pendingDeleteIds = [];
-    let editScope = 'single'; // 'single' ou 'future'
+    let editScope = 'single';
     let pendingEditId = null;
 
-    // GERENCIAMENTO DE ATUALIZAÇÃO EM LOTE PARA STATUS (CLIQUES RÁPIDOS)
     let statusUpdateTimer = null;
-    const pendingStatusMap = new Map(); // id -> newStatus
+    const pendingStatusMap = new Map();
 
-    // HELPER PARA FORMATAR DATA DE HOJE COMO YYYY-MM-DD
-    function getTodayString() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    // HELPER PARA DETERMINAR CORES E ÍCONES DO STATUS DO LANÇAMENTO
-    function getTransactionStatusDetails(t) {
-      const isIncome = t.type === 'income';
-      const isPaid = t.status === 'completed';
-      const todayStr = getTodayString();
-      const isOverdue = !isPaid && t.dueDate && t.dueDate < todayStr;
-
-      if (isPaid) {
-        return {
-          statusClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
-          icon: 'check-circle-2',
-          iconClass: 'text-emerald-600',
-          label: isIncome ? 'Recebido' : 'Pago',
-          btnClass: 'text-emerald-600 bg-emerald-50 hover:bg-amber-50 hover:text-amber-600 border border-emerald-200',
-          btnTitle: 'Confirmado (Clique para cancelar / marcar como pendente)'
-        };
-      } else if (isOverdue) {
-        return {
-          statusClass: 'bg-rose-50 text-rose-700 border border-rose-200/80',
-          icon: 'alert-circle',
-          iconClass: 'text-rose-600',
-          label: 'Atrasado',
-          btnClass: 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200',
-          btnTitle: 'Atrasado (Clique para confirmar pagamento/recebimento)'
-        };
-      } else {
-        return {
-          statusClass: 'bg-amber-50 text-amber-700 border border-amber-200/80',
-          icon: 'clock',
-          iconClass: 'text-amber-600',
-          label: 'Pendente',
-          btnClass: 'text-amber-600 bg-amber-50 hover:bg-emerald-50 hover:text-emerald-600 border border-amber-200',
-          btnTitle: 'Pendente (Clique para confirmar pagamento/recebimento)'
-        };
-      }
-    }
-
-    // SEGURANÇA: FUNÇÃO DE ESCAPE CONTRA ATAQUES XSS
     function escapeHTML(str) {
       if (str === null || str === undefined) return '';
       return String(str)
@@ -690,7 +644,72 @@
         .replace(/'/g, '&#39;');
     }
 
-    // FUNÇÕES DE FORMATAÇÃO E PARSE DE MOEDA (MÁSCARA)
+    // MAPEADOR AUTOMÁTICO DE NORMALIZAÇÃO DE OBJETO (snake_case e camelCase)
+    function normalizeTransactionRecord(raw) {
+      if (!raw) return null;
+      return {
+        id: raw.id,
+        workspace_owner: (raw.workspace_owner || raw.workspaceOwner || '').toLowerCase(),
+        userEmail: (raw.userEmail || raw.user_email || raw.email || '').toLowerCase(),
+        type: raw.type || 'expense',
+        description: raw.description || 'Sem descrição',
+        amount: parseFloat(raw.amount) || 0,
+        dueDate: raw.dueDate || raw.due_date || getTodayString(),
+        category: raw.category || 'Outros',
+        status: raw.status || 'pending',
+        isRecurring: Boolean(raw.isRecurring || raw.is_recurring)
+      };
+    }
+
+    function getTodayString() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getTransactionStatusDetails(t) {
+      const isIncome = t.type === 'income';
+      const isPaid = t.status === 'completed';
+      const todayStr = getTodayString();
+
+      if (isPaid) {
+        return {
+          label: isIncome ? 'Recebido' : 'Pago',
+          badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+          icon: 'check-circle-2',
+          iconColor: 'text-emerald-600',
+          isPaid: true,
+          btnClass: 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200',
+          btnTitle: 'Confirmado (Clique para marcar como pendente)'
+        };
+      }
+
+      const isOverdue = Boolean(t.dueDate && t.dueDate < todayStr);
+      if (isOverdue) {
+        return {
+          label: 'Atrasado',
+          badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200/80',
+          icon: 'alert-circle',
+          iconColor: 'text-rose-600',
+          isPaid: false,
+          btnClass: 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200',
+          btnTitle: 'Atrasado (Clique para confirmar)'
+        };
+      } else {
+        return {
+          label: 'Pendente',
+          badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/80',
+          icon: 'clock',
+          iconColor: 'text-amber-600',
+          isPaid: false,
+          btnClass: 'text-amber-600 bg-amber-50 hover:bg-emerald-50 hover:text-emerald-600 border border-amber-200',
+          btnTitle: 'Pendente (Clique para confirmar)'
+        };
+      }
+    }
+
     function formatAmountInput(input) {
       let value = input.value.replace(/\D/g, '');
       if (!value) {
@@ -718,7 +737,6 @@
       return parseFloat(cleanStr) || 0;
     }
 
-    // CONTROLE DO DROPDOWN DO USUÁRIO
     function toggleUserDropdown() {
       const menu = document.getElementById('user-dropdown-menu');
       const arrow = document.getElementById('user-dropdown-arrow');
@@ -737,7 +755,6 @@
       }
     }
 
-    // FECHAR DROPDOWN AO CLICAR FORA
     document.addEventListener('click', (e) => {
       const dropdown = document.getElementById('user-dropdown-menu');
       const button = document.getElementById('btn-user-dropdown');
@@ -746,7 +763,6 @@
       }
     });
 
-    // ALTERNADOR ENTRE AS 3 ABAS DE AUTENTICAÇÃO
     function toggleAuthMode(mode) {
       authMode = mode;
       const btnLogin = document.getElementById('btn-login-mode');
@@ -783,7 +799,6 @@
       }
     }
 
-    // AUTENTICAÇÃO ONLINE VIA SUPABASE
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('login-email').value.trim().toLowerCase();
@@ -811,7 +826,7 @@
           return;
         }
 
-        currentUser = { email: dbUser.email, name: dbUser.name };
+        currentUser = { email: dbUser.email.toLowerCase(), name: dbUser.name };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
         await resolveWorkspaceAndInit();
       } 
@@ -852,11 +867,11 @@
             ownerFound = inviteData[0].owner_email.toLowerCase();
           }
         } catch (err) {
-          console.warn('Erro ao verificar convite no Supabase:', err);
+          console.warn('Erro ao verificar convite:', err);
         }
 
         if (!ownerFound) {
-          errorEl.innerHTML = `<strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${escapeHTML(email)}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
+          errorEl.innerHTML = `<strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${escapeHTML(email)}</em> ainda não foi convidado por nenhuma conta.`;
           errorEl.classList.remove('hidden');
           return;
         }
@@ -874,14 +889,13 @@
       }
     });
 
-    // DETERMINA DE QUEM É O ESPAÇO COMPARTILHADO
     async function resolveWorkspaceAndInit() {
       let ownerFound = null;
 
       try {
         const { data: inviteData } = await db.from('invitations')
           .select('owner_email')
-          .eq('invited_email', currentUser.email)
+          .eq('invited_email', currentUser.email.toLowerCase())
           .limit(1);
         if (inviteData && inviteData.length > 0 && inviteData[0].owner_email) {
           ownerFound = inviteData[0].owner_email.toLowerCase();
@@ -895,7 +909,7 @@
       const userNameDisplay = currentUser.name || currentUser.email;
       document.getElementById('user-display').innerText = userNameDisplay;
       document.getElementById('dropdown-user-name').innerText = userNameDisplay;
-      document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
+      document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email.toLowerCase()) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
       
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
@@ -905,7 +919,6 @@
     }
 
     function logout() {
-      // Envia atualizações pendentes antes de sair
       if (pendingStatusMap.size > 0) {
         flushStatusUpdates();
       }
@@ -920,7 +933,6 @@
       toggleAuthMode('login');
     }
 
-    // LÓGICA DE GERENCIAMENTO DE CATEGORIAS
     async function loadCategoriesFromDB() {
       try {
         const { data, error } = await db
@@ -943,8 +955,6 @@
       if (!select) return;
 
       select.innerHTML = '';
-      
-      // Categorias Padrão
       const defaultCategories = ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Salário', 'Investimentos', 'Outros'];
       const customCatNames = userCategories.map(c => c.name);
       
@@ -1035,28 +1045,46 @@
       resetCategoryForm();
     }
 
-    // CARREGAR LANÇAMENTOS
+    // CARREGAR LANÇAMENTOS DO BANCO COM DETECÇÃO E EXIBIÇÃO DE ERRO
     async function loadTransactionsFromDB() {
       if (!currentWorkspaceOwner) return;
 
-      pendingStatusMap.clear(); // Limpa atualizações pendentes para sincronia total
+      const dbErrorBanner = document.getElementById('db-error-banner');
+      if (dbErrorBanner) dbErrorBanner.classList.add('hidden');
 
-      const { data, error } = await db
-        .from('transactions')
-        .select('*')
-        .eq('workspace_owner', currentWorkspaceOwner)
-        .order('dueDate', { ascending: true });
+      pendingStatusMap.clear();
 
-      if (error) {
-        console.error('Erro ao carregar lançamentos:', error);
-        return;
+      try {
+        const { data, error } = await db
+          .from('transactions')
+          .select('*')
+          .eq('workspace_owner', currentWorkspaceOwner);
+
+        if (error) {
+          console.error('Erro na resposta do Supabase:', error);
+          if (dbErrorBanner) {
+            document.getElementById('db-error-msg').innerText = `Erro ao carregar dados do Supabase: ${error.message || 'Verifique permissões RLS ou o nome das colunas.'}`;
+            dbErrorBanner.classList.remove('hidden');
+          }
+          return;
+        }
+
+        // Mapeia e normaliza registros recebidos do banco
+        transactions = (data || [])
+          .map(normalizeTransactionRecord)
+          .filter(t => t !== null)
+          .sort((a, b) => (a.dueDate > b.dueDate ? 1 : -1));
+
+        renderDashboard();
+      } catch (err) {
+        console.error('Falha crítica ao buscar lançamentos:', err);
+        if (dbErrorBanner) {
+          document.getElementById('db-error-msg').innerText = `Falha de conexão com o banco de dados: ${err.message}`;
+          dbErrorBanner.classList.remove('hidden');
+        }
       }
-
-      transactions = data || [];
-      renderDashboard();
     }
 
-    // ALTERAR STATUS (OTIMIZAÇÃO ULTRA-RÁPIDA EM LOTE)
     async function toggleStatus(id) {
       const item = transactions.find(t => t.id == id);
       if (!item) return;
@@ -1064,22 +1092,17 @@
       const previousStatus = item.status;
       const newStatus = previousStatus === 'completed' ? 'pending' : 'completed';
 
-      // 1. Atualização Otimista local instantânea em memória
       item.status = newStatus;
 
-      // 2. Atualização cirúrgica na linha do DOM + recalculo dos resumos (sem reconstruir a tabela inteira)
       const rowUpdated = updateSingleRowUI(id);
       renderDashboard(rowUpdated ? { skipFullTableRebuild: true } : {});
 
-      // 3. Adiciona ao lote de sincronização em segundo plano
       pendingStatusMap.set(String(id), newStatus);
 
-      // 4. Temporizador com debounce para enviar alterações acumuladas ao Supabase
       clearTimeout(statusUpdateTimer);
       statusUpdateTimer = setTimeout(flushStatusUpdates, 250);
     }
 
-    // ATUALIZAÇÃO DIRETA DA LINHA NA TABELA SEM DESTRUIR ELEMENTOS
     function updateSingleRowUI(id) {
       const t = transactions.find(item => item.id == id);
       if (!t) return false;
@@ -1087,15 +1110,14 @@
       const statusCell = document.getElementById(`tx-status-cell-${id}`);
       const actionsCell = document.getElementById(`tx-actions-cell-${id}`);
 
-      if (!statusCell || !actionsCell) return false; // Se a linha não estiver visível na aba atual
+      if (!statusCell || !actionsCell) return false;
 
       const details = getTransactionStatusDetails(t);
-      const isPaid = t.status === 'completed';
 
       statusCell.innerHTML = `
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.statusClass}">
-          <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconClass}"></i>
-          ${details.label}
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.badgeClass}">
+          <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconColor}"></i>
+          ${escapeHTML(details.label)}
         </span>
       `;
 
@@ -1103,14 +1125,14 @@
         <button onclick="toggleStatus('${t.id}')" 
           title="${details.btnTitle}" 
           class="p-1 rounded-lg transition-all ${details.btnClass}">
-          <i data-lucide="${details.icon}" class="w-3.5 h-3.5"></i>
+          <i data-lucide="${details.isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
         </button>
         <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
           <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
         </button>
         <button onclick="deleteTransaction('${t.id}')" 
-          title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
-          class="p-1 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
+          title="${details.isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
+          class="p-1 rounded-lg transition ${details.isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
         </button>
       `;
@@ -1122,7 +1144,6 @@
       return true;
     }
 
-    // PROCESSA E ENVIA TODAS AS ATUALIZAÇÕES ACUMULADAS EM LOTE PARA O SUPABASE
     async function flushStatusUpdates() {
       if (pendingStatusMap.size === 0) return;
 
@@ -1149,24 +1170,19 @@
         const results = await Promise.all(promises);
         const hasError = results.some(r => r && r.error);
 
-        if (hasError) {
-          throw new Error('Falha ao atualizar lançamentos no banco de dados');
-        }
+        if (hasError) throw new Error('Falha ao sincronizar status.');
       } catch (err) {
-        console.error('Erro na sincronização de status em lote:', err);
-        await loadTransactionsFromDB(); // Recarrega se houver falha de conexão
-        alert('Ocorreu uma falha ao salvar algumas alterações de status. Os dados foram sincronizados.');
+        console.error('Erro na sincronização:', err);
+        await loadTransactionsFromDB();
       }
     }
 
-    // ENVIA ATUALIZAÇÕES SE O USUÁRIO SAIR DA PÁGINA
     window.addEventListener('beforeunload', () => {
       if (pendingStatusMap.size > 0) {
         flushStatusUpdates();
       }
     });
 
-    // NAVEGAÇÃO DE MÊS
     function changeMonth(delta) {
       const input = document.getElementById('month-filter');
       if (!input.value) return;
@@ -1181,7 +1197,6 @@
       renderDashboard();
     }
 
-    // ALTERNADOR DE ABAS
     function switchTab(tab) {
       const btnDash = document.getElementById('btn-tab-dashboard');
       const btnTrans = document.getElementById('btn-tab-transactions');
@@ -1202,108 +1217,148 @@
       renderDashboard();
     }
 
-    // RENDERIZAR PAINEL DASHBOARD E HISTÓRICO
     function renderDashboard(options = {}) {
       if (!currentUser) return;
 
-      const selectedMonth = document.getElementById('month-filter').value;
-      const includePrevious = document.getElementById('chk-include-previous').checked;
+      const monthFilterEl = document.getElementById('month-filter');
+      const selectedMonth = monthFilterEl ? monthFilterEl.value : '';
+      if (!selectedMonth) return;
+
+      const includePrevious = document.getElementById('chk-include-previous') ? document.getElementById('chk-include-previous').checked : true;
+      const firstDayOfMonth = selectedMonth + '-01';
+
+      const todayStr = getTodayString();
+      const in5Days = new Date();
+      in5Days.setDate(in5Days.getDate() + 5);
+      const in5DaysYr = in5Days.getFullYear();
+      const in5DaysMo = String(in5Days.getMonth() + 1).padStart(2, '0');
+      const in5DaysDy = String(in5Days.getDate()).padStart(2, '0');
+      const in5DaysStr = `${in5DaysYr}-${in5DaysMo}-${in5DaysDy}`;
 
       let previousBalance = 0;
       let monthIncome = 0;
       let monthExpense = 0;
       const categoryTotals = {};
 
-      const monthPrefix = selectedMonth + '-';
+      const monthTransactions = [];
+      const prevPending = [];
+      const nextPending = [];
+      const alerts = [];
 
-      // Processamento em passagem única para ganho máximo de velocidade
       for (let i = 0; i < transactions.length; i++) {
         const t = transactions[i];
-        if (!t.dueDate) continue;
+        if (!t || !t.dueDate) continue;
 
-        if (t.status === 'completed') {
-          if (t.dueDate < monthPrefix + '01') {
-            if (t.type === 'income') previousBalance += t.amount;
-            else previousBalance -= t.amount;
-          } else if (t.dueDate.startsWith(selectedMonth)) {
-            if (t.type === 'income') {
-              monthIncome += t.amount;
-            } else {
-              monthExpense += t.amount;
-              categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-            }
+        const isCompleted = t.status === 'completed';
+        const isPending = !isCompleted;
+        const isIncome = t.type === 'income';
+        const isBeforeMonth = t.dueDate < firstDayOfMonth;
+        const isCurrentMonth = t.dueDate.startsWith(selectedMonth);
+
+        if (isBeforeMonth && isCompleted) {
+          if (isIncome) previousBalance += t.amount;
+          else previousBalance -= t.amount;
+        }
+
+        if (isBeforeMonth && isPending) {
+          prevPending.push(t);
+        }
+
+        if (isCurrentMonth) {
+          monthTransactions.push(t);
+
+          if (isCompleted) {
+            if (isIncome) monthIncome += t.amount;
+            else monthExpense += t.amount;
           }
+
+          if (!isIncome) {
+            categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+          }
+
+          if (isPending) {
+            nextPending.push(t);
+          }
+        }
+
+        if (isPending && t.dueDate >= todayStr && t.dueDate <= in5DaysStr) {
+          alerts.push(t);
         }
       }
 
       const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
 
-      document.getElementById('txt-previous-balance').innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('txt-month-income').innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      
+      const prevBalEl = document.getElementById('txt-previous-balance');
+      if (prevBalEl) prevBalEl.innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const monthIncEl = document.getElementById('txt-month-income');
+      if (monthIncEl) monthIncEl.innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const monthExpEl = document.getElementById('txt-month-expense');
+      if (monthExpEl) monthExpEl.innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
       const totalEl = document.getElementById('txt-total-balance');
-      totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
+      if (totalEl) {
+        totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
+      }
 
-      renderDashboardLists(selectedMonth);
+      renderDashboardLists(prevPending, nextPending, alerts);
 
-      // Reconstrói a tabela completa somente se não for um clique rápido de status
       if (!options.skipFullTableRebuild) {
-        const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
         renderFullHistoryTable(monthTransactions);
       }
 
       renderCategoryChart(categoryTotals);
+
       if (window.lucide && typeof lucide.createIcons === 'function') {
         lucide.createIcons();
       }
     }
 
-    function renderDashboardLists(selectedMonth) {
+    function renderDashboardLists(prevPending, nextPending, alerts) {
       const prevList = document.getElementById('list-previous-pending');
       const nextList = document.getElementById('list-next-pending');
       const alertList = document.getElementById('list-alerts');
 
-      const todayStr = getTodayString();
-      const in5DaysStr = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      if (prevList) {
+        prevList.innerHTML = prevPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente anterior</td></tr>' :
+          prevPending.map(t => `
+            <tr class="border-b border-slate-50">
+              <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
 
-      // 1. Anteriores Pendentes
-      const prevPending = transactions.filter(t => t.dueDate < selectedMonth + '-01' && t.status === 'pending');
-      prevList.innerHTML = prevPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente anterior</td></tr>' :
-        prevPending.map(t => `
-          <tr class="border-b border-slate-50">
-            <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
-            <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
-            <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `).join('');
+      if (nextList) {
+        nextList.innerHTML = nextPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente no mês</td></tr>' :
+          nextPending.map(t => `
+            <tr class="border-b border-slate-50">
+              <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
 
-      // 2. Próximas Pendentes do Mês
-      const nextPending = transactions.filter(t => t.dueDate.startsWith(selectedMonth) && t.status === 'pending');
-      nextList.innerHTML = nextPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente no mês</td></tr>' :
-        nextPending.map(t => `
-          <tr class="border-b border-slate-50">
-            <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
-            <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
-            <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `).join('');
-
-      // 3. Alertas (Até 5 Dias)
-      const alerts = transactions.filter(t => t.status === 'pending' && t.dueDate >= todayStr && t.dueDate <= in5DaysStr);
-      alertList.innerHTML = alerts.length === 0 ? '<tr><td colspan="3" class="py-2 text-amber-700/60 italic text-[11px]">Nenhum alerta para os próximos 5 dias</td></tr>' :
-        alerts.map(t => `
-          <tr class="border-b border-amber-100/60">
-            <td class="py-1 px-2 font-medium text-amber-900">${escapeHTML(t.description)}</td>
-            <td class="py-1 px-2 text-amber-700/70 text-[11px]">${escapeHTML(t.dueDate)}</td>
-            <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-700':'text-rose-700'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `).join('');
+      if (alertList) {
+        alertList.innerHTML = alerts.length === 0 ? '<tr><td colspan="3" class="py-2 text-amber-700/60 italic text-[11px]">Nenhum alerta para os próximos 5 dias</td></tr>' :
+          alerts.map(t => `
+            <tr class="border-b border-amber-100/60">
+              <td class="py-1 px-2 font-medium text-amber-900">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-amber-700/70 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-700':'text-rose-700'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
     }
 
     function renderFullHistoryTable(monthTransactions) {
       const listEl = document.getElementById('transactions-list');
+      if (!listEl) return;
+
       listEl.innerHTML = '';
 
       if (monthTransactions.length === 0) {
@@ -1313,13 +1368,11 @@
 
       monthTransactions.forEach((t, index) => {
         const isIncome = t.type === 'income';
-        const isPaid = t.status === 'completed';
-        const isOtherUser = t.userEmail && t.userEmail !== currentUser.email;
+        const isOtherUser = t.userEmail && t.userEmail !== currentUser.email.toLowerCase();
+        const details = getTransactionStatusDetails(t);
 
         const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
         const borderIndicator = isIncome ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500';
-
-        const details = getTransactionStatusDetails(t);
 
         const tr = document.createElement('tr');
         tr.id = `tx-row-${t.id}`;
@@ -1336,23 +1389,23 @@
             ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
           </td>
           <td class="py-2.5 px-3" id="tx-status-cell-${t.id}">
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.statusClass}">
-              <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconClass}"></i>
-              ${details.label}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.badgeClass}">
+              <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconColor}"></i>
+              ${escapeHTML(details.label)}
             </span>
           </td>
           <td class="py-2.5 px-3 text-right space-x-1" id="tx-actions-cell-${t.id}">
             <button onclick="toggleStatus('${t.id}')" 
               title="${details.btnTitle}" 
               class="p-1 rounded-lg transition-all ${details.btnClass}">
-              <i data-lucide="${details.icon}" class="w-3.5 h-3.5"></i>
+              <i data-lucide="${details.isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
             </button>
             <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
               <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
             </button>
             <button onclick="deleteTransaction('${t.id}')" 
-              title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
-              class="p-1 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
+              title="${details.isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
+              class="p-1 rounded-lg transition ${details.isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
           </td>
@@ -1371,7 +1424,7 @@
       if (expensesChart) {
         expensesChart.data.labels = labels;
         expensesChart.data.datasets[0].data = data;
-        expensesChart.update('none'); // Atualiza sem animação para não travar nos cliques rápidos
+        expensesChart.update('none');
         return;
       }
 
@@ -1396,7 +1449,6 @@
       });
     }
 
-    // AÇÕES DE EXCLUSÃO DE TRANSAÇÃO
     function deleteTransaction(id) {
       const t = transactions.find(item => item.id == id);
       if (!t) return;
@@ -1430,7 +1482,6 @@
       await loadTransactionsFromDB();
     }
 
-    // MODAL SALVAR / EDITAR TRANSAÇÃO
     function openModal(id = null) {
       document.getElementById('transaction-form').reset();
       document.getElementById('tx-id').value = '';
@@ -1451,7 +1502,7 @@
         populateFormForEdit(t);
       } else {
         document.getElementById('type-expense').checked = true;
-        document.getElementById('tx-date').value = getTodayString();
+        document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
         toggleFormFields();
         document.getElementById('modal').classList.remove('hidden');
       }
@@ -1521,14 +1572,17 @@
 
       const payload = {
         workspace_owner: currentWorkspaceOwner,
-        userEmail: currentUser.email,
+        userEmail: currentUser.email.toLowerCase(),
+        user_email: currentUser.email.toLowerCase(),
         type,
         description,
         amount,
         dueDate,
+        due_date: dueDate,
         category,
         status,
-        isRecurring
+        isRecurring,
+        is_recurring: isRecurring
       };
 
       if (id) {
@@ -1559,7 +1613,8 @@
               ...payload,
               description: `${description} (${i + 1}/${installments})`,
               amount: installmentAmount,
-              dueDate: formattedDate
+              dueDate: formattedDate,
+              due_date: formattedDate
             });
           }
           await db.from('transactions').insert(newTxs);
@@ -1572,7 +1627,6 @@
       await loadTransactionsFromDB();
     }
 
-    // MODAL CONVIDAR POR E-MAIL
     function openShareModal() {
       document.getElementById('share-modal').classList.remove('hidden');
       loadSharedUsers();
@@ -1615,7 +1669,7 @@
 
       if (!invitedEmail) return;
 
-      await db.from('invitations').insert({ owner_email: currentUser.email, invited_email: invitedEmail });
+      await db.from('invitations').insert({ owner_email: currentUser.email.toLowerCase(), invited_email: invitedEmail });
 
       const statusBox = document.getElementById('invite-status-box');
       const statusMsg = document.getElementById('invite-status-msg');
@@ -1645,7 +1699,6 @@
       }
     }
 
-    // MODAL PERFIL
     function openProfileModal() {
       document.getElementById('profile-name').value = currentUser.name || '';
       document.getElementById('profile-email').value = currentUser.email || '';
@@ -1665,7 +1718,7 @@
       const updateData = { name };
       if (password) updateData.password = password;
 
-      await db.from('users').update(updateData).eq('email', currentUser.email);
+      await db.from('users').update(updateData).eq('email', currentUser.email.toLowerCase());
 
       currentUser.name = name;
       localStorage.setItem('app_current_user', JSON.stringify(currentUser));
@@ -1677,7 +1730,6 @@
       alert('Perfil atualizado com sucesso!');
     }
 
-    // MODAL IMPORTAR PLANILHA
     function openImportModal() {
       document.getElementById('import-modal').classList.remove('hidden');
       document.getElementById('import-status').classList.add('hidden');
@@ -1711,19 +1763,22 @@
             const rawAmount = row['Valor'] || row['amount'] || 0;
             const amount = Math.abs(typeof rawAmount === 'number' ? rawAmount : parseBRLToFloat(rawAmount));
             const type = (rawAmount < 0 || (row['Tipo'] && row['Tipo'].toLowerCase().includes('desp'))) ? 'expense' : 'income';
-            const dueDate = row['Data Ocorrência'] || row['Data'] || row['dueDate'] || getTodayString();
+            const dueDate = row['Data Ocorrência'] || row['Data'] || row['dueDate'] || row['due_date'] || new Date().toISOString().split('T')[0];
             const category = row['Categoria'] || row['category'] || 'Outros';
 
             newItems.push({
               workspace_owner: currentWorkspaceOwner,
-              userEmail: currentUser.email,
+              userEmail: currentUser.email.toLowerCase(),
+              user_email: currentUser.email.toLowerCase(),
               description: String(description),
               amount,
               type,
               dueDate: String(dueDate),
+              due_date: String(dueDate),
               category: String(category),
               status: 'pending',
-              isRecurring: false
+              isRecurring: false,
+              is_recurring: false
             });
           });
 
@@ -1744,7 +1799,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // INICIALIZAÇÃO DA APLICAÇÃO
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
 
@@ -1756,6 +1810,7 @@
       if (savedUser) {
         try {
           currentUser = JSON.parse(savedUser);
+          if (currentUser.email) currentUser.email = currentUser.email.toLowerCase();
           await resolveWorkspaceAndInit();
         } catch (e) {
           localStorage.removeItem('app_current_user');
