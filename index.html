@@ -6,8 +6,11 @@
   <title>Controle Financeiro Compartilhado</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SUPABASE CLIENT -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- CHART.JS -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SHEETJS PARA IMPORTAÇÃO -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
   <script>
@@ -33,530 +36,1717 @@
       backdrop-filter: blur(12px);
       border: 1px solid rgba(226, 232, 240, 0.8);
     }
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+    input[type="month"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      opacity: 0.6;
     }
-    ::-webkit-scrollbar-track {
-      background: #f1f5f9;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: #94a3b8;
+    input[type="month"]::-webkit-calendar-picker-indicator:hover {
+      opacity: 1;
     }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen font-sans pb-12">
+<body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
 
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="p-2 bg-brand-500 text-white rounded-xl shadow-md shadow-brand-500/20">
+  <!-- TELA DE LOGIN / CADASTRO / CONVITE -->
+  <div id="login-view" class="min-h-screen flex items-center justify-center p-3 bg-gradient-to-br from-slate-100 via-indigo-50/30 to-slate-100">
+    <div class="glass-card w-full max-w-md p-6 rounded-2xl shadow-xl shadow-slate-200/50 space-y-4 bg-white">
+      <div class="text-center space-y-1">
+        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-50 text-brand-600 mb-1 shadow-sm border border-brand-100">
           <i data-lucide="wallet" class="w-6 h-6"></i>
         </div>
-        <div>
-          <h1 class="text-lg font-bold text-slate-900 leading-tight">Controle Financeiro</h1>
-          <p class="text-xs text-slate-500">Gestão Compartilhada Rápida</p>
-        </div>
+        <h1 class="text-xl font-bold tracking-tight text-slate-900">Controle Financeiro</h1>
+        <p id="auth-subtitle" class="text-xs text-slate-500">Acesse sua conta para continuar</p>
       </div>
 
-      <div class="flex items-center gap-3">
-        <span id="syncStatus" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          Conectado
-        </span>
-        <button onclick="fetchTransactions()" title="Recarregar Dados" class="p-2 text-slate-500 hover:text-brand-600 hover:bg-slate-100 rounded-lg transition">
-          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+      <!-- SELETOR 3 ABAS DE AUTENTICAÇÃO -->
+      <div class="flex bg-slate-100 p-1 rounded-lg text-xs font-medium text-center">
+        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition">Entrar</button>
+        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">Criar Conta</button>
+        <button id="btn-invite-mode" onclick="toggleAuthMode('invited')" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">Sou Convidado</button>
+      </div>
+
+      <!-- FORMULÁRIO DE AUTENTICAÇÃO -->
+      <form id="login-form" class="space-y-3">
+        <div id="login-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg text-center font-medium border border-rose-200"></div>
+        <div id="login-success" class="hidden text-xs text-emerald-600 bg-emerald-50 p-2.5 rounded-lg text-center font-medium border border-emerald-200"></div>
+
+        <div id="name-field-container" class="hidden">
+          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Seu Nome</label>
+          <input type="text" id="login-name" placeholder="Como deseja ser chamado" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Seu E-mail</label>
+          <input type="email" id="login-email" required placeholder="seu@email.com" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Senha</label>
+          <input type="password" id="login-password" required placeholder="••••••" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
+        </div>
+
+        <button type="submit" id="btn-auth-submit"
+          class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 rounded-lg text-xs transition duration-200 shadow-md shadow-brand-500/20">
+          Entrar na Conta
         </button>
-      </div>
+      </form>
     </div>
-  </header>
+  </div>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="glass-card p-5 rounded-2xl shadow-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Receitas</span>
-          <div class="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-            <i data-lucide="trending-up" class="w-4 h-4"></i>
-          </div>
+  <!-- PAINEL PRINCIPAL -->
+  <div id="dashboard-view" class="hidden min-h-screen flex flex-col bg-slate-50">
+    <!-- HEADER -->
+    <header class="bg-white/80 backdrop-blur-md sticky top-0 z-20 border-b border-slate-200 px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2 shadow-sm">
+      <div class="flex items-center space-x-2.5">
+        <div class="w-8 h-8 rounded-lg bg-brand-50 border border-brand-100 text-brand-600 flex items-center justify-center shadow-sm">
+          <i data-lucide="wallet" class="w-4 h-4"></i>
         </div>
-        <div class="mt-2">
-          <h2 id="totalIncome" class="text-2xl font-bold text-slate-900">R$ 0,00</h2>
+        <div class="flex flex-col">
+          <span class="font-bold text-slate-900 text-xs sm:text-sm leading-tight">Controle Financeiro</span>
+          <span id="shared-badge-header" class="text-[10px] text-brand-600 font-medium">Espaço: <span id="workspace-owner-label" class="font-semibold">Próprio</span></span>
         </div>
       </div>
 
-      <div class="glass-card p-5 rounded-2xl shadow-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Despesas</span>
-          <div class="p-2 bg-rose-50 text-rose-600 rounded-lg">
-            <i data-lucide="trending-down" class="w-4 h-4"></i>
+      <!-- BOTÕES NAVEGAÇÃO -->
+      <nav class="flex space-x-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+        <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5">
+          <i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i> Dashboard
+        </button>
+        <button id="btn-tab-transactions" onclick="switchTab('transactions')" class="px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5">
+          <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> Lançamentos Mensais
+        </button>
+      </nav>
+      
+      <!-- MENU UNIFICADO (USUÁRIO E AÇÕES) -->
+      <div class="relative">
+        <button id="btn-user-dropdown" onclick="toggleUserDropdown()" class="flex items-center space-x-2 p-1 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-slate-700 transition focus:outline-none">
+          <div class="w-6 h-6 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center text-[10px] font-bold">
+            <i data-lucide="user" class="w-3.5 h-3.5"></i>
           </div>
-        </div>
-        <div class="mt-2">
-          <h2 id="totalExpense" class="text-2xl font-bold text-slate-900">R$ 0,00</h2>
+          <span id="user-display" class="text-xs font-semibold max-w-[100px] truncate">Usuário</span>
+          <i data-lucide="chevron-down" id="user-dropdown-arrow" class="w-3 h-3 text-slate-400 transition-transform duration-200"></i>
+        </button>
+
+        <!-- SUBMENU DROPDOWN -->
+        <div id="user-dropdown-menu" class="hidden absolute right-0 mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 divide-y divide-slate-100">
+          
+          <!-- CABEÇALHO DO MENU -->
+          <div class="px-3 py-2">
+            <p class="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Conta Ativa</p>
+            <p id="dropdown-user-name" class="text-xs font-bold text-slate-800 truncate">Usuário</p>
+          </div>
+
+          <!-- AÇÕES UNIFICADAS -->
+          <div class="py-1">
+            <button onclick="closeUserDropdown(); openCategoriesModal();" class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="tags" class="w-3.5 h-3.5 text-brand-600"></i>
+              <span>Categorias</span>
+            </button>
+
+            <button onclick="closeUserDropdown(); openImportModal();" class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="file-up" class="w-3.5 h-3.5 text-brand-600"></i>
+              <span>Importar Planilha</span>
+            </button>
+
+            <button onclick="closeUserDropdown(); openShareModal();" class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="user-plus" class="w-3.5 h-3.5 text-indigo-600"></i>
+              <span>Convidar por E-mail</span>
+            </button>
+
+            <button onclick="closeUserDropdown(); openProfileModal();" class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition text-left font-medium">
+              <i data-lucide="user-cog" class="w-3.5 h-3.5 text-slate-500"></i>
+              <span>Meu Perfil</span>
+            </button>
+          </div>
+
+          <!-- AÇÃO DE SAIR -->
+          <div class="py-1">
+            <button onclick="closeUserDropdown(); logout();" class="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 transition text-left font-semibold">
+              <i data-lucide="log-out" class="w-3.5 h-3.5 text-rose-600"></i>
+              <span>Sair</span>
+            </button>
+          </div>
+
         </div>
       </div>
+    </header>
 
-      <div class="glass-card p-5 rounded-2xl shadow-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Saldo Concluído</span>
-          <div class="p-2 bg-brand-50 text-brand-600 rounded-lg">
-            <i data-lucide="dollar-sign" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="mt-2">
-          <h2 id="totalBalance" class="text-2xl font-bold text-slate-900">R$ 0,00</h2>
-        </div>
-      </div>
-
-      <div class="glass-card p-5 rounded-2xl shadow-sm">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pendente (A Pagar/Receber)</span>
-          <div class="p-2 bg-amber-50 text-amber-600 rounded-lg">
-            <i data-lucide="clock" class="w-4 h-4"></i>
-          </div>
-        </div>
-        <div class="mt-2">
-          <h2 id="totalPending" class="text-2xl font-bold text-amber-600">R$ 0,00</h2>
-        </div>
-      </div>
-    </div>
-
-    <div class="glass-card p-5 rounded-2xl shadow-sm">
-      <h3 class="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-        <i data-lucide="plus-circle" class="w-4 h-4 text-brand-600"></i>
-        Novo Lançamento
-      </h3>
-      <form id="transactionForm" onsubmit="handleAddTransaction(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
-        <div class="lg:col-span-2">
-          <label class="block text-xs font-medium text-slate-600 mb-1">Descrição</label>
-          <input type="text" id="descInput" required placeholder="Ex: Supermercado" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
-        </div>
-
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-4 space-y-3">
+      
+      <!-- CONTROLES SUPERIORES -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-sm">
         <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Valor (R$)</label>
-          <input type="number" step="0.01" id="amountInput" required placeholder="0,00" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+          <h2 id="page-title" class="text-base font-bold text-slate-900">Painel de Controle</h2>
+          <p id="page-subtitle" class="text-[11px] text-slate-500">Acompanhe e gerencie as finanças do espaço</p>
         </div>
 
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- NAVEGAÇÃO DE MÊS -->
+          <div class="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-0.5 shadow-sm">
+            <button onclick="changeMonth(-1)" title="Mês Anterior" class="p-1 hover:bg-slate-200/60 rounded-md text-slate-600 transition">
+              <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+            </button>
+            <div class="flex items-center px-1.5 space-x-1">
+              <i data-lucide="calendar" class="w-3.5 h-3.5 text-brand-600"></i>
+              <input type="month" id="month-filter" onchange="renderDashboard()" class="bg-transparent text-xs focus:outline-none text-slate-800 font-semibold">
+            </div>
+            <button onclick="changeMonth(1)" title="Próximo Mês" class="p-1 hover:bg-slate-200/60 rounded-md text-slate-600 transition">
+              <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <button onclick="openModal()" 
+            class="inline-flex items-center justify-center space-x-1.5 bg-brand-600 hover:bg-brand-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition shadow-md shadow-brand-500/20">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Nova Transação</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TELA 1: DASHBOARD -->
+      <div id="tab-dashboard" class="space-y-3">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          
+          <div class="space-y-3">
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-3">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                <h3 class="font-bold text-slate-900 text-sm">Resumo Financeiro</h3>
+                <label class="flex items-center gap-1.5 text-[11px] text-slate-500 cursor-pointer hover:text-slate-700">
+                  <input type="checkbox" id="chk-include-previous" onchange="renderDashboard()" checked class="accent-brand-600 rounded w-3.5 h-3.5">
+                  <span>Incluir saldo anterior</span>
+                </label>
+              </div>
+              
+              <div class="space-y-2 text-xs">
+                <div class="flex justify-between items-center text-slate-600">
+                  <span>Saldo anterior</span>
+                  <span id="txt-previous-balance" class="font-semibold text-slate-800">R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-1 text-emerald-700 font-medium"><i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i> Entradas</span>
+                  <span id="txt-month-income" class="font-semibold text-emerald-600">+R$ 0,00</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-1 text-rose-700 font-medium"><i data-lucide="arrow-down-left" class="w-3.5 h-3.5"></i> Saídas</span>
+                  <span id="txt-month-expense" class="font-semibold text-rose-600">-R$ 0,00</span>
+                </div>
+                <div class="border-t border-slate-100 pt-2 flex justify-between items-center font-bold">
+                  <span class="text-slate-900 text-xs">Total do Período</span>
+                  <span id="txt-total-balance" class="text-xl text-slate-900">R$ 0,00</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
+              <h3 class="font-bold text-slate-900 text-sm border-b border-slate-100 pb-2">Despesas por Categoria</h3>
+              <div class="w-full flex items-center justify-center p-1" style="max-height: 220px;">
+                <canvas id="expensesChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
+              <h3 class="font-bold text-slate-900 text-sm border-b border-slate-100 pb-1.5">Anteriores não consolidadas</h3>
+              <div class="max-h-36 overflow-y-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th class="pb-1.5 px-2">Transação</th>
+                      <th class="pb-1.5 px-2">Data</th>
+                      <th class="pb-1.5 px-2 text-right">Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="list-previous-pending">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm space-y-2">
+              <h3 class="font-bold text-slate-900 text-sm border-b border-slate-100 pb-1.5">Próximas não consolidadas</h3>
+              <div class="max-h-36 overflow-y-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="text-slate-400 border-b border-slate-100 font-semibold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th class="pb-1.5 px-2">Transação</th>
+                      <th class="pb-1.5 px-2">Data</th>
+                      <th class="pb-1.5 px-2 text-right">Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="list-next-pending">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200/80 shadow-sm space-y-2">
+              <h3 class="font-bold text-amber-800 text-sm border-b border-amber-200/60 pb-1.5 flex items-center gap-1.5">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-600"></i> Próximas com alerta (Até 5 dias)
+              </h3>
+              <div class="max-h-32 overflow-y-auto">
+                <table class="w-full text-xs text-left">
+                  <thead class="text-amber-700/60 border-b border-amber-200/60 font-semibold text-[10px]">
+                    <tr>
+                      <th class="pb-1.5 px-2">Transação</th>
+                      <th class="pb-1.5 px-2">Data</th>
+                      <th class="pb-1.5 px-2 text-right">Valor (R$)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="list-alerts">
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- TELA 2: LANÇAMENTOS MENSAIS UNIFICADOS -->
+      <div id="tab-transactions" class="hidden space-y-3">
+        <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
+          <div class="p-3.5 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-slate-900 text-sm">Lançamentos do Mês Selecionado</h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead class="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200 text-[11px] uppercase tracking-wider">
+                <tr>
+                  <th class="py-2.5 px-3">Descrição</th>
+                  <th class="py-2.5 px-3">Categoria</th>
+                  <th class="py-2.5 px-3">Vencimento</th>
+                  <th class="py-2.5 px-3">Valor</th>
+                  <th class="py-2.5 px-3">Status</th>
+                  <th class="py-2.5 px-3 text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="transactions-list">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- MODAL GERENCIAR CATEGORIAS -->
+  <div id="categories-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-md p-4 rounded-2xl shadow-2xl space-y-3 max-h-[85vh] flex flex-col border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-1.5">
+          <i data-lucide="tags" class="w-4 h-4 text-brand-600"></i> Gerenciar Categorias
+        </h3>
+        <button onclick="closeCategoriesModal()" class="text-slate-400 hover:text-slate-700 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <!-- FORMULÁRIO CATEGORIA -->
+      <form id="category-form" onsubmit="saveCategory(event)" class="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <input type="hidden" id="cat-id" value="">
         <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Tipo</label>
-          <select id="typeInput" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
+          <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Nome da Categoria</label>
+          <input type="text" id="cat-name" required placeholder="Ex: Farmácia, Petshop..." 
+            class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Tipo</label>
+          <select id="cat-type" class="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
             <option value="expense">Despesa</option>
             <option value="income">Receita</option>
+            <option value="both">Ambos</option>
           </select>
         </div>
-
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Categoria</label>
-          <select id="categoryInput" class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
-            <option value="Alimentação">Alimentação</option>
-            <option value="Moradia">Moradia</option>
-            <option value="Transporte">Transporte</option>
-
-            <option value="Lazer">Lazer</option>
-            <option value="Saúde">Saúde</option>
-            <option value="Salário">Salário</option>
-            <option value="Investimentos">Investimentos</option>
-            <option value="Outros">Outros</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Data</label>
-          <input type="date" id="dateInput" required class="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
-        </div>
-
-        <div class="flex items-end gap-2">
-          <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 px-4 rounded-xl text-sm transition shadow-md shadow-brand-500/20 flex items-center justify-center gap-1.5">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            Adicionar
+        <div class="flex items-center gap-2 pt-1">
+          <button type="submit" id="btn-save-cat" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-1.5 rounded-lg text-xs transition shadow-sm">
+            Adicionar Categoria
+          </button>
+          <button type="button" id="btn-cancel-cat" onclick="resetCategoryForm()" class="hidden px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs transition">
+            Cancelar
           </button>
         </div>
       </form>
-    </div>
 
-    <div class="glass-card p-4 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-4">
-      <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-        <input type="text" id="searchInput" oninput="render()" placeholder="Buscar lançamento..." class="px-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none w-full sm:w-48">
-        
-        <select id="filterType" onchange="render()" class="px-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
-          <option value="all">Todos os Tipos</option>
-          <option value="expense">Apenas Despesas</option>
-          <option value="income">Apenas Receitas</option>
-        </select>
-
-        <select id="filterStatus" onchange="render()" class="px-3 py-1.5 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-500 focus:outline-none">
-          <option value="all">Todos os Status</option>
-          <option value="paid">Concluídos/Pagos</option>
-          <option value="pending">Pendentes</option>
-        </select>
+      <!-- LISTA DE CATEGORIAS DA CONTA -->
+      <div class="flex-1 overflow-y-auto space-y-1.5 pr-1">
+        <h4 class="text-[11px] font-semibold text-slate-500 mb-1">Suas Categorias Personalizadas:</h4>
+        <div id="categories-list-container" class="space-y-1.5">
+          <!-- Inserido via JS -->
+        </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button onclick="exportToExcel()" class="px-3 py-1.5 border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-medium rounded-xl transition flex items-center gap-1.5">
-          <i data-lucide="download" class="w-4 h-4"></i>
-          Exportar Excel
+      <div class="flex justify-end border-t border-slate-100 pt-2">
+        <button type="button" onclick="closeCategoriesModal()" class="px-3 py-1 text-xs text-slate-500 hover:text-slate-800">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONVIDAR E ENVIAR E-MAIL REAL -->
+  <div id="share-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-md p-4 rounded-2xl shadow-2xl space-y-3 border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="text-base font-bold flex items-center gap-1.5 text-indigo-600">
+          <i data-lucide="send" class="w-4 h-4"></i> Convidar Usuário por E-mail
+        </h3>
+        <button onclick="closeShareModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <p class="text-[11px] text-slate-500">
+        Insira o e-mail da pessoa. Ela receberá permissão para acessar suas finanças na aba <strong>"Sou Convidado"</strong>.
+      </p>
+
+      <form id="share-form" onsubmit="addSharedUser(event)" class="space-y-2">
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">E-mail do Convidado</label>
+          <input type="email" id="share-email-input" required placeholder="parceiro@email.com" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+        </div>
+        
+        <button type="submit" id="btn-send-invite" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm">
+          <i data-lucide="mail" class="w-3.5 h-3.5"></i> Cadastrar Autorização & Enviar Convite
+        </button>
+      </form>
+
+      <div id="invite-status-box" class="hidden text-xs bg-indigo-50 border border-indigo-200 p-2.5 rounded-lg text-indigo-900 space-y-1.5">
+        <p id="invite-status-msg" class="font-semibold text-indigo-800 text-[11px]"></p>
+        <div id="direct-email-action" class="hidden border-t border-indigo-200/60 pt-1.5 space-y-1">
+          <p class="text-[10px] text-indigo-700">Caso o seu aplicativo de e-mail não tenha aberto automaticamente:</p>
+          <a id="btn-mailto-link" href="#" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-brand-600 underline font-semibold hover:text-brand-700">
+            <i data-lucide="external-link" class="w-3 h-3"></i> Reabrir Programa de E-mail
+          </a>
+        </div>
+      </div>
+
+      <div class="space-y-1.5 border-t border-slate-100 pt-2">
+        <h4 class="text-[11px] font-semibold text-slate-700">Pessoas Autorizadas no seu Espaço:</h4>
+        <div id="shared-users-list" class="max-h-36 overflow-y-auto divide-y divide-slate-100 text-xs">
+        </div>
+      </div>
+
+      <div class="flex justify-end border-t border-slate-100 pt-2">
+        <button type="button" onclick="closeShareModal()" class="px-3 py-1 text-xs text-slate-500 hover:text-slate-800">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
+  <div id="delete-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-sm p-4 rounded-2xl shadow-2xl space-y-3 text-center border border-slate-200">
+      <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Excluir Lançamento?</h3>
+        <p id="delete-modal-msg" class="text-xs text-slate-500 mt-0.5">Esta ação removerá o lançamento do espaço compartilhado.</p>
+      </div>
+      <div class="flex justify-center space-x-2 border-t border-slate-100 pt-3">
+        <button onclick="closeDeleteModal()" class="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition">Cancelar</button>
+        <button onclick="confirmDeleteTransaction()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition shadow-sm">Confirmar Exclusão</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ESCOPO DE EDIÇÃO DE FIXOS -->
+  <div id="recurring-edit-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-sm p-4 rounded-2xl shadow-2xl space-y-3 text-center border border-slate-200">
+      <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
+        <i data-lucide="repeat" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Editar Lançamento Fixo</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Este lançamento é recorrente. Como você deseja aplicar as alterações?</p>
+      </div>
+      <div class="space-y-1.5 pt-1">
+        <button onclick="confirmEditScope('single')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2 px-3 rounded-lg text-xs transition border border-slate-200 flex items-center justify-center gap-1.5">
+          <i data-lucide="file-text" class="w-3.5 h-3.5 text-slate-500"></i>
+          <span>Editar Somente Este Lançamento</span>
+        </button>
+        <button onclick="confirmEditScope('future')" class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 px-3 rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-1.5">
+          <i data-lucide="fast-forward" class="w-3.5 h-3.5"></i>
+          <span>Editar Todos deste Ponto em Diante</span>
         </button>
       </div>
+      <div class="pt-1">
+        <button onclick="closeRecurringModal()" class="text-xs text-slate-500 hover:text-slate-800">Cancelar</button>
+      </div>
     </div>
+  </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-      <div class="lg:col-span-2 glass-card rounded-2xl shadow-sm overflow-hidden flex flex-col">
-        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
-            <i data-lucide="list" class="w-4 h-4 text-brand-600"></i>
-            Lançamentos
-          </h3>
-          <span id="itemCount" class="text-xs font-semibold px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full">0 itens</span>
-        </div>
-
-        <div class="overflow-x-auto flex-1">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr class="bg-slate-50 text-slate-500 uppercase font-semibold border-b border-slate-100">
-                <th class="p-3">Data</th>
-                <th class="p-3">Descrição</th>
-                <th class="p-3">Categoria</th>
-                <th class="p-3">Valor</th>
-                <th class="p-3 text-center">Status</th>
-                <th class="p-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="transactionList" class="divide-y divide-slate-100">
-              </tbody>
-          </table>
-        </div>
+  <!-- MODAL EDITAR PERFIL DO USUÁRIO -->
+  <div id="profile-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-md p-4 rounded-2xl shadow-2xl space-y-3 border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="text-base font-bold flex items-center gap-1.5 text-slate-900"><i data-lucide="user-cog" class="w-4 h-4 text-brand-600"></i> Meu Perfil</h3>
+        <button onclick="closeProfileModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
-      <div class="glass-card p-5 rounded-2xl shadow-sm flex flex-col">
-        <h3 class="font-bold text-slate-800 text-sm mb-4 flex items-center gap-2">
-          <i data-lucide="pie-chart" class="w-4 h-4 text-brand-600"></i>
-          Despesas por Categoria
-        </h3>
-        <div class="flex-1 min-h-[260px] relative flex items-center justify-center">
-          <canvas id="expensesChart"></canvas>
+      <form id="profile-form" onsubmit="saveProfile(event)" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Nome Completo</label>
+          <input type="text" id="profile-name" required placeholder="Seu nome" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
         </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-0.5">E-mail de Acesso</label>
+          <input type="email" id="profile-email" required readonly
+            class="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-lg px-2.5 py-1.5 text-xs cursor-not-allowed">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Alterar Senha</label>
+          <input type="password" id="profile-password" placeholder="Nova senha se desejar alterar" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+        </div>
+
+        <div class="flex justify-end space-x-2 border-t border-slate-100 pt-2">
+          <button type="button" onclick="closeProfileModal()" class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800">Cancelar</button>
+          <button type="submit" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition shadow-sm">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL IMPORTAR ARQUIVO -->
+  <div id="import-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-md p-4 rounded-2xl shadow-2xl space-y-3 border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="text-base font-bold text-slate-900 flex items-center gap-1.5"><i data-lucide="file-up" class="w-4 h-4 text-brand-600"></i> Importar Lançamentos</h3>
+        <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
       </div>
 
+      <p class="text-xs text-slate-500">Selecione uma planilha Excel (<code>.xls</code>, <code>.xlsx</code>) ou <code>.csv</code> contendo colunas como: <strong>Descrição, Valor, Data Ocorrência, Categoria</strong>.</p>
+
+      <div class="space-y-3">
+        <input type="file" id="file-input" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer">
+        <div id="import-status" class="text-xs text-emerald-600 font-semibold hidden"></div>
+      </div>
+
+      <div class="flex justify-end space-x-2 border-t border-slate-100 pt-2">
+        <button type="button" onclick="closeImportModal()" class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800">Cancelar</button>
+        <button type="button" onclick="processImportFile()" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition shadow-sm">Importar Dados</button>
+      </div>
     </div>
-  </main>
+  </div>
+
+  <!-- MODAL DE CADASTRO / EDIÇÃO DE TRANSAÇÕES -->
+  <div id="modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-lg p-4 rounded-2xl shadow-2xl space-y-3 max-h-[90vh] overflow-y-auto border border-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 id="modal-title" class="text-base font-bold text-slate-900">Nova Transação</h3>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <form id="transaction-form" class="space-y-3">
+        <input type="hidden" id="tx-id">
+
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center justify-center p-2 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/50 transition">
+            <input type="radio" name="type" value="income" id="type-income" class="sr-only" checked onchange="toggleFormFields()">
+            <span class="text-xs font-semibold text-emerald-600 flex items-center gap-1.5"><i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i> Receita</span>
+          </label>
+          <label class="flex items-center justify-center p-2 rounded-xl border border-slate-200 bg-slate-50/50 cursor-pointer has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50/50 transition">
+            <input type="radio" name="type" value="expense" id="type-expense" class="sr-only" onchange="toggleFormFields()">
+            <span class="text-xs font-semibold text-rose-600 flex items-center gap-1.5"><i data-lucide="arrow-down-left" class="w-3.5 h-3.5"></i> Despesa</span>
+          </label>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Descrição</label>
+          <input type="text" id="tx-description" required placeholder="Ex: Supermercado, Aluguel, Salário" 
+            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-0.5">Valor Total (R$)</label>
+            <input type="text" id="tx-amount" required placeholder="0,00" oninput="formatAmountInput(this)"
+              class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-0.5">Data de Vencimento</label>
+            <input type="date" id="tx-date" required 
+              class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-0.5">Categoria</label>
+            <select id="tx-category" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+              <!-- Preenchido dinamicamente via JS -->
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-0.5">Status Inicial</label>
+            <select id="tx-status" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+              <option value="pending">Pendente</option>
+              <option value="completed">Concluído / Pago</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="recurrence-options" class="border-t border-slate-100 pt-2 space-y-2">
+          <div class="flex items-center justify-between">
+            <label for="tx-recurring" class="text-xs text-slate-700 font-semibold cursor-pointer">
+              Lançamento Fixo Mensal? <span class="text-[10px] text-slate-400 font-normal">(sem data fim)</span>
+            </label>
+            <input type="checkbox" id="tx-recurring" onchange="toggleFormFields()" class="w-3.5 h-3.5 accent-brand-600 rounded cursor-pointer">
+          </div>
+          
+          <div id="installments-container">
+            <label class="block text-xs font-semibold text-slate-600 mb-0.5">Número de Parcelas</label>
+            <input type="number" id="tx-installments" min="1" max="72" value="1" placeholder="1 para à vista" 
+              class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-2 border-t border-slate-100 pt-2">
+          <button type="button" onclick="closeModal()" class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800">Cancelar</button>
+          <button type="submit" id="btn-submit-tx" class="bg-brand-600 hover:bg-brand-700 text-white font-semibold px-3 py-1.5 rounded-lg text-xs transition flex items-center justify-center gap-1.5 shadow-sm">Salvar Lançamento</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
-    // CONFIGURAÇÃO DO SUPABASE
-    // (Substitua caso utilize suas próprias chaves)
-    const SUPABASE_URL = 'https://bjwajyeeibinzhymhnjh.supabase.co'; 
+    // CONFIGURAÇÃO SUPABASE
+    const SUPABASE_URL = 'https://bjwajyeeibinzhymhnjh.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJqd2FqeWVlaWJpbnpoeW1obmpoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgxODU0OTgsImV4cCI6MjEwMzc2MTQ5OH0.L9zqtWbGITQds2wltxDbUBwFJ4nERuGk2X2l3A2JejA';
-    
-    let supabaseClient = null;
-    if (typeof supabase !== 'undefined' && SUPABASE_URL.indexOf('YOUR_SUPABASE') === -1) {
-      supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let authMode = 'login';
+    let currentUser = null;
+    let currentWorkspaceOwner = null;
+    let transactions = [];
+    let userCategories = [];
+    let expensesChart = null;
+    let pendingDeleteIds = [];
+    let editScope = 'single'; // 'single' ou 'future'
+    let pendingEditId = null;
+
+    // SEGURANÇA: FUNÇÃO DE ESCAPE CONTRA ATAQUES XSS
+    function escapeHTML(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
-    // ESTADO LOCAL EM MEMÓRIA
-    let transactions = [];
-    let expensesChart = null;
+    // FUNÇÕES DE FORMATAÇÃO E PARSE DE MOEDA (MÁSCARA)
+    function formatAmountInput(input) {
+      let value = input.value.replace(/\D/g, '');
+      if (!value) {
+        input.value = '';
+        return;
+      }
+      const numberValue = parseFloat(value) / 100;
+      input.value = numberValue.toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
 
-    // INICIALIZAÇÃO
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('dateInput').valueAsDate = new Date();
-      fetchTransactions();
+    function formatNumberToBRL(value) {
+      if (value === null || value === undefined || isNaN(value)) return '';
+      return Number(value).toLocaleString('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    function parseBRLToFloat(valueStr) {
+      if (!valueStr) return 0;
+      const cleanStr = valueStr.toString().replace(/\./g, '').replace(',', '.');
+      return parseFloat(cleanStr) || 0;
+    }
+
+    // CONTROLE DO DROPDOWN DO USUÁRIO
+    function toggleUserDropdown() {
+      const menu = document.getElementById('user-dropdown-menu');
+      const arrow = document.getElementById('user-dropdown-arrow');
+      if (menu) {
+        menu.classList.toggle('hidden');
+        if (arrow) arrow.classList.toggle('rotate-180');
+      }
+    }
+
+    function closeUserDropdown() {
+      const menu = document.getElementById('user-dropdown-menu');
+      const arrow = document.getElementById('user-dropdown-arrow');
+      if (menu && !menu.classList.contains('hidden')) {
+        menu.classList.add('hidden');
+        if (arrow) arrow.classList.remove('rotate-180');
+      }
+    }
+
+    // FECHAR DROPDOWN AO CLICAR FORA
+    document.addEventListener('click', (e) => {
+      const dropdown = document.getElementById('user-dropdown-menu');
+      const button = document.getElementById('btn-user-dropdown');
+      if (dropdown && button && !dropdown.contains(e.target) && !button.contains(e.target)) {
+        closeUserDropdown();
+      }
     });
 
-    // BUSCA INICIAL DOS DADOS
-    async function fetchTransactions() {
-      const syncEl = document.getElementById('syncStatus');
-      syncEl.innerText = 'Carregando...';
+    // ALTERNADOR ENTRE AS 3 ABAS DE AUTENTICAÇÃO
+    function toggleAuthMode(mode) {
+      authMode = mode;
+      const btnLogin = document.getElementById('btn-login-mode');
+      const btnRegister = document.getElementById('btn-register-mode');
+      const btnInvite = document.getElementById('btn-invite-mode');
+      const btnSubmit = document.getElementById('btn-auth-submit');
+      const nameContainer = document.getElementById('name-field-container');
+      const subtitle = document.getElementById('auth-subtitle');
+      const errEl = document.getElementById('login-error');
+      const succEl = document.getElementById('login-success');
 
-      if (!supabaseClient) {
-        // Dados de demonstração caso o Supabase não esteja configurado
-        transactions = getMockData();
-        render();
-        syncEl.innerText = 'Modo Demo (Sem BD)';
+      errEl.classList.add('hidden');
+      succEl.classList.add('hidden');
+
+      [btnLogin, btnRegister, btnInvite].forEach(btn => {
+        btn.className = "flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition";
+      });
+
+      if (mode === 'login') {
+        btnLogin.className = "flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition";
+        btnSubmit.innerText = "Entrar na Conta";
+        subtitle.innerText = "Acesse sua conta para gerenciar suas finanças";
+        nameContainer.classList.add('hidden');
+      } else if (mode === 'register') {
+        btnRegister.className = "flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition";
+        btnSubmit.innerText = "Criar Minha Conta";
+        subtitle.innerText = "Crie seu espaço próprio e 100% isolado";
+        nameContainer.classList.remove('hidden');
+      } else if (mode === 'invited') {
+        btnInvite.className = "flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition";
+        btnSubmit.innerText = "Validar Convite e Acessar";
+        subtitle.innerText = "Acesse o espaço de quem te enviou um convite";
+        nameContainer.classList.remove('hidden');
+      }
+    }
+
+    // AUTENTICAÇÃO ONLINE VIA SUPABASE
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      const password = document.getElementById('login-password').value;
+      const name = document.getElementById('login-name').value.trim();
+      const errorEl = document.getElementById('login-error');
+      const successEl = document.getElementById('login-success');
+
+      errorEl.classList.add('hidden');
+      successEl.classList.add('hidden');
+
+      if (authMode === 'login') {
+        const { data: users, error } = await db.from('users').select('*').eq('email', email);
+
+        if (error || !users || users.length === 0) {
+          errorEl.innerHTML = `E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar Conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou Convidado"</strong>.`;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        const dbUser = users[0];
+        if (dbUser.password !== password) {
+          errorEl.innerText = 'Senha incorreta! Verifique sua senha e tente novamente.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        currentUser = { email: dbUser.email, name: dbUser.name };
+        localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+        await resolveWorkspaceAndInit();
+      } 
+      else if (authMode === 'register') {
+        const { data: existing } = await db.from('users').select('email').eq('email', email);
+        if (existing && existing.length > 0) {
+          errorEl.innerText = 'Este e-mail já possui uma conta cadastrada. Por favor, acesse a aba "Entrar".';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        const userName = name || email.split('@')[0];
+        const { error: insertErr } = await db.from('users').insert({ email, name: userName, password });
+
+        if (insertErr) {
+          errorEl.innerText = 'Erro ao criar conta no servidor: ' + insertErr.message;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        currentUser = { email, name: userName };
+        localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+
+        successEl.innerText = 'Conta criada com sucesso! Acessando seu espaço...';
+        successEl.classList.remove('hidden');
+
+        setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
+      }
+      else if (authMode === 'invited') {
+        let ownerFound = null;
+
+        try {
+          const { data: inviteData } = await db.from('invitations')
+            .select('owner_email')
+            .eq('invited_email', email)
+            .limit(1);
+          if (inviteData && inviteData.length > 0 && inviteData[0].owner_email) {
+            ownerFound = inviteData[0].owner_email.toLowerCase();
+          }
+        } catch (err) {
+          console.warn('Erro ao verificar convite no Supabase:', err);
+        }
+
+        if (!ownerFound) {
+          errorEl.innerHTML = `<strong>Nenhum convite encontrado!</strong><br>O e-mail <em>${escapeHTML(email)}</em> ainda não foi convidado por nenhuma conta.<br><br>Se deseja criar seu próprio espaço, clique em <strong>"Criar Conta"</strong>.`;
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        const userName = name || email.split('@')[0];
+        await db.from('users').upsert({ email, name: userName, password }, { onConflict: 'email' });
+
+        currentUser = { email, name: userName };
+        localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+
+        successEl.innerText = `Convite confirmado! Acessando o espaço de ${ownerFound}...`;
+        successEl.classList.remove('hidden');
+
+        setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
+      }
+    });
+
+    // DETERMINA DE QUEM É O ESPAÇO COMPARTILHADO
+    async function resolveWorkspaceAndInit() {
+      let ownerFound = null;
+
+      try {
+        const { data: inviteData } = await db.from('invitations')
+          .select('owner_email')
+          .eq('invited_email', currentUser.email)
+          .limit(1);
+        if (inviteData && inviteData.length > 0 && inviteData[0].owner_email) {
+          ownerFound = inviteData[0].owner_email.toLowerCase();
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+
+      currentWorkspaceOwner = ownerFound ? ownerFound : currentUser.email.toLowerCase();
+
+      const userNameDisplay = currentUser.name || currentUser.email;
+      document.getElementById('user-display').innerText = userNameDisplay;
+      document.getElementById('dropdown-user-name').innerText = userNameDisplay;
+      document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
+      
+      document.getElementById('login-view').classList.add('hidden');
+      document.getElementById('dashboard-view').classList.remove('hidden');
+
+      await loadCategoriesFromDB();
+      await loadTransactionsFromDB();
+    }
+
+    function logout() {
+      localStorage.removeItem('app_current_user');
+      currentUser = null;
+      currentWorkspaceOwner = null;
+      document.getElementById('login-email').value = '';
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-name').value = '';
+      document.getElementById('dashboard-view').classList.add('hidden');
+      document.getElementById('login-view').classList.remove('hidden');
+      toggleAuthMode('login');
+    }
+
+    // LÓGICA DE GERENCIAMENTO DE CATEGORIAS
+    async function loadCategoriesFromDB() {
+      if (!currentWorkspaceOwner) return;
+
+      const { data, error } = await db.from('categories')
+        .select('*')
+        .eq('owner_email', currentWorkspaceOwner)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.warn('Erro ao buscar categorias:', error);
+        return;
+      }
+
+      userCategories = data || [];
+      populateCategoryDropdown();
+      renderCategoriesList();
+    }
+
+    function populateCategoryDropdown() {
+      const select = document.getElementById('tx-category');
+      if (!select) return;
+
+      const currentSelected = select.value;
+      select.innerHTML = '';
+
+      const defaults = [
+        'Açougue', 'Almoço', 'Café/Lanches', 'Feira', 'Padaria', 'Restaurante', 'Supermercado',
+        'Água', 'Aluguel', 'Condomínio', 'Gás', 'Internet', 'Luz', 'Telefone',
+        'Escola', 'Faculdade', 'Material Escolar', 'Salário', 'Transferência', 'Outros'
+      ];
+
+      const customNames = userCategories.map(c => c.name);
+      const allCategories = Array.from(new Set([...defaults, ...customNames])).sort();
+
+      allCategories.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+
+      if (currentSelected && allCategories.includes(currentSelected)) {
+        select.value = currentSelected;
+      }
+    }
+
+    function renderCategoriesList() {
+      const container = document.getElementById('categories-list-container');
+      if (!container) return;
+
+      if (userCategories.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 py-2 text-center">Nenhuma categoria personalizada cadastrada.</p>`;
+        return;
+      }
+
+      container.innerHTML = userCategories.map(cat => `
+        <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200">
+          <div>
+            <span class="text-xs font-semibold text-slate-800">${escapeHTML(cat.name)}</span>
+            <span class="ml-2 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${cat.type === 'income' ? 'bg-emerald-100 text-emerald-700' : (cat.type === 'expense' ? 'bg-rose-100 text-rose-700' : 'bg-brand-100 text-brand-700')}">
+              ${cat.type === 'income' ? 'Receita' : (cat.type === 'expense' ? 'Despesa' : 'Ambos')}
+            </span>
+          </div>
+          <div class="flex items-center space-x-1">
+            <button onclick="editCategory('${cat.id}', '${escapeHTML(cat.name).replace(/'/g, "\\'")}', '${cat.type}')" title="Editar" class="p-1 hover:bg-slate-200 rounded-md text-slate-500 hover:text-slate-800 transition">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deleteCategory('${cat.id}')" title="Excluir" class="p-1 hover:bg-rose-100 rounded-md text-slate-500 hover:text-rose-600 transition">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    function openCategoriesModal() {
+      resetCategoryForm();
+      document.getElementById('categories-modal').classList.remove('hidden');
+    }
+
+    function closeCategoriesModal() {
+      document.getElementById('categories-modal').classList.add('hidden');
+    }
+
+    function resetCategoryForm() {
+      document.getElementById('cat-id').value = '';
+      document.getElementById('cat-name').value = '';
+      document.getElementById('cat-type').value = 'expense';
+      document.getElementById('btn-save-cat').innerText = 'Adicionar Categoria';
+      document.getElementById('btn-cancel-cat').classList.add('hidden');
+    }
+
+    function editCategory(id, name, type) {
+      document.getElementById('cat-id').value = id;
+      document.getElementById('cat-name').value = name;
+      document.getElementById('cat-type').value = type;
+      document.getElementById('btn-save-cat').innerText = 'Atualizar Categoria';
+      document.getElementById('btn-cancel-cat').classList.remove('hidden');
+    }
+
+    async function saveCategory(e) {
+      e.preventDefault();
+      const id = document.getElementById('cat-id').value;
+      const name = document.getElementById('cat-name').value.trim();
+      const type = document.getElementById('cat-type').value;
+
+      if (!name) return;
+
+      if (id) {
+        await db.from('categories').update({ name, type }).eq('id', id);
+      } else {
+        await db.from('categories').insert({
+          name,
+          type,
+          owner_email: currentWorkspaceOwner
+        });
+      }
+
+      resetCategoryForm();
+      await loadCategoriesFromDB();
+    }
+
+    async function deleteCategory(id) {
+      if (!confirm('Deseja realmente remover esta categoria personalizada?')) return;
+      await db.from('categories').delete().eq('id', id);
+      await loadCategoriesFromDB();
+    }
+
+    // CARREGAR TRANSAÇÕES UNIFICADAS DO ESPAÇO
+    async function loadTransactionsFromDB() {
+      if (!currentWorkspaceOwner) return;
+
+      const { data, error } = await db.from('transactions')
+        .select('*')
+        .eq('owner_email', currentWorkspaceOwner)
+        .order('due_date', { ascending: true })
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar lançamentos:', error);
+        return;
+      }
+
+      transactions = (data || []).map(item => ({
+        id: item.id,
+        description: item.description,
+        amount: parseFloat(item.amount),
+        type: item.type,
+        category: item.category,
+        dueDate: item.due_date,
+        status: item.status,
+        isRecurring: item.is_recurring,
+        userEmail: item.user_email,
+        ownerEmail: item.owner_email
+      }));
+
+      transactions.sort((a, b) => {
+        if (a.dueDate !== b.dueDate) {
+          return a.dueDate.localeCompare(b.dueDate);
+        }
+        return String(a.id).localeCompare(String(b.id));
+      });
+
+      renderDashboard();
+    }
+
+    // ABRIR E GERENCIAR MODAL DE CONVITE
+    async function openShareModal() {
+      await renderSharedUsersList();
+      document.getElementById('share-modal').classList.remove('hidden');
+      document.getElementById('invite-status-box').classList.add('hidden');
+    }
+
+    function closeShareModal() {
+      document.getElementById('share-modal').classList.add('hidden');
+    }
+
+    async function renderSharedUsersList() {
+      const container = document.getElementById('shared-users-list');
+      let list = [];
+
+      try {
+        const { data: invites } = await db.from('invitations')
+          .select('invited_email')
+          .eq('owner_email', currentUser.email);
+
+        if (invites && invites.length > 0) {
+          list = invites.map(inv => ({ owner_email: currentUser.email, invited_email: inv.invited_email }));
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar lista de convites:', err);
+      }
+
+      if (list.length === 0) {
+        container.innerHTML = `<p class="text-slate-400 text-[11px] py-1.5">Nenhum convidado adicionado ao seu espaço.</p>`;
+        return;
+      }
+
+      container.innerHTML = list.map(inv => `
+        <div class="flex items-center justify-between py-1.5 border-b border-slate-100">
+          <span class="text-slate-700 font-medium flex items-center gap-1">
+            <i data-lucide="user-check" class="w-3.5 h-3.5 text-emerald-600"></i> ${escapeHTML(inv.invited_email)}
+          </span>
+          <button onclick="removeSharedUser('${escapeHTML(inv.invited_email)}')" title="Remover permissão" class="p-1 text-rose-500 hover:bg-rose-50 rounded-md transition">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join('');
+
+      lucide.createIcons();
+    }
+
+    async function addSharedUser(e) {
+      e.preventDefault();
+      const input = document.getElementById('share-email-input');
+      const email = input.value.trim().toLowerCase();
+      if (!email) return;
+
+      if (email === currentUser.email) {
+        alert('Você é o dono principal deste espaço.');
         return;
       }
 
       try {
-        const { data, error } = await supabaseClient
-          .from('transactions')
-          .select('*')
-          .order('date', { ascending: false });
-
-        if (error) throw error;
-
-        transactions = data || [];
-        render();
-        syncEl.innerText = 'Conectado';
+        await db.from('invitations').upsert({
+          owner_email: currentUser.email,
+          invited_email: email
+        }, { onConflict: 'owner_email,invited_email' });
       } catch (err) {
-        console.error('Erro ao buscar lançamentos:', err);
-        syncEl.innerText = 'Erro na Conexão';
+        console.warn('Erro ao salvar convite no Supabase:', err);
       }
+
+      const appLink = window.location.href;
+      const subject = encodeURIComponent("Convite para Espaço de Controle Financeiro");
+      const body = encodeURIComponent(
+        `Olá!\n\n${currentUser.name || currentUser.email} te convidou para gerenciar as finanças de forma compartilhada no sistema Controle Financeiro.\n\n` +
+        `Para acessar:\n` +
+        `1. Acesse: ${appLink}\n` +
+        `2. Clique na aba "Sou Convidado"\n` +
+        `3. Digite seu e-mail (${email}) e escolha uma senha.\n\n` +
+        `Atenciosamente,`
+      );
+
+      const mailtoUrl = `mailto:${email}?subject=${subject}&body=${body}`;
+      window.location.href = mailtoUrl;
+
+      const statusBox = document.getElementById('invite-status-box');
+      const statusMsg = document.getElementById('invite-status-msg');
+      const mailtoBtn = document.getElementById('btn-mailto-link');
+      const directAction = document.getElementById('direct-email-action');
+
+      statusMsg.innerText = `Autorização cadastrada para ${email}! Abrindo seu gerenciador de e-mail...`;
+      mailtoBtn.href = mailtoUrl;
+      directAction.classList.remove('hidden');
+      statusBox.classList.remove('hidden');
+
+      input.value = '';
+      await renderSharedUsersList();
     }
 
-    // ⚡ 1. CONFIRMAÇÃO RÁPIDA / ALTERAÇÃO DE STATUS (OPTIMISTIC UI)
-    async function togglePaidStatus(id) {
-      const index = transactions.findIndex(t => t.id === id);
-      if (index === -1) return;
+    async function removeSharedUser(email) {
+      try {
+        await db.from('invitations')
+          .delete()
+          .eq('owner_email', currentUser.email)
+          .eq('invited_email', email);
+      } catch(e) {}
 
-      const item = transactions[index];
-      const previousStatus = item.is_paid;
-      const newStatus = !previousStatus;
+      await renderSharedUsersList();
+    }
 
-      // 1. Atualiza no estado local IMEDIATAMENTE (0ms lag)
-      transactions[index].is_paid = newStatus;
+    document.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+      const today = new Date();
+      document.getElementById('tx-date').value = today.toISOString().split('T')[0];
       
-      // 2. Renderiza a tela na hora
-      render();
+      const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      document.getElementById('month-filter').value = currentYearMonth;
 
-      // 3. Atualiza no Supabase em segundo plano sem travar a interface
-      if (supabaseClient) {
-        try {
-          const { error } = await supabaseClient
-            .from('transactions')
-            .update({ is_paid: newStatus })
-            .eq('id', id);
+      const savedCurrent = localStorage.getItem('app_current_user');
+      if (savedCurrent) {
+        currentUser = JSON.parse(savedCurrent);
+        await resolveWorkspaceAndInit();
+      }
+    });
 
-          if (error) throw error;
-        } catch (err) {
-          console.error('Erro ao atualizar status no servidor:', err);
-          // Reverte o estado caso falhe no banco
-          transactions[index].is_paid = previousStatus;
-          render();
-          alert('Erro ao sincronizar status com o servidor. Ação revertida.');
-        }
+    function changeMonth(delta) {
+      const monthInput = document.getElementById('month-filter');
+      if (!monthInput.value) return;
+
+      const [yearStr, monthStr] = monthInput.value.split('-');
+      let year = parseInt(yearStr, 10);
+      let month = parseInt(monthStr, 10) - 1 + delta;
+
+      const targetDate = new Date(year, month, 1);
+      const newYear = targetDate.getFullYear();
+      const newMonth = String(targetDate.getMonth() + 1).padStart(2, '0');
+
+      monthInput.value = `${newYear}-${newMonth}`;
+      renderDashboard();
+    }
+
+    function switchTab(tabName) {
+      const tabDashboard = document.getElementById('tab-dashboard');
+      const tabTransactions = document.getElementById('tab-transactions');
+      const btnDashboard = document.getElementById('btn-tab-dashboard');
+      const btnTransactions = document.getElementById('btn-tab-transactions');
+
+      if (tabName === 'dashboard') {
+        tabDashboard.classList.remove('hidden');
+        tabTransactions.classList.add('hidden');
+        btnDashboard.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
+        btnTransactions.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
+      } else {
+        tabDashboard.classList.add('hidden');
+        tabTransactions.classList.remove('hidden');
+        btnTransactions.className = "px-3 py-1 rounded-md text-xs font-semibold transition bg-white text-brand-600 shadow-sm flex items-center gap-1.5";
+        btnDashboard.className = "px-3 py-1 rounded-md text-xs font-semibold transition text-slate-600 hover:text-slate-900 flex items-center gap-1.5";
       }
     }
 
-    // ⚡ 2. EXCLUSÃO RÁPIDA (OPTIMISTIC UI)
-    async function deleteTransaction(id) {
-      const index = transactions.findIndex(t => t.id === id);
-      if (index === -1) return;
+    function openProfileModal() {
+      document.getElementById('profile-name').value = currentUser.name || '';
+      document.getElementById('profile-email').value = currentUser.email || '';
+      document.getElementById('profile-password').value = '';
+      document.getElementById('profile-modal').classList.remove('hidden');
+    }
 
-      const item = transactions[index];
+    function closeProfileModal() {
+      document.getElementById('profile-modal').classList.add('hidden');
+    }
 
-      // Trava de segurança opcional se já estiver pago
-      if (item.is_paid) {
-        if (!confirm('Este lançamento já consta como CONCLUÍDO. Deseja mesmo excluí-lo?')) {
+    async function saveProfile(e) {
+      e.preventDefault();
+      const newName = document.getElementById('profile-name').value.trim();
+      const newPassword = document.getElementById('profile-password').value;
+
+      currentUser.name = newName;
+      
+      const updateData = { name: newName };
+      if (newPassword && newPassword.trim() !== '') {
+        updateData.password = newPassword;
+      }
+
+      await db.from('users').update(updateData).eq('email', currentUser.email);
+
+      localStorage.setItem('app_current_user', JSON.stringify(currentUser));
+      document.getElementById('user-display').innerText = currentUser.name;
+      document.getElementById('dropdown-user-name').innerText = currentUser.name;
+      closeProfileModal();
+      alert('Perfil atualizado com sucesso!');
+    }
+
+    function openImportModal() {
+      document.getElementById('import-modal').classList.remove('hidden');
+      document.getElementById('import-status').classList.add('hidden');
+    }
+
+    function closeImportModal() {
+      document.getElementById('import-modal').classList.add('hidden');
+    }
+
+    async function processImportFile() {
+      const fileInput = document.getElementById('file-input');
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonRows = XLSX.utils.sheet_to_json(firstSheet);
+
+          const newTransactions = [];
+          for (const row of jsonRows) {
+            const description = row['Descrição'] || row['Descricao'] || row['description'] || 'Importado';
+            const rawAmount = parseFloat(row['Valor'] || row['valor'] || row['amount'] || 0);
+            if (rawAmount === 0 || isNaN(rawAmount)) continue;
+
+            let type = rawAmount < 0 ? 'expense' : 'income';
+            const rawDate = row['Data Ocorrência'] || row['Data'] || row['due_date'];
+            let dueDate = new Date().toISOString().split('T')[0];
+            if (rawDate) {
+              dueDate = rawDate instanceof Date ? rawDate.toISOString().split('T')[0] : String(rawDate).split('T')[0];
+            }
+
+            newTransactions.push({
+              description,
+              amount: Math.abs(rawAmount),
+              type,
+              category: row['Categoria'] || 'Outros',
+              due_date: dueDate,
+              status: 'pending',
+              user_email: currentUser.email,
+              owner_email: currentWorkspaceOwner
+            });
+          }
+
+          if (newTransactions.length > 0) {
+            await db.from('transactions').insert(newTransactions);
+            document.getElementById('import-status').innerText = `${newTransactions.length} lançamentos importados no espaço!`;
+            document.getElementById('import-status').classList.remove('hidden');
+            setTimeout(() => {
+              closeImportModal();
+              loadTransactionsFromDB();
+            }, 1200);
+          }
+        } catch (err) {
+          console.error(err);
+          alert('Erro ao importar o arquivo.');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // ABRIR EDIÇÃO COM ESCOPO DE FIXO
+    function openModal(editId = null) {
+      pendingEditId = editId;
+      editScope = 'single';
+
+      if (editId) {
+        const item = transactions.find(t => t.id == editId);
+        if (item && item.isRecurring) {
+          document.getElementById('recurring-edit-modal').classList.remove('hidden');
+          lucide.createIcons();
           return;
         }
+      }
+
+      showTransactionModal(editId);
+    }
+
+    function closeRecurringModal() {
+      document.getElementById('recurring-edit-modal').classList.add('hidden');
+      pendingEditId = null;
+    }
+
+    function confirmEditScope(scope) {
+      editScope = scope;
+      document.getElementById('recurring-edit-modal').classList.add('hidden');
+      showTransactionModal(pendingEditId);
+    }
+
+    function showTransactionModal(editId = null) {
+      const modal = document.getElementById('modal');
+      const form = document.getElementById('transaction-form');
+      form.reset();
+      document.getElementById('tx-id').value = '';
+      document.getElementById('modal-title').innerText = editId ? 'Editar Transação' : 'Nova Transação';
+
+      populateCategoryDropdown();
+
+      if (editId) {
+        const item = transactions.find(t => t.id == editId);
+        if (item) {
+          document.getElementById('tx-id').value = item.id;
+          document.getElementById('tx-description').value = item.description;
+          document.getElementById('tx-amount').value = formatNumberToBRL(item.amount);
+          document.getElementById('tx-date').value = item.dueDate;
+          document.getElementById('tx-category').value = item.category;
+          document.getElementById('tx-status').value = item.status;
+          document.getElementById('tx-recurring').checked = item.isRecurring || false;
+          
+          if (item.type === 'income') document.getElementById('type-income').checked = true;
+          else document.getElementById('type-expense').checked = true;
+        }
+      }
+      toggleFormFields();
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    function toggleFormFields() {
+      const isRecurring = document.getElementById('tx-recurring').checked;
+      const installmentsContainer = document.getElementById('installments-container');
+      if (isRecurring) {
+        installmentsContainer.classList.add('hidden');
+        document.getElementById('tx-installments').value = '1';
       } else {
-        if (!confirm(`Deseja mesmo excluir "${item.description}"?`)) return;
-      }
-
-      // Salva uma cópia do item para rollback
-      const removedItem = transactions[index];
-      const removedIndex = index;
-
-      // 1. Remove do array local IMEDIATAMENTE
-      transactions.splice(index, 1);
-
-      // 2. Re-renderiza a tela na hora
-      render();
-
-      // 3. Deleta no banco em segundo plano
-      if (supabaseClient) {
-        try {
-          const { error } = await supabaseClient
-            .from('transactions')
-            .delete()
-            .eq('id', id);
-
-          if (error) throw error;
-        } catch (err) {
-          console.error('Erro ao excluir no servidor:', err);
-          // Reverte re-inserindo o item se houver falha
-          transactions.splice(removedIndex, 0, removedItem);
-          render();
-          alert('Não foi possível excluir o item do servidor. O lançamento foi restaurado.');
-        }
+        installmentsContainer.classList.remove('hidden');
       }
     }
 
-    // ADICIONAR NOVO LANÇAMENTO
-    async function handleAddTransaction(e) {
+    function addMonthsToDate(dateStr, monthsToAdd) {
+      const parts = dateStr.split('-');
+      let year = parseInt(parts[0], 10);
+      let month = parseInt(parts[1], 10) - 1;
+      let day = parseInt(parts[2], 10);
+
+      let targetTotalMonths = month + monthsToAdd;
+      let targetYear = year + Math.floor(targetTotalMonths / 12);
+      let targetMonth = (targetTotalMonths % 12 + 12) % 12;
+
+      let lastDay = new Date(targetYear, targetMonth + 1, 0).getDate();
+      let targetDay = Math.min(day, lastDay);
+
+      return `${targetYear}-${String(targetMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+    }
+
+    // ADICIONAR / EDITAR TRANSAÇÃO (OTIMIZADO)
+    document.getElementById('transaction-form').addEventListener('submit', async (e) => {
       e.preventDefault();
+      
+      const submitBtn = document.getElementById('btn-submit-tx');
+      const originalText = submitBtn ? submitBtn.innerHTML : 'Salvar Lançamento';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Salvando...';
+      }
 
-      const description = document.getElementById('descInput').value.trim();
-      const amount = parseFloat(document.getElementById('amountInput').value);
-      const type = document.getElementById('typeInput').value;
-      const category = document.getElementById('categoryInput').value;
-      const date = document.getElementById('dateInput').value;
+      try {
+        const id = document.getElementById('tx-id').value;
+        const type = document.querySelector('input[name="type"]:checked').value;
+        const description = document.getElementById('tx-description').value.trim();
+        const totalAmount = parseBRLToFloat(document.getElementById('tx-amount').value);
+        const dueDate = document.getElementById('tx-date').value;
+        const category = document.getElementById('tx-category').value;
+        const status = document.getElementById('tx-status').value;
+        const isRecurring = document.getElementById('tx-recurring').checked;
+        const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
-      if (!description || isNaN(amount) || !date) return;
+        if (id) {
+          const origItem = transactions.find(t => t.id == id);
 
-      const tempId = 'temp-' + Date.now();
-      const newTx = {
-        id: tempId,
-        description,
-        amount,
-        type,
-        category,
-        date,
-        is_paid: false
-      };
+          if (editScope === 'future' && origItem && origItem.isRecurring) {
+            const futureItems = transactions.filter(t => 
+              t.ownerEmail === currentWorkspaceOwner &&
+              t.isRecurring &&
+              t.description === origItem.description &&
+              t.dueDate >= origItem.dueDate
+            );
 
-      // Inclusão otimista
-      transactions.unshift(newTx);
-      render();
+            futureItems.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || String(a.id).localeCompare(String(b.id)));
 
-      // Reset do formulário
-      document.getElementById('descInput').value = '';
-      document.getElementById('amountInput').value = '';
+            const updateRows = futureItems.map((fItem, i) => ({
+              id: fItem.id,
+              description: description,
+              amount: totalAmount,
+              type: type,
+              category: category,
+              due_date: addMonthsToDate(dueDate, i),
+              status: (fItem.id == origItem.id) ? status : fItem.status,
+              is_recurring: isRecurring,
+              user_email: fItem.userEmail || currentUser.email,
+              owner_email: currentWorkspaceOwner
+            }));
 
-      if (supabaseClient) {
-        try {
-          const { data, error } = await supabaseClient
-            .from('transactions')
-            .insert([{ description, amount, type, category, date, is_paid: false }])
-            .select();
-
-          if (error) throw error;
-
-          if (data && data[0]) {
-            const idx = transactions.findIndex(t => t.id === tempId);
-            if (idx !== -1) transactions[idx] = data[0];
-            render();
+            const { error: batchErr } = await db.from('transactions').upsert(updateRows);
+            
+            if (batchErr) {
+              console.warn('Fallback em paralelo ativado:', batchErr);
+              await Promise.all(updateRows.map(row => 
+                db.from('transactions').update({
+                  description: row.description,
+                  amount: row.amount,
+                  type: row.type,
+                  category: row.category,
+                  due_date: row.due_date,
+                  status: row.status,
+                  is_recurring: row.is_recurring
+                }).eq('id', row.id)
+              ));
+            }
+          } else {
+            await db.from('transactions').update({
+              description, 
+              amount: totalAmount, 
+              type, 
+              category, 
+              due_date: dueDate, 
+              status, 
+              is_recurring: isRecurring
+            }).eq('id', id);
           }
-        } catch (err) {
-          console.error('Erro ao salvar lançamento:', err);
-          transactions = transactions.filter(t => t.id !== tempId);
-          render();
-          alert('Erro ao salvar novo lançamento no servidor.');
+        } else {
+          const newRows = [];
+          if (isRecurring) {
+            for (let i = 0; i < 24; i++) {
+              newRows.push({
+                description,
+                amount: totalAmount,
+                type,
+                category,
+                due_date: addMonthsToDate(dueDate, i),
+                status: i === 0 ? status : 'pending',
+                is_recurring: true,
+                user_email: currentUser.email,
+                owner_email: currentWorkspaceOwner
+              });
+            }
+          } else if (installments > 1) {
+            const installmentValue = totalAmount / installments;
+            for (let i = 0; i < installments; i++) {
+              newRows.push({
+                description: `${description} (${i + 1}/${installments})`,
+                amount: installmentValue,
+                type,
+                category,
+                due_date: addMonthsToDate(dueDate, i),
+                status: i === 0 ? status : 'pending',
+                is_recurring: false,
+                user_email: currentUser.email,
+                owner_email: currentWorkspaceOwner
+              });
+            }
+          } else {
+            newRows.push({
+              description,
+              amount: totalAmount,
+              type,
+              category,
+              due_date: dueDate,
+              status,
+              is_recurring: false,
+              user_email: currentUser.email,
+              owner_email: currentWorkspaceOwner
+            });
+          }
+          await db.from('transactions').insert(newRows);
         }
+
+        closeModal();
+        await loadTransactionsFromDB();
+      } catch (err) {
+        console.error('Erro ao salvar lançamento:', err);
+        alert('Ocorreu um erro ao salvar o lançamento.');
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalText;
+        }
+      }
+    });
+
+    // ALTERAR STATUS (OTIMIZAÇÃO OPTIMISTIC UI - RESPOSTA INSTANTÂNEA EM <1MS)
+    async function toggleStatus(id) {
+      const item = transactions.find(t => t.id == id);
+      if (!item) return;
+
+      const previousStatus = item.status;
+      const newStatus = previousStatus === 'completed' ? 'pending' : 'completed';
+
+      // 1. Atualização Otimista local instantânea
+      item.status = newStatus;
+      renderDashboard();
+
+      // 2. Envio da alteração para o Supabase em segundo plano
+      try {
+        const { error } = await db.from('transactions').update({ status: newStatus }).eq('id', id);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Erro ao atualizar status no servidor:', err);
+        // Reverte se a conexão falhar
+        item.status = previousStatus;
+        renderDashboard();
+        alert('Falha de conexão ao salvar alteração. O lançamento foi revertido ao estado anterior.');
       }
     }
 
-    // RENDERIZAÇÃO DA TELA E CÁLCULOS
-    function render() {
-      const search = document.getElementById('searchInput').value.toLowerCase();
-      const filterType = document.getElementById('filterType').value;
-      const filterStatus = document.getElementById('filterStatus').value;
+    function deleteTransaction(id) {
+      const item = transactions.find(t => t.id == id);
+      if (!item) return;
 
-      // Filtragem local instantânea
-      const filtered = transactions.filter(t => {
-        const matchesSearch = t.description.toLowerCase().includes(search) || t.category.toLowerCase().includes(search);
-        const matchesType = filterType === 'all' || t.type === filterType;
-        let matchesStatus = true;
-        if (filterStatus === 'paid') matchesStatus = t.is_paid === true;
-        if (filterStatus === 'pending') matchesStatus = t.is_paid === false;
+      const match = item.description.match(/^(.+)\s\(\d+\/\d+\)$/);
 
-        return matchesSearch && matchesType && matchesStatus;
+      if (match) {
+        const baseTitle = match[1];
+        const relatedParcelas = transactions.filter(t => {
+          const m = t.description.match(/^(.+)\s\(\d+\/\d+\)$/);
+          return m && m[1] === baseTitle;
+        });
+
+        const hasPaid = relatedParcelas.some(t => t.status === 'completed');
+        if (hasPaid) {
+          alert('Não é possível excluir este parcelamento pois existe pelo menos uma parcela paga/concluída.');
+          return;
+        }
+
+        pendingDeleteIds = relatedParcelas.map(t => t.id);
+      } else {
+        if (item.status === 'completed') {
+          alert('Lançamentos concluídos não podem ser excluídos diretamente. Altere para Pendente primeiro.');
+          return;
+        }
+        pendingDeleteIds = [item.id];
+      }
+
+      const msgEl = document.getElementById('delete-modal-msg');
+      if (msgEl) {
+        msgEl.innerText = pendingDeleteIds.length > 1
+          ? `Esta ação removerá todas as ${pendingDeleteIds.length} parcelas do espaço compartilhado.`
+          : 'Esta ação removerá o lançamento do espaço compartilhado.';
+      }
+
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+
+    function closeDeleteModal() {
+      pendingDeleteIds = [];
+      document.getElementById('delete-modal').classList.add('hidden');
+    }
+
+    // EXCLUIR TRANSAÇÕES (OTIMIZAÇÃO OPTIMISTIC UI - RESPOSTA INSTANTÂNEA)
+    async function confirmDeleteTransaction() {
+      if (!pendingDeleteIds || pendingDeleteIds.length === 0) return;
+
+      const idsToDelete = [...pendingDeleteIds];
+      closeDeleteModal();
+
+      // Backup do estado local para reversão caso ocorra erro no servidor
+      const backupTransactions = [...transactions];
+
+      // 1. Remoção Otimista local instantânea na tela
+      transactions = transactions.filter(t => !idsToDelete.includes(t.id));
+      renderDashboard();
+
+      // 2. Processa exclusão no Supabase em segundo plano
+      try {
+        const { error } = await db.from('transactions').delete().in('id', idsToDelete);
+        if (error) throw error;
+      } catch (err) {
+        console.error('Erro ao excluir lançamento no servidor:', err);
+        // Reverte e restaura o estado original caso falhe
+        transactions = backupTransactions;
+        renderDashboard();
+        alert('Ocorreu um erro de rede ao excluir. Os lançamentos foram restaurados.');
+      }
+    }
+
+    function renderDashboard() {
+      if (!currentUser) return;
+      const selectedMonth = document.getElementById('month-filter').value;
+      const includePrevious = document.getElementById('chk-include-previous').checked;
+
+      let previousBalance = 0;
+      transactions.forEach(t => {
+        if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
+          if (t.type === 'income') previousBalance += t.amount;
+          else previousBalance -= t.amount;
+        }
       });
 
-      // Cálculos de Resumo
-      let totalIncome = 0;
-      let totalExpense = 0;
-      let totalPending = 0;
+      const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
+
+      let monthIncome = 0;
+      let monthExpense = 0;
       const categoryTotals = {};
 
-      filtered.forEach(t => {
-        const val = Number(t.amount) || 0;
-        
+      monthTransactions.forEach(t => {
         if (t.type === 'income') {
-          if (t.is_paid) totalIncome += val;
-          else totalPending += val;
+          if (t.status === 'completed') monthIncome += t.amount;
         } else {
-          if (t.is_paid) {
-            totalExpense += val;
-            categoryTotals[t.category] = (categoryTotals[t.category] || 0) + val;
-          } else {
-            totalPending -= val;
-          }
+          if (t.status === 'completed') monthExpense += t.amount;
+          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
         }
       });
 
-      const totalBalance = totalIncome - totalExpense;
+      const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
 
-      // Atualiza KPI Cards
-      document.getElementById('totalIncome').innerText = formatBRL(totalIncome);
-      document.getElementById('totalExpense').innerText = formatBRL(totalExpense);
-      document.getElementById('totalBalance').innerText = formatBRL(totalBalance);
-      document.getElementById('totalPending').innerText = formatBRL(totalPending);
-      document.getElementById('itemCount').innerText = `${filtered.length} itens`;
+      document.getElementById('txt-previous-balance').innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      document.getElementById('txt-month-income').innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      
+      const totalEl = document.getElementById('txt-total-balance');
+      totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+      totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
 
-      // Renderiza Tabela
-      renderList(filtered);
-
-      // Renderiza/Atualiza Gráfico
+      renderDashboardLists(selectedMonth);
+      renderFullHistoryTable(monthTransactions);
       renderCategoryChart(categoryTotals);
 
-      // Atualiza ícones Lucide
-      if (typeof lucide !== 'undefined') {
-        lucide.createIcons();
-      }
+      lucide.createIcons();
     }
 
-    // RENDERIZA TABELA DE LANÇAMENTOS
-    function renderList(items) {
-      const listEl = document.getElementById('transactionList');
-      listEl.innerHTML = '';
+    function renderDashboardLists(selectedMonth) {
+      const previousList = document.getElementById('list-previous-pending');
+      const nextList = document.getElementById('list-next-pending');
+      const alertsList = document.getElementById('list-alerts');
 
-      if (items.length === 0) {
-        listEl.innerHTML = `
-          <tr>
-            <td colspan="6" class="p-8 text-center text-slate-400">
-              Nenhum lançamento encontrado.
-            </td>
+      previousList.innerHTML = '';
+      nextList.innerHTML = '';
+      alertsList.innerHTML = '';
+
+      const todayObj = new Date();
+      todayObj.setHours(0, 0, 0, 0);
+
+      let prevIdx = 0, nextIdx = 0, alertIdx = 0;
+
+      transactions.forEach(t => {
+        if (t.status !== 'pending') return;
+
+        const valFormatted = (t.type === 'expense' ? '-' : '+') + `R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        const valColor = t.type === 'expense' ? 'text-rose-600 font-semibold' : 'text-emerald-600 font-semibold';
+
+        const getRowHTML = (idx) => `
+          <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'} hover:bg-slate-100/70 transition border-b border-slate-100">
+            <td class="py-1.5 px-2 font-medium text-slate-800">${escapeHTML(t.description)}</td>
+            <td class="py-1.5 px-2 text-slate-500">${escapeHTML(t.dueDate)}</td>
+            <td class="py-1.5 px-2 text-right ${valColor}">${valFormatted}</td>
           </tr>
         `;
-        return;
-      }
 
-      items.forEach(t => {
+        if (t.dueDate < selectedMonth + '-01') {
+          previousList.innerHTML += getRowHTML(prevIdx++);
+        } else if (t.dueDate >= selectedMonth + '-01') {
+          nextList.innerHTML += getRowHTML(nextIdx++);
+        }
+
+        const dueObj = new Date(t.dueDate + 'T00:00:00');
+        const diffDays = Math.ceil((dueObj - todayObj) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 5) {
+          alertsList.innerHTML += getRowHTML(alertIdx++);
+        }
+      });
+    }
+
+    function renderFullHistoryTable(monthTransactions) {
+      const listEl = document.getElementById('transactions-list');
+      listEl.innerHTML = '';
+
+      monthTransactions.forEach((t, index) => {
+        const isIncome = t.type === 'income';
+        const isPaid = t.status === 'completed';
+        const isOtherUser = t.userEmail && t.userEmail !== currentUser.email;
+
+        // ZEBREAMENTO E DIFERENCIAÇÃO VISUAL DAS LINHAS
+        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
+        const borderIndicator = isIncome ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500';
+
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50/80 transition-colors';
-
-        const isPaid = !!t.is_paid;
-        const formattedDate = formatDate(t.date);
-        const formattedAmount = formatBRL(t.amount);
-
+        tr.className = `${bgClass} ${borderIndicator} hover:bg-indigo-50/60 transition border-b border-slate-200/60`;
         tr.innerHTML = `
-          <td class="p-3 text-slate-500 whitespace-nowrap">${formattedDate}</td>
-          <td class="p-3 font-medium text-slate-800">${escapeHtml(t.description)}</td>
-          <td class="p-3">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600">
-              ${escapeHtml(t.category)}
+          <td class="py-2.5 px-3 font-semibold text-slate-800 flex items-center gap-1.5 text-xs">
+            ${escapeHTML(t.description)}
+            ${t.isRecurring ? '<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold">Fixo</span>' : ''}
+            ${isOtherUser ? `<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold" title="Adicionado por ${escapeHTML(t.userEmail)}">Por: ${escapeHTML(t.userEmail.split('@')[0])}</span>` : ''}
+          </td>
+          <td class="py-2.5 px-3 text-slate-600 text-xs">${escapeHTML(t.category)}</td>
+          <td class="py-2.5 px-3 text-slate-500 text-xs">${escapeHTML(t.dueDate)}</td>
+          <td class="py-2.5 px-3 font-bold text-xs ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
+            ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+          </td>
+          <td class="py-2.5 px-3">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'}">
+              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3 h-3 ${isPaid ? 'text-emerald-600' : 'text-rose-600'}"></i>
+              ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
             </span>
           </td>
-          <td class="p-3 font-semibold ${t.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}">
-            ${t.type === 'income' ? '+' : '-'} ${formattedAmount}
-          </td>
-          <td class="p-3 text-center">
-            <button 
-              onclick="togglePaidStatus('${t.id}')"
-              title="${isPaid ? 'Clique para marcar como Pendente' : 'Clique para marcar como Pago/Concluído'}"
-              class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition ${
-                isPaid 
-                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' 
-                  : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-              }">
-              <i data-lucide="${isPaid ? 'check-circle-2' : 'clock'}" class="w-3 h-3"></i>
-              ${isPaid ? 'Concluído' : 'Pendente'}
+          <td class="py-2.5 px-3 text-right space-x-1">
+            <button onclick="toggleStatus('${t.id}')" 
+              title="${isPaid ? 'Confirmado (Clique para cancelar / marcar como pendente)' : 'Pendente (Clique para confirmar pagamento/recebimento)'}" 
+              class="p-1 rounded-lg transition-all ${isPaid ? 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200' : 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200'}">
+              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
             </button>
-          </td>
-          <td class="p-3 text-right">
-            <button 
-              onclick="deleteTransaction('${t.id}')"
-              title="Excluir Lançamento" 
-              class="p-1.5 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition">
-              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deleteTransaction('${t.id}')" 
+              title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
+              class="p-1 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
           </td>
         `;
-
         listEl.appendChild(tr);
       });
     }
 
-    // ⚡ 3. RENDERIZAÇÃO EFICIENTE DO GRÁFICO (SEM DESTRIUIR/RECRIAR INSTÂNCIA)
+    // ATUALIZAÇÃO OTIMIZADA DO GRÁFICO (REAPROVEITA A INSTÂNCIA SEM PISCAR A TELA)
     function renderCategoryChart(categoryTotals) {
-      const ctx = document.getElementById('expensesChart');
-      if (!ctx) return;
+      const canvas = document.getElementById('expensesChart');
+      if (!canvas) return;
 
       const labels = Object.keys(categoryTotals);
       const dataValues = Object.values(categoryTotals);
@@ -569,24 +1759,22 @@
         return;
       }
 
-      const colors = [
-        '#10b981', '#f43f5e', '#6366f1', '#f59e0b', 
-        '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'
-      ];
-
       if (expensesChart) {
-        // Atualização em memória ultrarrápida sem animações pesadas
         expensesChart.data.labels = labels;
         expensesChart.data.datasets[0].data = dataValues;
-        expensesChart.update('none');
+        expensesChart.update('none'); // Atualização instantânea sem engasgo de animação
       } else {
-        expensesChart = new Chart(ctx.getContext('2d'), {
+        const ctx = canvas.getContext('2d');
+        expensesChart = new Chart(ctx, {
           type: 'doughnut',
           data: {
             labels: labels,
             datasets: [{
               data: dataValues,
-              backgroundColor: colors.slice(0, Math.max(labels.length, 8)),
+              backgroundColor: [
+                '#10b981', '#f43f5e', '#6366f1', '#f59e0b', 
+                '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'
+              ],
               borderWidth: 2,
               borderColor: '#ffffff'
             }]
@@ -596,63 +1784,13 @@
             maintainAspectRatio: false,
             plugins: {
               legend: {
-                position: 'bottom',
-                labels: {
-                  boxWidth: 12,
-                  font: { size: 11 }
-                }
+                position: 'right',
+                labels: { color: '#475569', font: { size: 10, weight: '600' } }
               }
             }
           }
         });
       }
-    }
-
-    // EXPORTAR PARA EXCEL
-    function exportToExcel() {
-      if (transactions.length === 0) {
-        alert('Nenhum dado para exportar.');
-        return;
-      }
-      const dataToExport = transactions.map(t => ({
-        Data: formatDate(t.date),
-        Descrição: t.description,
-        Categoria: t.category,
-        Tipo: t.type === 'income' ? 'Receita' : 'Despesa',
-        Valor: t.amount,
-        Status: t.is_paid ? 'Concluído' : 'Pendente'
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(dataToExport);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Lançamentos");
-      XLSX.writeFile(wb, "controle_financeiro.xlsx");
-    }
-
-    // FUNÇÕES AUXILIARES
-    function formatBRL(value) {
-      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
-    }
-
-    function formatDate(dateStr) {
-      if (!dateStr) return '';
-      const parts = dateStr.split('-');
-      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-      return dateStr;
-    }
-
-    function escapeHtml(str) {
-      return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
-
-    // DADOS SIMULADOS (MOCK)
-    function getMockData() {
-      return [
-        { id: '1', description: 'Salário Mensal', amount: 5000, type: 'income', category: 'Salário', date: '2026-09-01', is_paid: true },
-        { id: '2', description: 'Supermercado', amount: 450.50, type: 'expense', category: 'Alimentação', date: '2026-09-02', is_paid: true },
-        { id: '3', description: 'Conta de Luz', amount: 180.00, type: 'expense', category: 'Moradia', date: '2026-09-05', is_paid: false },
-        { id: '4', description: 'Combustível', amount: 200.00, type: 'expense', category: 'Transporte', date: '2026-09-03', is_paid: false }
-      ];
     }
   </script>
 </body>
