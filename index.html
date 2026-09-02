@@ -644,6 +644,56 @@
         .replace(/'/g, '&#39;');
     }
 
+    // FUNÇÕES DE DATA E STATUS INTELIGENTE CENTRALIZADO
+    function getTodayString() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function getTransactionStatusDetails(t) {
+      const isIncome = t.type === 'income';
+      const isPaid = t.status === 'completed';
+      const todayStr = getTodayString();
+
+      if (isPaid) {
+        return {
+          label: isIncome ? 'Recebido' : 'Pago',
+          badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+          icon: 'check-circle-2',
+          iconColor: 'text-emerald-600',
+          isPaid: true,
+          btnClass: 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200',
+          btnTitle: 'Confirmado (Clique para cancelar / marcar como pendente)'
+        };
+      }
+
+      const isOverdue = Boolean(t.dueDate && t.dueDate < todayStr);
+      if (isOverdue) {
+        return {
+          label: 'Atrasado',
+          badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200/80',
+          icon: 'alert-circle',
+          iconColor: 'text-rose-600',
+          isPaid: false,
+          btnClass: 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200',
+          btnTitle: 'Atrasado (Clique para confirmar pagamento/recebimento)'
+        };
+      } else {
+        return {
+          label: 'Pendente',
+          badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/80',
+          icon: 'clock',
+          iconColor: 'text-amber-600',
+          isPaid: false,
+          btnClass: 'text-amber-600 bg-amber-50 hover:bg-emerald-50 hover:text-emerald-600 border border-amber-200',
+          btnTitle: 'Pendente (Clique para confirmar pagamento/recebimento)'
+        };
+      }
+    }
+
     // FUNÇÕES DE FORMATAÇÃO E PARSE DE MOEDA (MÁSCARA)
     function formatAmountInput(input) {
       let value = input.value.replace(/\D/g, '');
@@ -1043,28 +1093,27 @@
 
       if (!statusCell || !actionsCell) return false; // Se a linha não estiver visível na aba atual
 
-      const isIncome = t.type === 'income';
-      const isPaid = t.status === 'completed';
+      const details = getTransactionStatusDetails(t);
 
       statusCell.innerHTML = `
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'}">
-          <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3 h-3 ${isPaid ? 'text-emerald-600' : 'text-rose-600'}"></i>
-          ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.badgeClass}">
+          <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconColor}"></i>
+          ${escapeHTML(details.label)}
         </span>
       `;
 
       actionsCell.innerHTML = `
         <button onclick="toggleStatus('${t.id}')" 
-          title="${isPaid ? 'Confirmado (Clique para cancelar / marcar como pendente)' : 'Pendente (Clique para confirmar pagamento/recebimento)'}" 
-          class="p-1 rounded-lg transition-all ${isPaid ? 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200' : 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200'}">
-          <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
+          title="${details.btnTitle}" 
+          class="p-1 rounded-lg transition-all ${details.btnClass}">
+          <i data-lucide="${details.isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
         </button>
         <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
           <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
         </button>
         <button onclick="deleteTransaction('${t.id}')" 
-          title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
-          class="p-1 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
+          title="${details.isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
+          class="p-1 rounded-lg transition ${details.isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
           <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
         </button>
       `;
@@ -1156,101 +1205,163 @@
       renderDashboard();
     }
 
-    // RENDERIZAR PAINEL DASHBOARD E HISTÓRICO
+    // RENDERIZAR PAINEL DASHBOARD E HISTÓRICO (PROCESSAMENTO EM ÚNICA PASSAGEM DE MEMÓRIA)
     function renderDashboard(options = {}) {
       if (!currentUser) return;
 
-      const selectedMonth = document.getElementById('month-filter').value;
-      const includePrevious = document.getElementById('chk-include-previous').checked;
+      const monthFilterEl = document.getElementById('month-filter');
+      const selectedMonth = monthFilterEl ? monthFilterEl.value : '';
+      if (!selectedMonth) return;
+
+      const includePrevious = document.getElementById('chk-include-previous') ? document.getElementById('chk-include-previous').checked : true;
+      const firstDayOfMonth = selectedMonth + '-01';
+
+      const todayStr = getTodayString();
+      const in5Days = new Date();
+      in5Days.setDate(in5Days.getDate() + 5);
+      const in5DaysYr = in5Days.getFullYear();
+      const in5DaysMo = String(in5Days.getMonth() + 1).padStart(2, '0');
+      const in5DaysDy = String(in5Days.getDate()).padStart(2, '0');
+      const in5DaysStr = `${in5DaysYr}-${in5DaysMo}-${in5DaysDy}`;
 
       let previousBalance = 0;
-      transactions.forEach(t => {
-        if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
-          if (t.type === 'income') previousBalance += t.amount;
-          else previousBalance -= t.amount;
-        }
-      });
-
-      const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
-
       let monthIncome = 0;
       let monthExpense = 0;
       const categoryTotals = {};
 
-      monthTransactions.forEach(t => {
-        if (t.type === 'income') {
-          if (t.status === 'completed') monthIncome += t.amount;
-        } else {
-          if (t.status === 'completed') monthExpense += t.amount;
-          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-        }
-      });
+      const monthTransactions = [];
+      const prevPending = [];
+      const nextPending = [];
+      const alerts = [];
 
+      // PROCESSAMENTO EM UMA ÚNICA PASSAGEM DE MEMÓRIA (O(N))
+      for (let i = 0; i < transactions.length; i++) {
+        const t = transactions[i];
+        if (!t || !t.dueDate) continue;
+
+        const isCompleted = t.status === 'completed';
+        const isPending = !isCompleted;
+        const isIncome = t.type === 'income';
+        const isBeforeMonth = t.dueDate < firstDayOfMonth;
+        const isCurrentMonth = t.dueDate.startsWith(selectedMonth);
+
+        // 1. Saldo Anterior (Concluídos de meses anteriores)
+        if (isBeforeMonth && isCompleted) {
+          if (isIncome) previousBalance += t.amount;
+          else previousBalance -= t.amount;
+        }
+
+        // 2. Anteriores Pendentes
+        if (isBeforeMonth && isPending) {
+          prevPending.push(t);
+        }
+
+        // 3. Lançamentos do Mês Selecionado
+        if (isCurrentMonth) {
+          monthTransactions.push(t);
+
+          if (isCompleted) {
+            if (isIncome) {
+              monthIncome += t.amount;
+            } else {
+              monthExpense += t.amount;
+            }
+          }
+
+          if (!isIncome) {
+            categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+          }
+
+          if (isPending) {
+            nextPending.push(t);
+          }
+        }
+
+        // 4. Próximas com Alerta (Pendentes nos próximos 5 dias)
+        if (isPending && t.dueDate >= todayStr && t.dueDate <= in5DaysStr) {
+          alerts.push(t);
+        }
+      }
+
+      // Atualização dos Cards de Resumo
       const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
 
-      document.getElementById('txt-previous-balance').innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('txt-month-income').innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      
+      const prevBalEl = document.getElementById('txt-previous-balance');
+      if (prevBalEl) prevBalEl.innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const monthIncEl = document.getElementById('txt-month-income');
+      if (monthIncEl) monthIncEl.innerText = `+R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const monthExpEl = document.getElementById('txt-month-expense');
+      if (monthExpEl) monthExpEl.innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
       const totalEl = document.getElementById('txt-total-balance');
-      totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
-      totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
+      if (totalEl) {
+        totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
+      }
 
-      renderDashboardLists(selectedMonth);
+      // Renderizar tabelas resumidas
+      renderDashboardLists(prevPending, nextPending, alerts);
 
-      // Recontrói a tabela completa somente se não for um clique rápido de status
+      // Reconstrói a tabela completa de lançamentos apenas se não for atualização rápida de status
       if (!options.skipFullTableRebuild) {
         renderFullHistoryTable(monthTransactions);
       }
 
       renderCategoryChart(categoryTotals);
-      lucide.createIcons();
+
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
     }
 
-    function renderDashboardLists(selectedMonth) {
+    function renderDashboardLists(prevPending, nextPending, alerts) {
       const prevList = document.getElementById('list-previous-pending');
       const nextList = document.getElementById('list-next-pending');
       const alertList = document.getElementById('list-alerts');
 
-      const todayStr = new Date().toISOString().split('T')[0];
-      const in5DaysStr = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
       // 1. Anteriores Pendentes
-      const prevPending = transactions.filter(t => t.dueDate < selectedMonth + '-01' && t.status === 'pending');
-      prevList.innerHTML = prevPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente anterior</td></tr>' :
-        prevPending.map(t => `
-          <tr class="border-b border-slate-50">
-            <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
-            <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
-            <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `).join('');
+      if (prevList) {
+        prevList.innerHTML = prevPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente anterior</td></tr>' :
+          prevPending.map(t => `
+            <tr class="border-b border-slate-50">
+              <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
 
       // 2. Próximas Pendentes do Mês
-      const nextPending = transactions.filter(t => t.dueDate.startsWith(selectedMonth) && t.status === 'pending');
-      nextList.innerHTML = nextPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente no mês</td></tr>' :
-        nextPending.map(t => `
-          <tr class="border-b border-slate-50">
-            <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
-            <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
-            <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `).join('');
+      if (nextList) {
+        nextList.innerHTML = nextPending.length === 0 ? '<tr><td colspan="3" class="py-2 text-slate-400 italic text-[11px]">Nenhum pendente no mês</td></tr>' :
+          nextPending.map(t => `
+            <tr class="border-b border-slate-50">
+              <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
 
       // 3. Alertas (Até 5 Dias)
-      const alerts = transactions.filter(t => t.status === 'pending' && t.dueDate >= todayStr && t.dueDate <= in5DaysStr);
-      alertList.innerHTML = alerts.length === 0 ? '<tr><td colspan="3" class="py-2 text-amber-700/60 italic text-[11px]">Nenhum alerta para os próximos 5 dias</td></tr>' :
-        alerts.map(t => `
-          <tr class="border-b border-amber-100/60">
-            <td class="py-1 px-2 font-medium text-amber-900">${escapeHTML(t.description)}</td>
-            <td class="py-1 px-2 text-amber-700/70 text-[11px]">${escapeHTML(t.dueDate)}</td>
-            <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-700':'text-rose-700'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-          </tr>
-        `).join('');
+      if (alertList) {
+        alertList.innerHTML = alerts.length === 0 ? '<tr><td colspan="3" class="py-2 text-amber-700/60 italic text-[11px]">Nenhum alerta para os próximos 5 dias</td></tr>' :
+          alerts.map(t => `
+            <tr class="border-b border-amber-100/60">
+              <td class="py-1 px-2 font-medium text-amber-900">${escapeHTML(t.description)}</td>
+              <td class="py-1 px-2 text-amber-700/70 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-700':'text-rose-700'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+            </tr>
+          `).join('');
+      }
     }
 
     function renderFullHistoryTable(monthTransactions) {
       const listEl = document.getElementById('transactions-list');
+      if (!listEl) return;
+
       listEl.innerHTML = '';
 
       if (monthTransactions.length === 0) {
@@ -1260,8 +1371,8 @@
 
       monthTransactions.forEach((t, index) => {
         const isIncome = t.type === 'income';
-        const isPaid = t.status === 'completed';
         const isOtherUser = t.userEmail && t.userEmail !== currentUser.email;
+        const details = getTransactionStatusDetails(t);
 
         const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
         const borderIndicator = isIncome ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500';
@@ -1281,23 +1392,23 @@
             ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
           </td>
           <td class="py-2.5 px-3" id="tx-status-cell-${t.id}">
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'}">
-              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3 h-3 ${isPaid ? 'text-emerald-600' : 'text-rose-600'}"></i>
-              ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.badgeClass}">
+              <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconColor}"></i>
+              ${escapeHTML(details.label)}
             </span>
           </td>
           <td class="py-2.5 px-3 text-right space-x-1" id="tx-actions-cell-${t.id}">
             <button onclick="toggleStatus('${t.id}')" 
-              title="${isPaid ? 'Confirmado (Clique para cancelar / marcar como pendente)' : 'Pendente (Clique para confirmar pagamento/recebimento)'}" 
-              class="p-1 rounded-lg transition-all ${isPaid ? 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200' : 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200'}">
-              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
+              title="${details.btnTitle}" 
+              class="p-1 rounded-lg transition-all ${details.btnClass}">
+              <i data-lucide="${details.isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
             </button>
             <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
               <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
             </button>
             <button onclick="deleteTransaction('${t.id}')" 
-              title="${isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
-              class="p-1 rounded-lg transition ${isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
+              title="${details.isPaid ? 'Não é possível excluir um lançamento concluído' : 'Excluir'}" 
+              class="p-1 rounded-lg transition ${details.isPaid ? 'opacity-30 cursor-not-allowed text-slate-300' : 'hover:bg-rose-50 text-slate-400 hover:text-rose-600'}">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
           </td>
@@ -1316,7 +1427,7 @@
       if (expensesChart) {
         expensesChart.data.labels = labels;
         expensesChart.data.datasets[0].data = data;
-        expensesChart.update('none'); // Atualiza sem animação para não travar nos cliques rápidos
+        expensesChart.update('none'); // Atualiza sem animação para melhor fluidez
         return;
       }
 
