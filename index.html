@@ -215,7 +215,7 @@
       <!-- TELA 1: DASHBOARD -->
       <div id="tab-dashboard" class="space-y-3">
         
-        <!-- QUADROS RESUMO DE VALORES (CONFORME A IMAGEM) -->
+        <!-- QUADROS RESUMO DE VALORES -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <!-- RECEITAS -->
           <div class="bg-white p-3.5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between">
@@ -492,15 +492,15 @@
     </div>
   </div>
 
-  <!-- MODAL ESCOPO DE EDIÇÃO DE FIXOS -->
+  <!-- MODAL ESCOPO DE EDIÇÃO DE FIXOS E PARCELADOS -->
   <div id="recurring-edit-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm hidden flex items-center justify-center p-3">
     <div class="bg-white w-full max-w-sm p-4 rounded-2xl shadow-2xl space-y-3 text-center border border-slate-200">
       <div class="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
         <i data-lucide="repeat" class="w-5 h-5"></i>
       </div>
       <div>
-        <h3 class="text-base font-bold text-slate-900">Editar Lançamento Fixo</h3>
-        <p class="text-xs text-slate-500 mt-0.5">Este lançamento é recorrente. Como você deseja aplicar as alterações?</p>
+        <h3 class="text-base font-bold text-slate-900">Editar Lançamento Fixo / Parcelado</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Este lançamento faz parte de uma série (fixo ou parcelado). Como você deseja aplicar as alterações?</p>
       </div>
       <div class="space-y-1.5 pt-1">
         <button onclick="confirmEditScope('single')" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-2 px-3 rounded-lg text-xs transition border border-slate-200 flex items-center justify-center gap-1.5">
@@ -682,6 +682,32 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    // AUXILIAR PARA EXTRAIR NOME BASE DE LANÇAMENTOS PARCELADOS OU FIXOS
+    function getBaseDescription(desc) {
+      if (!desc) return '';
+      const match = desc.trim().match(/^(.*?)\s*\(\d+\s*\/\s*\d+\)$/);
+      if (match) {
+        return match[1].trim();
+      }
+      return desc.trim();
+    }
+
+    // AUXILIAR PARA DIFERENÇA EM MESES ENTRE DUAS DATAS (YYYY-MM-DD)
+    function getMonthDifference(dateStr1, dateStr2) {
+      if (!dateStr1 || !dateStr2) return 0;
+      const [y1, m1] = dateStr1.split('-').map(Number);
+      const [y2, m2] = dateStr2.split('-').map(Number);
+      return (y2 - y1) * 12 + (m2 - m1);
+    }
+
+    // DETECTA SE UMA TRANSAÇÃO FAZ PARTE DE UMA SÉRIE (FIXO OU PARCELADO)
+    function isSeriesTransaction(t) {
+      if (!t) return false;
+      if (t.isRecurring) return true;
+      if (t.description && t.description.match(/\(\d+\s*\/\s*\d+\)$/)) return true;
+      return false;
     }
 
     // MÁSCARA/FORMATAÇÃO DE DATAS PARA O PADRÃO BRASILEIRO (dd/mm/aaaa)
@@ -1611,7 +1637,7 @@
         const t = transactions.find(item => item.id == id);
         if (!t) return;
 
-        if (t.isRecurring) {
+        if (isSeriesTransaction(t)) {
           pendingEditId = id;
           document.getElementById('recurring-edit-modal').classList.remove('hidden');
           return;
@@ -1652,7 +1678,7 @@
     function confirmEditScope(scope) {
       editScope = scope;
       const t = transactions.find(item => item.id == pendingEditId);
-      closeRecurringModal();
+      document.getElementById('recurring-edit-modal').classList.add('hidden');
       if (t) populateFormForEdit(t);
     }
 
@@ -1704,11 +1730,52 @@
         if (editScope === 'future' && pendingEditId) {
           const original = transactions.find(item => item.id == pendingEditId);
           if (original) {
-            await db.from('transactions')
-              .update({ description, amount, category, type })
-              .eq('owner_email', currentWorkspaceOwner)
-              .eq('description', original.description)
-              .gte('due_date', original.dueDate);
+            const origBaseDesc = getBaseDescription(original.description).toLowerCase();
+
+            // Localiza todos os itens da mesma série a partir da data de vencimento do item original
+            const itemsToUpdate = transactions.filter(item => {
+              if (!item || !item.dueDate) return false;
+              if (item.dueDate < original.dueDate) return false;
+
+              const itemBaseDesc = getBaseDescription(item.description).toLowerCase();
+              if (itemBaseDesc !== origBaseDesc) return false;
+
+              if (original.isRecurring) {
+                return item.isRecurring || itemBaseDesc === origBaseDesc;
+              } else {
+                const isInstallment = Boolean(item.description && item.description.match(/\(\d+\s*\/\s*\d+\)$/));
+                return isInstallment || itemBaseDesc === origBaseDesc;
+              }
+            });
+
+            if (itemsToUpdate.length > 0) {
+              const newBaseDesc = getBaseDescription(description);
+              const updatePromises = itemsToUpdate.map(item => {
+                const monthOffset = getMonthDifference(original.dueDate, item.dueDate);
+                const calculatedDueDate = addMonthsToDateString(dueDate, monthOffset);
+
+                const matchFraction = item.description ? item.description.match(/\((\d+\s*\/\s*\d+)\)$/) : null;
+                const updatedDescription = matchFraction ? `${newBaseDesc} (${matchFraction[1]})` : newBaseDesc;
+
+                return db.from('transactions').update({
+                  owner_email: currentWorkspaceOwner,
+                  user_email: currentUser.email.toLowerCase(),
+                  type,
+                  description: updatedDescription,
+                  amount,
+                  due_date: calculatedDueDate,
+                  category,
+                  status: item.id == original.id ? status : item.status,
+                  is_recurring: isRecurring
+                }).eq('id', item.id);
+              });
+
+              await Promise.all(updatePromises);
+            } else {
+              await db.from('transactions').update(payload).eq('id', id);
+            }
+          } else {
+            await db.from('transactions').update(payload).eq('id', id);
           }
         } else {
           await db.from('transactions').update(payload).eq('id', id);
