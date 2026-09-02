@@ -644,20 +644,20 @@
         .replace(/'/g, '&#39;');
     }
 
-    // MAPEADOR AUTOMÁTICO DE NORMALIZAÇÃO DE OBJETO (snake_case e camelCase)
+    // MAPEADOR AUTOMÁTICO DE NORMALIZAÇÃO DE OBJETO DA TABELA TRANSACTIONS
     function normalizeTransactionRecord(raw) {
       if (!raw) return null;
       return {
         id: raw.id,
-        workspace_owner: (raw.workspace_owner || raw.workspaceOwner || '').toLowerCase(),
-        userEmail: (raw.userEmail || raw.user_email || raw.email || '').toLowerCase(),
+        workspace_owner: (raw.owner_email || raw.workspace_owner || raw.workspaceOwner || '').toLowerCase(),
+        userEmail: (raw.user_email || raw.userEmail || raw.email || '').toLowerCase(),
         type: raw.type || 'expense',
         description: raw.description || 'Sem descrição',
         amount: parseFloat(raw.amount) || 0,
-        dueDate: raw.dueDate || raw.due_date || getTodayString(),
+        dueDate: raw.due_date || raw.dueDate || getTodayString(),
         category: raw.category || 'Outros',
         status: raw.status || 'pending',
-        isRecurring: Boolean(raw.isRecurring || raw.is_recurring)
+        isRecurring: Boolean(raw.is_recurring !== undefined ? raw.is_recurring : raw.isRecurring)
       };
     }
 
@@ -935,10 +935,18 @@
 
     async function loadCategoriesFromDB() {
       try {
-        const { data, error } = await db
+        let { data, error } = await db
           .from('categories')
           .select('*')
-          .eq('workspace_owner', currentWorkspaceOwner);
+          .eq('owner_email', currentWorkspaceOwner);
+
+        if (error) {
+          const fallback = await db.from('categories').select('*').eq('workspace_owner', currentWorkspaceOwner);
+          if (!fallback.error) {
+            data = fallback.data;
+            error = null;
+          }
+        }
 
         if (error) throw error;
 
@@ -1004,7 +1012,7 @@
       if (id) {
         await db.from('categories').update({ name, type }).eq('id', id);
       } else {
-        await db.from('categories').insert({ name, type, workspace_owner: currentWorkspaceOwner });
+        await db.from('categories').insert({ name, type, owner_email: currentWorkspaceOwner });
       }
 
       resetCategoryForm();
@@ -1045,7 +1053,7 @@
       resetCategoryForm();
     }
 
-    // CARREGAR LANÇAMENTOS DO BANCO COM DETECÇÃO E EXIBIÇÃO DE ERRO
+    // CARREGAR LANÇAMENTOS DO BANCO FILTRANDO POR owner_email
     async function loadTransactionsFromDB() {
       if (!currentWorkspaceOwner) return;
 
@@ -1055,10 +1063,21 @@
       pendingStatusMap.clear();
 
       try {
-        const { data, error } = await db
+        let { data, error } = await db
           .from('transactions')
           .select('*')
-          .eq('workspace_owner', currentWorkspaceOwner);
+          .eq('owner_email', currentWorkspaceOwner);
+
+        if (error) {
+          const fallback = await db
+            .from('transactions')
+            .select('*')
+            .eq('workspace_owner', currentWorkspaceOwner);
+          if (!fallback.error) {
+            data = fallback.data;
+            error = null;
+          }
+        }
 
         if (error) {
           console.error('Erro na resposta do Supabase:', error);
@@ -1069,7 +1088,6 @@
           return;
         }
 
-        // Mapeia e normaliza registros recebidos do banco
         transactions = (data || [])
           .map(normalizeTransactionRecord)
           .filter(t => t !== null)
@@ -1571,17 +1589,14 @@
       if (!description || !amount || !dueDate) return;
 
       const payload = {
-        workspace_owner: currentWorkspaceOwner,
-        userEmail: currentUser.email.toLowerCase(),
+        owner_email: currentWorkspaceOwner,
         user_email: currentUser.email.toLowerCase(),
         type,
         description,
         amount,
-        dueDate,
         due_date: dueDate,
         category,
         status,
-        isRecurring,
         is_recurring: isRecurring
       };
 
@@ -1591,9 +1606,9 @@
           if (original) {
             await db.from('transactions')
               .update({ description, amount, category, type })
-              .eq('workspace_owner', currentWorkspaceOwner)
+              .eq('owner_email', currentWorkspaceOwner)
               .eq('description', original.description)
-              .gte('dueDate', original.dueDate);
+              .gte('due_date', original.dueDate);
           }
         } else {
           await db.from('transactions').update(payload).eq('id', id);
@@ -1613,7 +1628,6 @@
               ...payload,
               description: `${description} (${i + 1}/${installments})`,
               amount: installmentAmount,
-              dueDate: formattedDate,
               due_date: formattedDate
             });
           }
@@ -1767,17 +1781,14 @@
             const category = row['Categoria'] || row['category'] || 'Outros';
 
             newItems.push({
-              workspace_owner: currentWorkspaceOwner,
-              userEmail: currentUser.email.toLowerCase(),
+              owner_email: currentWorkspaceOwner,
               user_email: currentUser.email.toLowerCase(),
               description: String(description),
               amount,
               type,
-              dueDate: String(dueDate),
               due_date: String(dueDate),
               category: String(category),
               status: 'pending',
-              isRecurring: false,
               is_recurring: false
             });
           });
