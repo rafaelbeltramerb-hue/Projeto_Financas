@@ -214,6 +214,46 @@
 
       <!-- TELA 1: DASHBOARD -->
       <div id="tab-dashboard" class="space-y-3">
+        
+        <!-- QUADROS RESUMO DE VALORES (CONFORME A IMAGEM) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- RECEITAS -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">RECEITAS</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-100 border border-emerald-300/60"></span>
+            </div>
+            <div id="card-income" class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">R$ 0,00</div>
+          </div>
+
+          <!-- DESPESAS -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">DESPESAS</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-100 border border-rose-300/60"></span>
+            </div>
+            <div id="card-expense" class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">R$ 0,00</div>
+          </div>
+
+          <!-- SALDO CONCLUÍDO -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">SALDO CONCLUÍDO</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-300/60"></span>
+            </div>
+            <div id="card-completed-balance" class="text-xl sm:text-2xl font-bold text-slate-900 mt-2">R$ 0,00</div>
+          </div>
+
+          <!-- PENDENTE (A PAGAR/RECEBER) -->
+          <div class="bg-white p-3.5 rounded-2xl border border-slate-200/70 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">PENDENTE (A PAGAR/RECEBER)</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-amber-100 border border-amber-300/60"></span>
+            </div>
+            <div id="card-pending-balance" class="text-xl sm:text-2xl font-bold text-amber-600 mt-2">R$ 0,00</div>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
           
           <div class="space-y-3">
@@ -1256,6 +1296,10 @@
       let previousBalance = 0;
       let monthIncome = 0;
       let monthExpense = 0;
+      let monthPendingIncome = 0;
+      let monthPendingExpense = 0;
+      let prevPendingIncome = 0;
+      let prevPendingExpense = 0;
       const categoryTotals = {};
 
       const monthTransactions = [];
@@ -1280,6 +1324,8 @@
 
         if (isBeforeMonth && isPending) {
           prevPending.push(t);
+          if (isIncome) prevPendingIncome += t.amount;
+          else prevPendingExpense += t.amount;
         }
 
         if (isCurrentMonth) {
@@ -1288,6 +1334,9 @@
           if (isCompleted) {
             if (isIncome) monthIncome += t.amount;
             else monthExpense += t.amount;
+          } else {
+            if (isIncome) monthPendingIncome += t.amount;
+            else monthPendingExpense += t.amount;
           }
 
           if (!isIncome) {
@@ -1305,7 +1354,9 @@
       }
 
       const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
+      const totalPending = (includePrevious ? (prevPendingIncome - prevPendingExpense) : 0) + monthPendingIncome - monthPendingExpense;
 
+      // ATUALIZAÇÃO DO RESUMO CLÁSSICO
       const prevBalEl = document.getElementById('txt-previous-balance');
       if (prevBalEl) prevBalEl.innerText = `R$ ${previousBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 
@@ -1319,6 +1370,26 @@
       if (totalEl) {
         totalEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
         totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
+      }
+
+      // ATUALIZAÇÃO DOS NOVOS QUADROS KPI DO TOPO
+      const cardIncomeEl = document.getElementById('card-income');
+      if (cardIncomeEl) cardIncomeEl.innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const cardExpenseEl = document.getElementById('card-expense');
+      if (cardExpenseEl) cardExpenseEl.innerText = `R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const cardCompletedEl = document.getElementById('card-completed-balance');
+      if (cardCompletedEl) {
+        cardCompletedEl.innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        cardCompletedEl.className = totalBalance < 0 ? 'text-xl sm:text-2xl font-bold text-rose-600 mt-2' : 'text-xl sm:text-2xl font-bold text-slate-900 mt-2';
+      }
+
+      const cardPendingEl = document.getElementById('card-pending-balance');
+      if (cardPendingEl) {
+        const pendingSign = totalPending < 0 ? '-' : '';
+        cardPendingEl.innerText = `${pendingSign}R$ ${Math.abs(totalPending).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        cardPendingEl.className = totalPending < 0 ? 'text-xl sm:text-2xl font-bold text-rose-600 mt-2' : 'text-xl sm:text-2xl font-bold text-amber-600 mt-2';
       }
 
       renderDashboardLists(prevPending, nextPending, alerts);
