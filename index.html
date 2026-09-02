@@ -17,7 +17,7 @@
     tailwind.config = {
       theme: {
         extend: {
-          colors: {
+          colors: { 
             brand: { 
               50: '#eep2ff',
               100: '#e0e7ff',
@@ -635,7 +635,7 @@
         <div id="recurrence-options" class="border-t border-slate-100 pt-2 space-y-2">
           <div class="flex items-center justify-between">
             <label for="tx-recurring" class="text-xs text-slate-700 font-semibold cursor-pointer">
-              Lançamento Fixo Mensal? <span class="text-[10px] text-slate-400 font-normal">(sem data fim)</span>
+              Lançamento Fixo Mensal? <span class="text-[10px] text-slate-400 font-normal">(gera os próximos meses)</span>
             </label>
             <input type="checkbox" id="tx-recurring" onchange="toggleFormFields()" class="w-3.5 h-3.5 accent-brand-600 rounded cursor-pointer">
           </div>
@@ -682,6 +682,35 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    // MÁSCARA/FORMATAÇÃO DE DATAS PARA O PADRÃO BRASILEIRO (dd/mm/aaaa)
+    function formatDateToBR(dateStr) {
+      if (!dateStr) return '';
+      const cleanDate = dateStr.toString().split('T')[0];
+      const parts = cleanDate.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+
+    // AUXILIAR PARA CÁLCULO SEGURO DE MESES FUTUROS (SEM OVERFLOW DE MÊS)
+    function addMonthsToDateString(dateStr, monthsToAdd) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      let targetYear = y;
+      let targetMonth = m - 1 + monthsToAdd;
+      
+      targetYear += Math.floor(targetMonth / 12);
+      targetMonth = ((targetMonth % 12) + 12) % 12;
+
+      const daysInTargetMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+      const targetDay = Math.min(d, daysInTargetMonth);
+
+      const yyyy = String(targetYear);
+      const mm = String(targetMonth + 1).padStart(2, '0');
+      const dd = String(targetDay).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     }
 
     // MAPEADOR AUTOMÁTICO DE NORMALIZAÇÃO DE OBJETO DA TABELA TRANSACTIONS
@@ -1372,7 +1401,7 @@
         totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
       }
 
-      // ATUALIZAÇÃO DOS NOVOS QUADROS KPI DO TOPO
+      // ATUALIZAÇÃO DOS QUADROS KPI DO TOPO
       const cardIncomeEl = document.getElementById('card-income');
       if (cardIncomeEl) cardIncomeEl.innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 
@@ -1415,7 +1444,7 @@
           prevPending.map(t => `
             <tr class="border-b border-slate-50">
               <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
-              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(formatDateToBR(t.dueDate))}</td>
               <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
             </tr>
           `).join('');
@@ -1426,7 +1455,7 @@
           nextPending.map(t => `
             <tr class="border-b border-slate-50">
               <td class="py-1 px-2 font-medium">${escapeHTML(t.description)}</td>
-              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-slate-400 text-[11px]">${escapeHTML(formatDateToBR(t.dueDate))}</td>
               <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-600':'text-rose-600'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
             </tr>
           `).join('');
@@ -1437,7 +1466,7 @@
           alerts.map(t => `
             <tr class="border-b border-amber-100/60">
               <td class="py-1 px-2 font-medium text-amber-900">${escapeHTML(t.description)}</td>
-              <td class="py-1 px-2 text-amber-700/70 text-[11px]">${escapeHTML(t.dueDate)}</td>
+              <td class="py-1 px-2 text-amber-700/70 text-[11px]">${escapeHTML(formatDateToBR(t.dueDate))}</td>
               <td class="py-1 px-2 text-right font-semibold ${t.type==='income'?'text-emerald-700':'text-rose-700'}">R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
             </tr>
           `).join('');
@@ -1473,7 +1502,7 @@
             ${isOtherUser ? `<span class="text-[9px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full font-semibold" title="Adicionado por ${escapeHTML(t.userEmail)}">Por: ${escapeHTML(t.userEmail.split('@')[0])}</span>` : ''}
           </td>
           <td class="py-2.5 px-3 text-slate-600 text-xs">${escapeHTML(t.category)}</td>
-          <td class="py-2.5 px-3 text-slate-500 text-xs">${escapeHTML(t.dueDate)}</td>
+          <td class="py-2.5 px-3 text-slate-500 text-xs">${escapeHTML(formatDateToBR(t.dueDate))}</td>
           <td class="py-2.5 px-3 font-bold text-xs ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
             ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
           </td>
@@ -1685,21 +1714,31 @@
           await db.from('transactions').update(payload).eq('id', id);
         }
       } else {
+        // LANÇAMENTO NOVO
         if (isRecurring) {
-          await db.from('transactions').insert(payload);
+          // GERA AUTOMATICAMENTE OS LANÇAMENTOS FIXOS FUTUROS (12 MESES ADIANTE)
+          const newTxs = [];
+          for (let i = 0; i < 12; i++) {
+            const nextDate = addMonthsToDateString(dueDate, i);
+            newTxs.push({
+              ...payload,
+              due_date: nextDate,
+              status: i === 0 ? status : 'pending'
+            });
+          }
+          await db.from('transactions').insert(newTxs);
         } else if (installments > 1) {
           const installmentAmount = amount / installments;
-          const [yr, mo, dy] = dueDate.split('-').map(Number);
           const newTxs = [];
 
           for (let i = 0; i < installments; i++) {
-            const dateObj = new Date(yr, mo - 1 + i, dy);
-            const formattedDate = dateObj.toISOString().split('T')[0];
+            const formattedDate = addMonthsToDateString(dueDate, i);
             newTxs.push({
               ...payload,
               description: `${description} (${i + 1}/${installments})`,
               amount: installmentAmount,
-              due_date: formattedDate
+              due_date: formattedDate,
+              status: i === 0 ? status : 'pending'
             });
           }
           await db.from('transactions').insert(newTxs);
