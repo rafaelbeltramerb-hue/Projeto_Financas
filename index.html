@@ -633,6 +633,52 @@
     let statusUpdateTimer = null;
     const pendingStatusMap = new Map(); // id -> newStatus
 
+    // HELPER PARA FORMATAR DATA DE HOJE COMO YYYY-MM-DD
+    function getTodayString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    // HELPER PARA DETERMINAR CORES E ÍCONES DO STATUS DO LANÇAMENTO
+    function getTransactionStatusDetails(t) {
+      const isIncome = t.type === 'income';
+      const isPaid = t.status === 'completed';
+      const todayStr = getTodayString();
+      const isOverdue = !isPaid && t.dueDate && t.dueDate < todayStr;
+
+      if (isPaid) {
+        return {
+          statusClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
+          icon: 'check-circle-2',
+          iconClass: 'text-emerald-600',
+          label: isIncome ? 'Recebido' : 'Pago',
+          btnClass: 'text-emerald-600 bg-emerald-50 hover:bg-amber-50 hover:text-amber-600 border border-emerald-200',
+          btnTitle: 'Confirmado (Clique para cancelar / marcar como pendente)'
+        };
+      } else if (isOverdue) {
+        return {
+          statusClass: 'bg-rose-50 text-rose-700 border border-rose-200/80',
+          icon: 'alert-circle',
+          iconClass: 'text-rose-600',
+          label: 'Atrasado',
+          btnClass: 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200',
+          btnTitle: 'Atrasado (Clique para confirmar pagamento/recebimento)'
+        };
+      } else {
+        return {
+          statusClass: 'bg-amber-50 text-amber-700 border border-amber-200/80',
+          icon: 'clock',
+          iconClass: 'text-amber-600',
+          label: 'Pendente',
+          btnClass: 'text-amber-600 bg-amber-50 hover:bg-emerald-50 hover:text-emerald-600 border border-amber-200',
+          btnTitle: 'Pendente (Clique para confirmar pagamento/recebimento)'
+        };
+      }
+    }
+
     // SEGURANÇA: FUNÇÃO DE ESCAPE CONTRA ATAQUES XSS
     function escapeHTML(str) {
       if (str === null || str === undefined) return '';
@@ -1043,21 +1089,21 @@
 
       if (!statusCell || !actionsCell) return false; // Se a linha não estiver visível na aba atual
 
-      const isIncome = t.type === 'income';
+      const details = getTransactionStatusDetails(t);
       const isPaid = t.status === 'completed';
 
       statusCell.innerHTML = `
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'}">
-          <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3 h-3 ${isPaid ? 'text-emerald-600' : 'text-rose-600'}"></i>
-          ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.statusClass}">
+          <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconClass}"></i>
+          ${details.label}
         </span>
       `;
 
       actionsCell.innerHTML = `
         <button onclick="toggleStatus('${t.id}')" 
-          title="${isPaid ? 'Confirmado (Clique para cancelar / marcar como pendente)' : 'Pendente (Clique para confirmar pagamento/recebimento)'}" 
-          class="p-1 rounded-lg transition-all ${isPaid ? 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200' : 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200'}">
-          <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
+          title="${details.btnTitle}" 
+          class="p-1 rounded-lg transition-all ${details.btnClass}">
+          <i data-lucide="${details.icon}" class="w-3.5 h-3.5"></i>
         </button>
         <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
           <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
@@ -1164,27 +1210,31 @@
       const includePrevious = document.getElementById('chk-include-previous').checked;
 
       let previousBalance = 0;
-      transactions.forEach(t => {
-        if (t.dueDate && t.dueDate < selectedMonth + '-01' && t.status === 'completed') {
-          if (t.type === 'income') previousBalance += t.amount;
-          else previousBalance -= t.amount;
-        }
-      });
-
-      const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
-
       let monthIncome = 0;
       let monthExpense = 0;
       const categoryTotals = {};
 
-      monthTransactions.forEach(t => {
-        if (t.type === 'income') {
-          if (t.status === 'completed') monthIncome += t.amount;
-        } else {
-          if (t.status === 'completed') monthExpense += t.amount;
-          categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+      const monthPrefix = selectedMonth + '-';
+
+      // Processamento em passagem única para ganho máximo de velocidade
+      for (let i = 0; i < transactions.length; i++) {
+        const t = transactions[i];
+        if (!t.dueDate) continue;
+
+        if (t.status === 'completed') {
+          if (t.dueDate < monthPrefix + '01') {
+            if (t.type === 'income') previousBalance += t.amount;
+            else previousBalance -= t.amount;
+          } else if (t.dueDate.startsWith(selectedMonth)) {
+            if (t.type === 'income') {
+              monthIncome += t.amount;
+            } else {
+              monthExpense += t.amount;
+              categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
+            }
+          }
         }
-      });
+      }
 
       const totalBalance = (includePrevious ? previousBalance : 0) + monthIncome - monthExpense;
 
@@ -1198,13 +1248,16 @@
 
       renderDashboardLists(selectedMonth);
 
-      // Recontrói a tabela completa somente se não for um clique rápido de status
+      // Reconstrói a tabela completa somente se não for um clique rápido de status
       if (!options.skipFullTableRebuild) {
+        const monthTransactions = transactions.filter(t => t.dueDate && t.dueDate.startsWith(selectedMonth));
         renderFullHistoryTable(monthTransactions);
       }
 
       renderCategoryChart(categoryTotals);
-      lucide.createIcons();
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
     }
 
     function renderDashboardLists(selectedMonth) {
@@ -1212,7 +1265,7 @@
       const nextList = document.getElementById('list-next-pending');
       const alertList = document.getElementById('list-alerts');
 
-      const todayStr = new Date().toISOString().split('T')[0];
+      const todayStr = getTodayString();
       const in5DaysStr = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
       // 1. Anteriores Pendentes
@@ -1266,6 +1319,8 @@
         const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80';
         const borderIndicator = isIncome ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-rose-500';
 
+        const details = getTransactionStatusDetails(t);
+
         const tr = document.createElement('tr');
         tr.id = `tx-row-${t.id}`;
         tr.className = `${bgClass} ${borderIndicator} hover:bg-indigo-50/60 transition border-b border-slate-200/60`;
@@ -1281,16 +1336,16 @@
             ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
           </td>
           <td class="py-2.5 px-3" id="tx-status-cell-${t.id}">
-            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${isPaid ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80' : 'bg-rose-50 text-rose-700 border border-rose-200/80'}">
-              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3 h-3 ${isPaid ? 'text-emerald-600' : 'text-rose-600'}"></i>
-              ${isPaid ? (isIncome ? 'Recebido' : 'Pago') : 'Pendente'}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${details.statusClass}">
+              <i data-lucide="${details.icon}" class="w-3 h-3 ${details.iconClass}"></i>
+              ${details.label}
             </span>
           </td>
           <td class="py-2.5 px-3 text-right space-x-1" id="tx-actions-cell-${t.id}">
             <button onclick="toggleStatus('${t.id}')" 
-              title="${isPaid ? 'Confirmado (Clique para cancelar / marcar como pendente)' : 'Pendente (Clique para confirmar pagamento/recebimento)'}" 
-              class="p-1 rounded-lg transition-all ${isPaid ? 'text-emerald-600 bg-emerald-50 hover:bg-rose-50 hover:text-rose-600 border border-emerald-200' : 'text-rose-600 bg-rose-50 hover:bg-emerald-50 hover:text-emerald-600 border border-rose-200'}">
-              <i data-lucide="${isPaid ? 'check-circle-2' : 'x-circle'}" class="w-3.5 h-3.5"></i>
+              title="${details.btnTitle}" 
+              class="p-1 rounded-lg transition-all ${details.btnClass}">
+              <i data-lucide="${details.icon}" class="w-3.5 h-3.5"></i>
             </button>
             <button onclick="openModal('${t.id}')" title="Editar" class="p-1 hover:bg-slate-200/60 rounded-lg text-slate-500 hover:text-slate-800 transition">
               <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
@@ -1396,7 +1451,7 @@
         populateFormForEdit(t);
       } else {
         document.getElementById('type-expense').checked = true;
-        document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('tx-date').value = getTodayString();
         toggleFormFields();
         document.getElementById('modal').classList.remove('hidden');
       }
@@ -1656,7 +1711,7 @@
             const rawAmount = row['Valor'] || row['amount'] || 0;
             const amount = Math.abs(typeof rawAmount === 'number' ? rawAmount : parseBRLToFloat(rawAmount));
             const type = (rawAmount < 0 || (row['Tipo'] && row['Tipo'].toLowerCase().includes('desp'))) ? 'expense' : 'income';
-            const dueDate = row['Data Ocorrência'] || row['Data'] || row['dueDate'] || new Date().toISOString().split('T')[0];
+            const dueDate = row['Data Ocorrência'] || row['Data'] || row['dueDate'] || getTodayString();
             const category = row['Categoria'] || row['category'] || 'Outros';
 
             newItems.push({
