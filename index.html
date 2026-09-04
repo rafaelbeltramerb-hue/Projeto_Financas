@@ -47,8 +47,13 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- TELA DE LOGIN / CADASTRO / CONVITE (ESTILO REFORMULADO) -->
-  <div id="login-view" class="relative min-h-screen flex items-center justify-center p-4 bg-slate-950 overflow-hidden">
+  <!-- TELA DE LOGIN / CADASTRO / CONVITE (COM IMAGEM DE FUNDO) -->
+  <!-- Substitua a URL abaixo pelo caminho da sua imagem se preferir (ex: bg.jpg ou outro link) -->
+  <div id="login-view" class="relative min-h-screen flex items-center justify-center p-4 bg-slate-950 overflow-hidden bg-cover bg-center bg-no-repeat" style="background-image: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop');">
+    
+    <!-- CAMADA DE ESCURECIMENTO E SUAVIZAÇÃO PARA GARANTIR LEITURA -->
+    <div class="absolute inset-0 bg-slate-950/75 backdrop-blur-[2px] pointer-events-none"></div>
+
     <!-- EFEITOS DE BRILHO E GLOW DE FUNDO -->
     <div class="absolute -top-32 -left-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
     <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
@@ -1899,7 +1904,7 @@
         }
       }
 
-closeModal();
+      closeModal();
       await loadTransactionsFromDB();
     }
 
