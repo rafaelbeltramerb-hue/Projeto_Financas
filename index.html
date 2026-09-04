@@ -47,61 +47,91 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- TELA DE LOGIN / CADASTRO / CONVITE (COM IMAGEM DE FUNDO LIMPA E VISÍVEL) -->
+  <!-- TELA DE LOGIN / CADASTRO / CONVITE -->
   <div id="login-view" class="relative min-h-screen flex items-center justify-center p-4 bg-slate-950 overflow-hidden bg-cover bg-center bg-no-repeat" style="background-image: url('https://www.cbamonitor.cz/storage/breaking-news-thumbs/bn_189_thumbnail_1.jpeg');">
     
-    <!-- CAMADA DE ESCURECIMENTO SUAVE SEM DESFOQUE PARA MANTER A IMAGEM NÍTIDA -->
-    <div class="absolute inset-0 bg-slate-950/30 pointer-events-none"></div>
+    <!-- OVERLAY COM GRADIENTE ESCURO E BLUR SUAVE -->
+    <div class="absolute inset-0 bg-gradient-to-br from-slate-950/85 via-slate-950/70 to-slate-900/60 backdrop-blur-[2px] pointer-events-none"></div>
 
     <!-- EFEITOS DE BRILHO DE FUNDO -->
-    <div class="absolute -top-32 -left-32 w-96 h-96 bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none"></div>
-    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/15 rounded-full blur-[120px] pointer-events-none"></div>
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-    <!-- CARD GLASSMORPHISM ESCURO -->
-    <div class="relative z-10 w-full max-w-md p-6 sm:p-8 rounded-2xl bg-slate-900/90 border border-slate-800/80 backdrop-blur-xl shadow-2xl shadow-indigo-950/50 space-y-5">
-      <div class="text-center space-y-2">
-        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner">
-          <i data-lucide="wallet" class="w-6 h-6"></i>
+    <!-- CARD GLASSMORPHISM REFINADO -->
+    <div class="relative z-10 w-full max-w-[380px] sm:max-w-[400px] p-5 sm:p-6 rounded-[18px] bg-slate-900/85 border border-white/10 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] space-y-4">
+      
+      <!-- CABEÇALHO COM LOGO REFINADO & TEXTO ACOLHEDOR -->
+      <div class="text-center space-y-1.5">
+        <div class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white shadow-lg shadow-purple-500/25 mb-1">
+          <i data-lucide="wallet" class="w-5 h-5"></i>
         </div>
-        <h1 class="text-2xl font-bold tracking-tight text-white">Controle Financeiro</h1>
-        <p id="auth-subtitle" class="text-xs text-slate-400">Acesse sua conta para continuar</p>
+        <h1 id="auth-title" class="text-xl font-bold tracking-tight text-white">Bem-vindo ao Controle Financeiro</h1>
+        <p id="auth-subtitle" class="text-[13px] text-slate-300">Acesse sua conta para continuar</p>
       </div>
 
-      <!-- SELETOR 3 ABAS DE AUTENTICAÇÃO -->
-      <div class="flex bg-slate-800/80 p-1 rounded-xl text-xs font-medium text-center border border-slate-700/50">
-        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition">Entrar</button>
-        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Criar Conta</button>
-        <button id="btn-invite-mode" onclick="toggleAuthMode('invited')" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Sou Convidado</button>
+      <!-- SELETOR COMPACTO DE MODOS DE AUTENTICAÇÃO -->
+      <div class="flex items-center bg-slate-800/60 p-1 rounded-lg text-[12px] font-medium text-center border border-white/5 divide-x divide-slate-700/50">
+        <button id="btn-login-mode" type="button" onclick="toggleAuthMode('login')" class="flex-1 py-1 rounded-md bg-purple-600 text-white font-semibold shadow transition duration-200">Entrar</button>
+        <button id="btn-register-mode" type="button" onclick="toggleAuthMode('register')" class="flex-1 py-1 rounded-md text-slate-300 hover:text-white transition duration-200">Criar conta</button>
+        <button id="btn-invite-mode" type="button" onclick="toggleAuthMode('invited')" class="flex-1 py-1 rounded-md text-slate-300 hover:text-white transition duration-200">Sou convidado</button>
       </div>
 
       <!-- FORMULÁRIO DE AUTENTICAÇÃO -->
-      <form id="login-form" class="space-y-4">
-        <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl text-center font-medium border border-rose-800/50"></div>
-        <div id="login-success" class="hidden text-xs text-emerald-400 bg-emerald-950/40 p-2.5 rounded-xl text-center font-medium border border-emerald-800/50"></div>
+      <form id="login-form" class="space-y-3.5">
+        <div id="login-error" class="hidden text-[12px] text-rose-300 bg-rose-950/60 p-2.5 rounded-lg text-center font-medium border border-rose-800/60 leading-tight"></div>
+        <div id="login-success" class="hidden text-[12px] text-emerald-300 bg-emerald-950/60 p-2.5 rounded-lg text-center font-medium border border-emerald-800/60 leading-tight"></div>
 
-        <div id="name-field-container" class="hidden">
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Seu Nome</label>
-          <input type="text" id="login-name" placeholder="Como deseja ser chamado" 
-            class="w-full bg-slate-800/60 border border-slate-700/70 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition">
+        <!-- CAMPO NOME -->
+        <div id="name-field-container" class="hidden space-y-1">
+          <label class="block text-[13px] font-medium text-slate-200">Seu Nome</label>
+          <div class="relative flex items-center">
+            <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none"></i>
+            <input type="text" id="login-name" placeholder="Como deseja ser chamado" 
+              class="w-full h-10 bg-slate-800/50 border border-slate-700/80 rounded-lg pl-9 pr-3 text-[13px] text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition">
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Seu E-mail</label>
-          <input type="email" id="login-email" required placeholder="seu@email.com" 
-            class="w-full bg-slate-800/60 border border-slate-700/70 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition">
+        <!-- CAMPO E-MAIL -->
+        <div class="space-y-1">
+          <label class="block text-[13px] font-medium text-slate-200">Seu E-mail</label>
+          <div class="relative flex items-center">
+            <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none"></i>
+            <input type="email" id="login-email" required placeholder="seu@email.com" 
+              class="w-full h-10 bg-slate-800/50 border border-slate-700/80 rounded-lg pl-9 pr-3 text-[13px] text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition">
+          </div>
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 mb-1">Senha</label>
-          <input type="password" id="login-password" required placeholder="••••••" 
-            class="w-full bg-slate-800/60 border border-slate-700/70 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition">
+        <!-- CAMPO SENHA -->
+        <div class="space-y-1">
+          <label class="block text-[13px] font-medium text-slate-200">Senha</label>
+          <div class="relative flex items-center">
+            <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none"></i>
+            <input type="password" id="login-password" required placeholder="••••••••••••" 
+              class="w-full h-10 bg-slate-800/50 border border-slate-700/80 rounded-lg pl-9 pr-10 text-[13px] text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition">
+            <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 text-slate-400 hover:text-slate-200 focus:outline-none transition" title="Alternar visibilidade">
+              <i data-lucide="eye" id="password-toggle-icon" class="w-4 h-4"></i>
+            </button>
+          </div>
         </div>
 
+        <!-- BOTÃO PRINCIPAL -->
         <button type="submit" id="btn-auth-submit"
-          class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs transition duration-200 shadow-lg shadow-indigo-600/25">
-          Entrar na Conta
+          class="w-full h-10 bg-purple-600 hover:bg-purple-500 hover:brightness-110 text-white font-semibold rounded-lg text-[13px] transition duration-200 shadow-md shadow-purple-600/30 flex items-center justify-center gap-1.5 mt-2">
+          <span id="btn-auth-text">Entrar na conta</span>
+          <span class="text-sm font-bold">→</span>
         </button>
       </form>
+
+      <!-- RODAPÉ DO CARD -->
+      <div class="pt-3 border-t border-slate-800/80 text-center space-y-1">
+        <p class="text-[11px] text-slate-400">© 2026 Controle Financeiro</p>
+        <div class="text-[11px] text-slate-400 space-x-1">
+          <a href="#" onclick="alert('Termos de uso'); return false;" class="hover:text-purple-300 transition underline decoration-slate-600 underline-offset-2">Termos de uso</a>
+          <span>·</span>
+          <a href="#" onclick="alert('Política de privacidade'); return false;" class="hover:text-purple-300 transition underline decoration-slate-600 underline-offset-2">Política de privacidade</a>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -736,6 +766,24 @@
         .replace(/'/g, '&#39;');
     }
 
+    // AUXILIAR PARA ALTERNAR VISIBILIDADE DA SENHA
+    function togglePasswordVisibility() {
+      const pwdInput = document.getElementById('login-password');
+      const icon = document.getElementById('password-toggle-icon');
+      if (pwdInput) {
+        if (pwdInput.type === 'password') {
+          pwdInput.type = 'text';
+          if (icon) icon.setAttribute('data-lucide', 'eye-off');
+        } else {
+          pwdInput.type = 'password';
+          if (icon) icon.setAttribute('data-lucide', 'eye');
+        }
+        if (window.lucide && typeof lucide.createIcons === 'function') {
+          lucide.createIcons();
+        }
+      }
+    }
+
     // AUXILIAR PARA EXTRAIR NOME BASE DE LANÇAMENTOS PARCELADOS OU FIXOS
     function getBaseDescription(desc) {
       if (!desc) return '';
@@ -915,8 +963,9 @@
       const btnLogin = document.getElementById('btn-login-mode');
       const btnRegister = document.getElementById('btn-register-mode');
       const btnInvite = document.getElementById('btn-invite-mode');
-      const btnSubmit = document.getElementById('btn-auth-submit');
+      const btnSubmitText = document.getElementById('btn-auth-text');
       const nameContainer = document.getElementById('name-field-container');
+      const title = document.getElementById('auth-title');
       const subtitle = document.getElementById('auth-subtitle');
       const errEl = document.getElementById('login-error');
       const succEl = document.getElementById('login-success');
@@ -925,24 +974,30 @@
       succEl.classList.add('hidden');
 
       [btnLogin, btnRegister, btnInvite].forEach(btn => {
-        btn.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition";
+        btn.className = "flex-1 py-1 rounded-md text-slate-300 hover:text-white transition duration-200";
       });
 
       if (mode === 'login') {
-        btnLogin.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition";
-        btnSubmit.innerText = "Entrar na Conta";
-        subtitle.innerText = "Acesse sua conta para continuar";
+        btnLogin.className = "flex-1 py-1 rounded-md bg-purple-600 text-white font-semibold shadow transition duration-200";
+        if (btnSubmitText) btnSubmitText.innerText = "Entrar na conta";
+        if (title) title.innerText = "Bem-vindo ao Controle Financeiro";
+        if (subtitle) subtitle.innerText = "Acesse sua conta para continuar";
         nameContainer.classList.add('hidden');
       } else if (mode === 'register') {
-        btnRegister.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition";
-        btnSubmit.innerText = "Criar Minha Conta";
-        subtitle.innerText = "Crie seu espaço próprio e 100% isolado";
+        btnRegister.className = "flex-1 py-1 rounded-md bg-purple-600 text-white font-semibold shadow transition duration-200";
+        if (btnSubmitText) btnSubmitText.innerText = "Criar minha conta";
+        if (title) title.innerText = "Criar Nova Conta";
+        if (subtitle) subtitle.innerText = "Crie seu espaço próprio e 100% isolado";
         nameContainer.classList.remove('hidden');
       } else if (mode === 'invited') {
-        btnInvite.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition";
-        btnSubmit.innerText = "Validar Convite e Acessar";
-        subtitle.innerText = "Acesse o espaço de quem te enviou um convite";
+        btnInvite.className = "flex-1 py-1 rounded-md bg-purple-600 text-white font-semibold shadow transition duration-200";
+        if (btnSubmitText) btnSubmitText.innerText = "Validar convite e acessar";
+        if (title) title.innerText = "Acesso Convidado";
+        if (subtitle) subtitle.innerText = "Acesse o espaço de quem te enviou um convite";
         nameContainer.classList.remove('hidden');
+      }
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
       }
     }
 
@@ -961,7 +1016,7 @@
         const { data: users, error } = await db.from('users').select('*').eq('email', email);
 
         if (error || !users || users.length === 0) {
-          errorEl.innerHTML = `E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar Conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou Convidado"</strong>.`;
+          errorEl.innerHTML = `E-mail não cadastrado.<br>Se você quer gerenciar suas finanças, clique em <strong>"Criar conta"</strong>. Se recebeu um convite, use a aba <strong>"Sou convidado"</strong>.`;
           errorEl.classList.remove('hidden');
           return;
         }
@@ -1923,7 +1978,7 @@
       const { data: list } = await db.from('invitations').select('*').eq('owner_email', currentWorkspaceOwner);
 
       if (!list || list.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-400 italic">Nenum convidado cadastrado.</p>';
+        container.innerHTML = '<p class="text-xs text-slate-400 italic">Nenhum convidado cadastrado.</p>';
         return;
       }
 
@@ -1958,7 +2013,7 @@
       statusMsg.innerText = `Autorização para ${invitedEmail} cadastrada com sucesso!`;
       
       const subject = encodeURIComponent("Convite para Espaço Financeiro Compartilhado");
-      const body = encodeURIComponent(`Olá!\n\nVocê foi convidado por ${currentUser.name || currentUser.email} para compartilhar o painel financeiro.\n\nAcesse a aplicação, clique na aba "Sou Convidado" e informe seu e-mail (${invitedEmail}).`);
+      const body = encodeURIComponent(`Olá!\n\nVocê foi convidado por ${currentUser.name || currentUser.email} para compartilhar o painel financeiro.\n\nAcesse a aplicação, clique na aba "Sou convidado" e informe seu e-mail (${invitedEmail}).`);
       
       const mailtoUrl = `mailto:${invitedEmail}?subject=${subject}&body=${body}`;
       mailtoLink.href = mailtoUrl;
@@ -2068,30 +2123,30 @@
             }, 1200);
           }
         } catch (err) {
-          alert('Erro ao ler a planilha. Verifique o formato do arquivo.');
+          alert('Erro ao processar o arquivo: ' + err.message);
         }
       };
-
       reader.readAsArrayBuffer(file);
     }
 
+    // INICIALIZAÇÃO DA APLICAÇÃO
     window.addEventListener('DOMContentLoaded', async () => {
-      lucide.createIcons();
-
-      const today = new Date();
-      const monthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-      document.getElementById('month-filter').value = monthStr;
-
       const savedUser = localStorage.getItem('app_current_user');
       if (savedUser) {
         try {
           currentUser = JSON.parse(savedUser);
-          if (currentUser.email) currentUser.email = currentUser.email.toLowerCase();
           await resolveWorkspaceAndInit();
-        } catch (e) {
-          localStorage.removeItem('app_current_user');
+        } catch(e) {
+          console.error(e);
+        }
+      } else {
+        const monthFilter = document.getElementById('month-filter');
+        if (monthFilter) {
+          const now = new Date();
+          monthFilter.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
         }
       }
+      lucide.createIcons();
     });
   </script>
 </body>
