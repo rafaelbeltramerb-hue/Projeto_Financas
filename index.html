@@ -478,7 +478,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE EXCLUSÃO (ATUALIZADO COM OPÇÕES PARA PARCELAMENTO) -->
+  <!-- MODAL DE EXCLUSÃO (SUPORTE A PARCELADO E FIXO) -->
   <div id="delete-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-3">
     <div class="bg-white w-full max-w-sm p-5 rounded-2xl shadow-2xl space-y-3 border border-slate-200">
       <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
@@ -487,29 +487,29 @@
       <h3 class="text-base font-bold text-slate-900 text-center">Excluir Lançamento?</h3>
       <p id="delete-modal-msg" class="text-xs text-slate-500 text-center">Esta ação não poderá ser desfeita.</p>
 
-      <!-- OPÇÕES PARA LANÇAMENTOS PARCELADOS -->
+      <!-- OPÇÕES PARA LANÇAMENTOS PARCELADOS OU FIXOS -->
       <div id="delete-installment-options" class="hidden text-left bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 my-2">
-        <p class="text-[11px] font-bold text-slate-700">Este lançamento é parcelado. Escolha a abrangência da exclusão:</p>
+        <p id="delete-scope-title" class="text-[11px] font-bold text-slate-700">Este lançamento faz parte de um grupo. Escolha a abrangência da exclusão:</p>
         <div class="space-y-2 text-xs text-slate-700">
           <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
             <input type="radio" name="delete-scope" value="only_this" checked class="accent-rose-600">
             <div>
               <span class="font-semibold block text-slate-800">Apenas este lançamento</span>
-              <span class="text-[10px] text-slate-400">Exclui somente a parcela selecionada.</span>
+              <span class="text-[10px] text-slate-400">Exclui somente o lançamento selecionado.</span>
             </div>
           </label>
           <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
             <input type="radio" name="delete-scope" value="this_and_future" class="accent-rose-600">
             <div>
               <span class="font-semibold block text-slate-800">Este e os próximos lançamentos</span>
-              <span class="text-[10px] text-slate-400">Exclui a parcela atual e as parcelas futuras.</span>
+              <span class="text-[10px] text-slate-400">Exclui o lançamento atual e os lançamentos futuros.</span>
             </div>
           </label>
           <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
             <input type="radio" name="delete-scope" value="all" class="accent-rose-600">
             <div>
-              <span class="font-semibold block text-slate-800">Todos os lançamentos do parcelamento</span>
-              <span class="text-[10px] text-slate-400">Exclui todas as parcelas deste grupo.</span>
+              <span class="font-semibold block text-slate-800">Todos os lançamentos do grupo</span>
+              <span class="text-[10px] text-slate-400">Exclui todas as ocorrências deste grupo.</span>
             </div>
           </label>
         </div>
@@ -574,14 +574,46 @@
           </div>
         </div>
 
+        <!-- OPÇÕES DE CRIAÇÃO (RECORRÊNCIA / PARCELAS) -->
         <div id="recurrence-options" class="border-t border-slate-100 pt-2 space-y-2">
           <div class="flex items-center justify-between">
-            <label for="tx-recurring" class="text-xs text-slate-700 font-semibold cursor-pointer">Lançamento Fixo Mensal?</label>
+            <div>
+              <label for="tx-recurring" class="text-xs text-slate-700 font-semibold cursor-pointer">Lançamento Fixo Mensal?</label>
+              <p class="text-[10px] text-slate-400">Gera automaticamente lançamentos para os meses futuros.</p>
+            </div>
             <input type="checkbox" id="tx-recurring" onchange="toggleFormFields()" class="w-3.5 h-3.5 accent-purple-600 rounded">
           </div>
           <div id="installments-container">
             <label class="block text-xs font-semibold text-slate-600 mb-0.5">Parcelas</label>
             <input type="number" id="tx-installments" min="1" max="72" value="1" placeholder="1 para à vista" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+          </div>
+        </div>
+
+        <!-- ABRANGÊNCIA DA EDIÇÃO (PARCELADO OU FIXO) -->
+        <div id="edit-scope-container" class="hidden border-t border-slate-100 pt-2 space-y-2">
+          <label class="block text-xs font-bold text-slate-700">Abrangência da Alteração</label>
+          <div class="space-y-1.5 text-xs text-slate-700">
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white transition">
+              <input type="radio" name="edit-scope" value="only_this" checked class="accent-purple-600">
+              <div>
+                <span class="font-semibold block text-slate-800">Somente este lançamento</span>
+                <span class="text-[10px] text-slate-400">Altera apenas a transação selecionada.</span>
+              </div>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white transition">
+              <input type="radio" name="edit-scope" value="this_and_future" class="accent-purple-600">
+              <div>
+                <span class="font-semibold block text-slate-800">Este e os próximos (daqui em diante)</span>
+                <span class="text-[10px] text-slate-400">Aplica as alterações a este e a todos os lançamentos futuros do grupo.</span>
+              </div>
+            </label>
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white transition">
+              <input type="radio" name="edit-scope" value="all" class="accent-purple-600">
+              <div>
+                <span class="font-semibold block text-slate-800">Todos os lançamentos do grupo</span>
+                <span class="text-[10px] text-slate-400">Atualiza todas as ocorrências deste grupo/série.</span>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -711,6 +743,16 @@
     function getTodayString() {
       const d = new Date();
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // HELPER PARA CALCULAR DATAS MENSAIS FUTURAS PRESERVANDO O DIA DO MÊS
+    function getFutureMonthlyDate(baseDateStr, monthsToAdd) {
+      if (!baseDateStr) return getTodayString();
+      const [y, m, d] = baseDateStr.split('-').map(Number);
+      const targetDate = new Date(y, m - 1 + monthsToAdd, 1);
+      const maxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+      const dayToUse = Math.min(d, maxDays);
+      return `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(dayToUse).padStart(2, '0')}`;
     }
 
     function getTransactionStatusDetails(t) {
@@ -1299,10 +1341,10 @@
       await db.from('transactions').update({ status: newStatus }).eq('id', id);
     }
 
-    // FUNÇÃO DE UTILIDADE PARA IDENTIFICAR PADRÃO DE PARCELAMENTO (ex: "Compra Mercado (1/10)")
-    function parseInstallmentDescription(desc) {
-      if (!desc) return null;
-      const match = desc.trim().match(/^(.*)\s+\((\d+)\/(\d+)\)$/);
+    // HELPER PARA IDENTIFICAR PARCELAMENTO
+    function getInstallmentInfo(t) {
+      if (!t || !t.description) return null;
+      const match = t.description.trim().match(/^(.*)\s+\((\d+)\/(\d+)\)$/);
       if (match) {
         return {
           baseDescription: match[1].trim(),
@@ -1313,6 +1355,32 @@
       return null;
     }
 
+    // HELPER UNIFICADO PARA ENCONTRAR LANÇAMENTOS RELACIONADOS (PARCELADOS OU FIXOS)
+    function getRelatedTransactions(t) {
+      if (!t) return [];
+      const instInfo = getInstallmentInfo(t);
+
+      if (instInfo) {
+        return transactions.filter(item => {
+          const info = getInstallmentInfo(item);
+          return info &&
+                 info.baseDescription.toLowerCase() === instInfo.baseDescription.toLowerCase() &&
+                 info.totalNumber === instInfo.totalNumber &&
+                 item.type === t.type;
+        }).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      }
+
+      if (t.isRecurring) {
+        return transactions.filter(item => {
+          return item.isRecurring &&
+                 item.description.trim().toLowerCase() === t.description.trim().toLowerCase() &&
+                 item.type === t.type;
+        }).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      }
+
+      return [t];
+    }
+
     // ABRIR MODAL DE EXCLUSÃO
     function deleteTransaction(id) {
       closeAllActionMenus();
@@ -1320,24 +1388,24 @@
       if (!t) return;
 
       currentDeleteTarget = t;
-      const instInfo = parseInstallmentDescription(t.description);
+      const related = getRelatedTransactions(t);
 
       const optionsContainer = document.getElementById('delete-installment-options');
       const modalMsg = document.getElementById('delete-modal-msg');
+      const scopeTitle = document.getElementById('delete-scope-title');
 
-      if (instInfo) {
-        // Encontra todas as parcelas relacionadas com a mesma descrição base e total de parcelas
-        const related = transactions.filter(item => {
-          const info = parseInstallmentDescription(item.description);
-          return info && info.baseDescription === instInfo.baseDescription && info.totalNumber === instInfo.totalNumber && item.type === t.type;
-        });
-
+      if (related.length > 1) {
         currentRelatedInstallments = related;
 
         modalMsg.innerText = `Deseja excluir "${t.description}"?`;
         optionsContainer.classList.remove('hidden');
 
-        // Reseta opção padrão para "Apenas este lançamento"
+        if (scopeTitle) {
+          scopeTitle.innerText = t.isRecurring
+            ? 'Este lançamento é fixo. Escolha a abrangência da exclusão:'
+            : 'Este lançamento é parcelado. Escolha a abrangência da exclusão:';
+        }
+
         const defaultRadio = document.querySelector('input[name="delete-scope"][value="only_this"]');
         if (defaultRadio) defaultRadio.checked = true;
       } else {
@@ -1363,19 +1431,15 @@
       }
 
       let idsToDelete = [];
-      const instInfo = parseInstallmentDescription(currentDeleteTarget.description);
 
-      if (instInfo && currentRelatedInstallments.length > 0) {
+      if (currentRelatedInstallments.length > 1) {
         const selectedScope = document.querySelector('input[name="delete-scope"]:checked')?.value || 'only_this';
 
         if (selectedScope === 'only_this') {
           idsToDelete = [currentDeleteTarget.id];
         } else if (selectedScope === 'this_and_future') {
           idsToDelete = currentRelatedInstallments
-            .filter(item => {
-              const info = parseInstallmentDescription(item.description);
-              return info && info.currentNumber >= instInfo.currentNumber;
-            })
+            .filter(item => item.dueDate >= currentDeleteTarget.dueDate)
             .map(item => item.id);
         } else if (selectedScope === 'all') {
           idsToDelete = currentRelatedInstallments.map(item => item.id);
@@ -1403,23 +1467,41 @@
 
       populateCategoryDropdown();
 
+      const recurrenceOptions = document.getElementById('recurrence-options');
+      const editScopeContainer = document.getElementById('edit-scope-container');
+
       if (id) {
         const t = transactions.find(item => item.id == id);
         if (!t) return;
         document.getElementById('tx-id').value = t.id;
         document.getElementById('modal-title').innerText = 'Editar Transação';
+
         if (t.type === 'income') document.getElementById('type-income').checked = true;
         else document.getElementById('type-expense').checked = true;
 
-        document.getElementById('tx-description').value = t.description;
+        const instInfo = getInstallmentInfo(t);
+        document.getElementById('tx-description').value = instInfo ? instInfo.baseDescription : t.description;
         document.getElementById('tx-amount').value = t.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
         document.getElementById('tx-date').value = t.dueDate;
         document.getElementById('tx-category').value = t.category;
         document.getElementById('tx-status').value = t.status;
-        document.getElementById('tx-recurring').checked = t.isRecurring;
+        document.getElementById('tx-recurring').checked = Boolean(t.isRecurring);
+
+        const related = getRelatedTransactions(t);
+        if (related.length > 1) {
+          editScopeContainer.classList.remove('hidden');
+          const defaultRadio = document.querySelector('input[name="edit-scope"][value="only_this"]');
+          if (defaultRadio) defaultRadio.checked = true;
+        } else {
+          editScopeContainer.classList.add('hidden');
+        }
+
+        recurrenceOptions.classList.add('hidden');
       } else {
         document.getElementById('type-expense').checked = true;
         document.getElementById('tx-date').value = getTodayString();
+        editScopeContainer.classList.add('hidden');
+        recurrenceOptions.classList.remove('hidden');
       }
 
       toggleFormFields();
@@ -1441,7 +1523,7 @@
       e.preventDefault();
       const id = document.getElementById('tx-id').value;
       const type = document.querySelector('input[name="type"]:checked').value;
-      const description = document.getElementById('tx-description').value.trim();
+      const rawDesc = document.getElementById('tx-description').value.trim();
       const amount = parseBRLToFloat(document.getElementById('tx-amount').value);
       const dueDate = document.getElementById('tx-date').value;
       const category = document.getElementById('tx-category').value;
@@ -1449,35 +1531,110 @@
       const isRecurring = document.getElementById('tx-recurring').checked;
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
-      const payload = {
-        owner_email: currentWorkspaceOwner,
-        user_email: currentUser.email.toLowerCase(),
-        type,
-        description,
-        amount,
-        due_date: dueDate,
-        category,
-        status,
-        is_recurring: isRecurring
-      };
-
       if (id) {
-        await db.from('transactions').update(payload).eq('id', id);
-      } else if (installments > 1 && !isRecurring) {
-        const batch = [];
-        const [y, m, d] = dueDate.split('-').map(Number);
-        for (let i = 0; i < installments; i++) {
-          const targetDate = new Date(y, m - 1 + i, d);
-          const formattedDate = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(targetDate.getDate()).padStart(2, '0')}`;
-          batch.push({
-            ...payload,
-            description: `${description} (${i + 1}/${installments})`,
-            due_date: formattedDate
-          });
+        // MODO EDIÇÃO
+        const origTx = transactions.find(item => item.id == id);
+        if (!origTx) return;
+
+        const related = getRelatedTransactions(origTx);
+        const editScope = document.querySelector('input[name="edit-scope"]:checked')?.value || 'only_this';
+
+        if (related.length <= 1 || editScope === 'only_this') {
+          const instInfo = getInstallmentInfo(origTx);
+          const finalDesc = instInfo ? `${rawDesc} (${instInfo.currentNumber}/${instInfo.totalNumber})` : rawDesc;
+
+          await db.from('transactions').update({
+            type,
+            description: finalDesc,
+            amount,
+            due_date: dueDate,
+            category,
+            status,
+            is_recurring: isRecurring
+          }).eq('id', id);
+
+        } else {
+          const itemsToUpdate = editScope === 'this_and_future'
+            ? related.filter(item => item.dueDate >= origTx.dueDate)
+            : related;
+
+          const newDay = parseInt(dueDate.split('-')[2], 10);
+
+          for (const item of itemsToUpdate) {
+            const instInfo = getInstallmentInfo(item);
+            const finalDesc = instInfo ? `${rawDesc} (${instInfo.currentNumber}/${instInfo.totalNumber})` : rawDesc;
+
+            let itemDueDate = item.dueDate;
+            if (item.id == id) {
+              itemDueDate = dueDate;
+            } else {
+              const [y, m] = item.dueDate.split('-').map(Number);
+              const targetDate = new Date(y, m - 1, 1);
+              const maxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
+              const dayToUse = Math.min(newDay, maxDays);
+              itemDueDate = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(dayToUse).padStart(2, '0')}`;
+            }
+
+            const updatePayload = {
+              type,
+              description: finalDesc,
+              amount,
+              due_date: itemDueDate,
+              category,
+              is_recurring: isRecurring
+            };
+
+            if (item.id == id) {
+              updatePayload.status = status;
+            }
+
+            await db.from('transactions').update(updatePayload).eq('id', item.id);
+          }
         }
-        await db.from('transactions').insert(batch);
+
       } else {
-        await db.from('transactions').insert(payload);
+        // MODO CRIAÇÃO
+        const payload = {
+          owner_email: currentWorkspaceOwner,
+          user_email: currentUser.email.toLowerCase(),
+          type,
+          description: rawDesc,
+          amount,
+          due_date: dueDate,
+          category,
+          status,
+          is_recurring: isRecurring
+        };
+
+        if (isRecurring) {
+          // GERA AUTOMATICAMENTE 12 MESES FUTUROS PARA LANÇAMENTO FIXO
+          const batch = [];
+          for (let i = 0; i < 12; i++) {
+            batch.push({
+              ...payload,
+              status: i === 0 ? status : 'pending',
+              due_date: getFutureMonthlyDate(dueDate, i)
+            });
+          }
+          await db.from('transactions').insert(batch);
+
+        } else if (installments > 1) {
+          // GERA PARCELAS
+          const batch = [];
+          for (let i = 0; i < installments; i++) {
+            batch.push({
+              ...payload,
+              description: `${rawDesc} (${i + 1}/${installments})`,
+              status: i === 0 ? status : 'pending',
+              due_date: getFutureMonthlyDate(dueDate, i)
+            });
+          }
+          await db.from('transactions').insert(batch);
+
+        } else {
+          // LANÇAMENTO ÚNICO
+          await db.from('transactions').insert(payload);
+        }
       }
 
       closeModal();
