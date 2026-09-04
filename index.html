@@ -134,7 +134,7 @@
       <button onclick="loadTransactionsFromDB()" class="bg-white/20 hover:bg-white/30 text-white px-2.5 py-1 rounded-md text-[11px] font-semibold transition">Tentar Novamente</button>
     </div>
 
-    <!-- CABEÇALHO SUPERIOR ENXUTO (Item 12) -->
+    <!-- CABEÇALHO SUPERIOR ENXUTO -->
     <header class="bg-white sticky top-0 z-20 border-b border-slate-200/60 px-4 sm:px-8 py-2.5 flex items-center justify-between gap-4">
       <div class="flex items-center space-x-6">
         <div class="flex items-center space-x-2.5">
@@ -147,7 +147,7 @@
           </div>
         </div>
 
-        <!-- ABA NAVEGAÇÃO INTEGRADA (Item 12) -->
+        <!-- ABA NAVEGAÇÃO INTEGRADA -->
         <nav class="flex space-x-6 border-l border-slate-200/60 pl-6">
           <button id="btn-tab-dashboard" onclick="switchTab('dashboard')" class="py-1 text-xs font-bold transition text-purple-600 border-b-2 border-purple-600 flex items-center gap-1.5">
             Dashboard
@@ -198,7 +198,7 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-5">
       
-      <!-- BARRA DE CONTROLES E SELETOR DE MÊS (Item 11) -->
+      <!-- BARRA DE CONTROLES E SELETOR DE MÊS -->
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 id="page-title" class="text-lg font-extrabold text-slate-900 tracking-tight">Painel Financeiro</h2>
@@ -206,7 +206,7 @@
         </div>
 
         <div class="flex items-center gap-2.5">
-          <!-- SELETOR REINVENTADO DE MÊS COM BOTÃO HOJE (Item 11) -->
+          <!-- SELETOR DE MÊS COM BOTÃO HOJE -->
           <div class="flex items-center bg-white border border-slate-200/80 rounded-xl p-1 shadow-xs">
             <button onclick="changeMonth(-1)" title="Mês Anterior" class="p-1 hover:bg-slate-100 rounded-lg text-slate-600 transition">
               <i data-lucide="chevron-left" class="w-4 h-4"></i>
@@ -234,10 +234,10 @@
       <!-- TELA 1: DASHBOARD -->
       <div id="tab-dashboard" class="space-y-5">
         
-        <!-- BANNERS DE STORYTELLING E HIERARQUIA FINANCEIRA (Item 1, 14 e 15) -->
+        <!-- BANNERS DE STORYTELLING E HIERARQUIA FINANCEIRA -->
         <div id="story-executive-banner" class="hidden"></div>
 
-        <!-- QUADRO HERO PRINCIPAL: SALDO DISPONÍVEL / PREVISTO (Item 1 & 14) -->
+        <!-- QUADRO HERO PRINCIPAL: SALDO DISPONÍVEL / PREVISTO -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           
           <!-- CARD DESTAQUE PRIMÁRIO: SALDO DO MÊS -->
@@ -254,7 +254,7 @@
               <p id="hero-projected-subtext" class="text-xs text-slate-400 mt-1">Saldo Previsto no fim do mês: <strong class="text-white">R$ 0,00</strong></p>
             </div>
 
-            <!-- MICROVISUALIZAÇÃO / RECEITAS VS DESPESAS COM SPARKLINE % (Item 1 & 14) -->
+            <!-- MICROVISUALIZAÇÃO / RECEITAS VS DESPESAS COM SPARKLINE % -->
             <div class="pt-4 border-t border-white/10 grid grid-cols-2 gap-4 z-10">
               <div>
                 <span class="text-[11px] text-slate-400 flex items-center gap-1 font-medium"><i data-lucide="arrow-up-right" class="w-3.5 h-3.5 text-emerald-400"></i> Receitas</span>
@@ -269,7 +269,7 @@
             </div>
           </div>
 
-          <!-- CARD SECUNDÁRIO: PENDENTES / ALERTA (Item 1 & 15) -->
+          <!-- CARD SECUNDÁRIO: PENDENTES / ALERTA -->
           <div class="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-xs flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between">
@@ -328,7 +328,7 @@
               </div>
             </div>
 
-            <!-- DESPESAS POR CATEGORIA COM BARRAS VISUAIS ÚTEIS (Item 3) -->
+            <!-- DESPESAS POR CATEGORIA -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs space-y-3">
               <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <h3 class="font-bold text-slate-900 text-sm">Despesas por Categoria</h3>
@@ -341,7 +341,7 @@
           </div>
 
           <div class="space-y-5">
-            <!-- ANTERIORES NÃO CONSOLIDADAS COM CONTEXTO (Item 4) -->
+            <!-- ANTERIORES NÃO CONSOLIDADAS -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs space-y-3">
               <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <div>
@@ -356,7 +356,7 @@
               </div>
             </div>
 
-            <!-- PRÓXIMAS NÃO CONSOLIDADAS MAIS VISUAIS (Item 5) -->
+            <!-- PRÓXIMAS NÃO CONSOLIDADAS -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs space-y-3">
               <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
                 <h3 class="font-bold text-slate-900 text-sm">Próximas não consolidadas</h3>
@@ -366,7 +366,7 @@
               </div>
             </div>
 
-            <!-- COMPONENTE DINÂMICO DE ALERTA DE 5 DIAS (Item 6) -->
+            <!-- COMPONENTE DINÂMICO DE ALERTA DE 5 DIAS -->
             <div id="alert-banner-container">
             </div>
           </div>
@@ -374,7 +374,7 @@
         </div>
       </div>
 
-      <!-- TELA 2: LANÇAMENTOS MENSAIS (Item 7, 8, 9, 10) -->
+      <!-- TELA 2: LANÇAMENTOS MENSAIS -->
       <div id="tab-transactions" class="hidden space-y-5">
         
         <!-- RESUMO DA ABA DE LANÇAMENTOS -->
@@ -406,7 +406,7 @@
           </div>
         </div>
 
-        <!-- TABELA MODERNA EM CAMADAS (Item 7, 8, 9, 10) -->
+        <!-- TABELA DE LANÇAMENTOS -->
         <div class="bg-white rounded-2xl border border-slate-200/60 shadow-xs overflow-hidden">
           <div class="p-4 border-b border-slate-100 flex items-center justify-between">
             <h3 class="font-bold text-slate-900 text-sm">Lançamentos do Mês Selecionado</h3>
@@ -478,20 +478,51 @@
     </div>
   </div>
 
+  <!-- MODAL DE EXCLUSÃO (ATUALIZADO COM OPÇÕES PARA PARCELAMENTO) -->
   <div id="delete-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-3">
-    <div class="bg-white w-full max-w-sm p-5 rounded-2xl shadow-2xl space-y-3 text-center border border-slate-200">
+    <div class="bg-white w-full max-w-sm p-5 rounded-2xl shadow-2xl space-y-3 border border-slate-200">
       <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto">
         <i data-lucide="alert-triangle" class="w-5 h-5"></i>
       </div>
-      <h3 class="text-base font-bold text-slate-900">Excluir Lançamento?</h3>
-      <p id="delete-modal-msg" class="text-xs text-slate-500">Esta ação não poderá ser desfeita.</p>
-      <div class="flex justify-center space-x-2 border-t border-slate-100 pt-3">
+      <h3 class="text-base font-bold text-slate-900 text-center">Excluir Lançamento?</h3>
+      <p id="delete-modal-msg" class="text-xs text-slate-500 text-center">Esta ação não poderá ser desfeita.</p>
+
+      <!-- OPÇÕES PARA LANÇAMENTOS PARCELADOS -->
+      <div id="delete-installment-options" class="hidden text-left bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2 my-2">
+        <p class="text-[11px] font-bold text-slate-700">Este lançamento é parcelado. Escolha a abrangência da exclusão:</p>
+        <div class="space-y-2 text-xs text-slate-700">
+          <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
+            <input type="radio" name="delete-scope" value="only_this" checked class="accent-rose-600">
+            <div>
+              <span class="font-semibold block text-slate-800">Apenas este lançamento</span>
+              <span class="text-[10px] text-slate-400">Exclui somente a parcela selecionada.</span>
+            </div>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
+            <input type="radio" name="delete-scope" value="this_and_future" class="accent-rose-600">
+            <div>
+              <span class="font-semibold block text-slate-800">Este e os próximos lançamentos</span>
+              <span class="text-[10px] text-slate-400">Exclui a parcela atual e as parcelas futuras.</span>
+            </div>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer p-1.5 rounded-lg hover:bg-white transition">
+            <input type="radio" name="delete-scope" value="all" class="accent-rose-600">
+            <div>
+              <span class="font-semibold block text-slate-800">Todos os lançamentos do parcelamento</span>
+              <span class="text-[10px] text-slate-400">Exclui todas as parcelas deste grupo.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-2 border-t border-slate-100 pt-3">
         <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900">Cancelar</button>
-        <button onclick="confirmDeleteTransaction()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-sm">Confirmar Exclusão</button>
+        <button onclick="confirmDeleteTransaction()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-sm transition">Confirmar Exclusão</button>
       </div>
     </div>
   </div>
 
+  <!-- MODAL DE CADASTRO/EDIÇÃO DE TRANSAÇÃO -->
   <div id="modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-3">
     <div class="bg-white w-full max-w-lg p-5 rounded-2xl shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border border-slate-200">
       <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
@@ -573,7 +604,8 @@
     let currentWorkspaceOwner = null;
     let transactions = [];
     let userCategories = [];
-    let pendingDeleteIds = [];
+    let currentDeleteTarget = null;
+    let currentRelatedInstallments = [];
     let activeOpenMenuId = null;
 
     const monthNamesPT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -681,7 +713,6 @@
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     }
 
-    // MAPEAMENTO REVOLUCIONADO DE STATUS (Item 9)
     function getTransactionStatusDetails(t) {
       const isIncome = t.type === 'income';
       const isPaid = t.status === 'completed';
@@ -896,7 +927,6 @@
       renderDashboard();
     }
 
-    // CÁLCULO GERAL E RENDERIZAÇÃO DO DASHBOARD COMPLETO
     function renderDashboard() {
       updateMonthDisplayLabel();
       const selectedMonth = document.getElementById('month-filter').value;
@@ -910,7 +940,6 @@
       in5Days.setDate(in5Days.getDate() + 5);
       const in5DaysStr = `${in5Days.getFullYear()}-${String(in5Days.getMonth() + 1).padStart(2, '0')}-${String(in5Days.getDate()).padStart(2, '0')}`;
 
-      // Lógica de cálculo de mês anterior para evolução (Item 14)
       const [currY, currM] = selectedMonth.split('-').map(Number);
       const prevMonthDate = new Date(currY, currM - 2, 1);
       const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
@@ -937,7 +966,6 @@
         const isCurrentMonth = t.dueDate.startsWith(selectedMonth);
         const isPrevMonth = t.dueDate.startsWith(prevMonthStr);
 
-        // Mês anterior para sparklines (Item 14)
         if (isPrevMonth) {
           if (isIncome) prevMonthTotalIncome += t.amount;
           else prevMonthTotalExpense += t.amount;
@@ -977,14 +1005,12 @@
       const totalPendingExpense = monthPendingExpense;
       const projectedBalance = totalBalance + monthPendingIncome - monthPendingExpense;
 
-      // ATUALIZAÇÃO DO HERO (Item 1 & 14)
       document.getElementById('hero-main-balance').innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('hero-projected-subtext').innerHTML = `Saldo Previsto no fim do mês: <strong class="${projectedBalance < 0 ? 'text-rose-400' : 'text-white'}">R$ ${projectedBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</strong>`;
 
       document.getElementById('hero-income-val').innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('hero-expense-val').innerText = `R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 
-      // Cálculo % de evolução (Item 14)
       const incomeInc = prevMonthTotalIncome > 0 ? (((monthIncome - prevMonthTotalIncome) / prevMonthTotalIncome) * 100).toFixed(1) : 0;
       const expenseInc = prevMonthTotalExpense > 0 ? (((monthExpense - prevMonthTotalExpense) / prevMonthTotalExpense) * 100).toFixed(1) : 0;
 
@@ -1000,28 +1026,16 @@
       document.getElementById('txt-month-expense').innerText = `-R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
       document.getElementById('txt-total-balance').innerText = `R$ ${totalBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 
-      // HISTÓRIA DO DASHBOARD / EXECUTIVE BANNER (Item 15)
       renderExecutiveStoryBanner(totalBalance, totalPendingExpense, projectedBalance);
-
-      // CATEGORIAS REFEITAS (Item 3)
       renderCategoryBars(categoryTotals);
-
-      // ANTERIORES & PRÓXIMAS COM CONTEXTO (Item 4 e 5)
       renderPendingSections(prevPending, nextPending);
-
-      // ALERTA DE 5 DIAS COMPACTO (Item 6)
       renderCompactAlerts(alerts);
-
-      // RESUMO DA TELA DE LANÇAMENTOS
       renderTransactionsTabSummary(monthIncome, monthPendingIncome, monthExpense, monthPendingExpense);
-
-      // TABELA COMPLETA EM CAMADAS (Item 7, 8, 9, 10)
       renderTransactionsTable(monthTransactions);
 
       if (window.lucide) lucide.createIcons();
     }
 
-    // BANNER DE STORYTELLING (Item 15)
     function renderExecutiveStoryBanner(balance, pendingExpenses, projected) {
       const banner = document.getElementById('story-executive-banner');
       if (pendingExpenses > balance && balance > 0) {
@@ -1051,7 +1065,6 @@
       }
     }
 
-    // BARRAS DE CATEGORIA VISUAIS E LER VISUALMENTE MELHOR (Item 3)
     function renderCategoryBars(categoryTotals) {
       const container = document.getElementById('category-bars-container');
       const totalLabel = document.getElementById('cat-total-label');
@@ -1066,9 +1079,7 @@
         return;
       }
 
-      // Separa top 5 e agrupa o restante em "Outros"
       let topCategories = entries.slice(0, 5);
-      const rest = entries.slice(0);
       if (entries.length > 5) {
         const othersTotal = entries.slice(5).reduce((acc, curr) => acc + curr[1], 0);
         topCategories.push(['Outros', othersTotal]);
@@ -1090,9 +1101,7 @@
       }).join('');
     }
 
-    // SEÇÕES DE PENDENTES COM DATA EM DESTAQUE E RESUMO DE CONTEXTO (Item 4 & 5)
     function renderPendingSections(prevPending, nextPending) {
-      // Anterior (Item 4)
       const prevSummary = document.getElementById('prev-pending-summary');
       const prevList = document.getElementById('list-previous-pending');
       const prevTotal = prevPending.reduce((acc, t) => acc + t.amount, 0);
@@ -1113,7 +1122,6 @@
         `).join('');
       }
 
-      // Próximas (Item 5)
       const nextSummary = document.getElementById('next-pending-summary');
       const nextList = document.getElementById('list-next-pending');
 
@@ -1147,7 +1155,6 @@
       }
     }
 
-    // ALERTA DE VENCIMENTO COMPACTO QUANDO VAZIO (Item 6)
     function renderCompactAlerts(alerts) {
       const container = document.getElementById('alert-banner-container');
       if (alerts.length === 0) {
@@ -1195,7 +1202,6 @@
       document.getElementById('tx-summary-balance-total').innerText = `R$ ${projectedBal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
     }
 
-    // TABELA MODERNA EM CAMADAS E MENU COMPACTO DE AÇÕES (Item 7, 8, 9, 10)
     function renderTransactionsTable(monthTransactions) {
       const listEl = document.getElementById('transactions-list');
       if (!listEl) return;
@@ -1210,7 +1216,6 @@
         const details = getTransactionStatusDetails(t);
         const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
 
-        // Tratamento da autoria e fixo mais discretos (Item 10)
         let authorTag = '';
         if (t.userEmail && t.userEmail !== currentUser.email.toLowerCase()) {
           const shortAuthor = t.userEmail.split('@')[0];
@@ -1220,7 +1225,6 @@
 
         return `
           <tr class="${bgClass} hover:bg-purple-50/40 transition border-b border-slate-100">
-            <!-- Camada 1: Descrição forte + metadados sutis (Item 7 e 10) -->
             <td class="py-3 px-4">
               <div class="font-bold text-slate-900 text-xs">${escapeHTML(t.description)}</div>
               <div class="text-[10px] text-slate-400 font-medium">${escapeHTML(t.category)}${fixedTag}${escapeHTML(authorTag)}</div>
@@ -1229,12 +1233,10 @@
             <td class="py-3 px-4 text-slate-500 text-xs font-medium">${escapeHTML(t.category)}</td>
             <td class="py-3 px-4 text-slate-500 text-xs font-medium">${formatDateToBR(t.dueDate)}</td>
 
-            <!-- Camada 2: Valor com fonte semibold (Item 7) -->
             <td class="py-3 px-4 font-semibold text-xs ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">
               ${isIncome ? '+' : '-'} R$ ${t.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
             </td>
 
-            <!-- Camada 3: Status Badge forte e refinado (Item 9) -->
             <td class="py-3 px-4">
               <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${details.badgeClass}">
                 <span class="w-1.5 h-1.5 rounded-full ${details.dotColor}"></span>
@@ -1242,7 +1244,6 @@
               </span>
             </td>
 
-            <!-- Camada 4: Ações discretas com Menu ⋯ (Item 8) -->
             <td class="py-3 px-4 text-right relative action-menu-container">
               <button onclick="toggleActionMenu('${t.id}', event)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition">
                 <i data-lucide="more-horizontal" class="w-4 h-4"></i>
@@ -1298,25 +1299,98 @@
       await db.from('transactions').update({ status: newStatus }).eq('id', id);
     }
 
+    // FUNÇÃO DE UTILIDADE PARA IDENTIFICAR PADRÃO DE PARCELAMENTO (ex: "Compra Mercado (1/10)")
+    function parseInstallmentDescription(desc) {
+      if (!desc) return null;
+      const match = desc.trim().match(/^(.*)\s+\((\d+)\/(\d+)\)$/);
+      if (match) {
+        return {
+          baseDescription: match[1].trim(),
+          currentNumber: parseInt(match[2], 10),
+          totalNumber: parseInt(match[3], 10)
+        };
+      }
+      return null;
+    }
+
+    // ABRIR MODAL DE EXCLUSÃO
     function deleteTransaction(id) {
       closeAllActionMenus();
       const t = transactions.find(item => item.id == id);
       if (!t) return;
 
-      pendingDeleteIds = [t.id];
-      document.getElementById('delete-modal-msg').innerText = `Deseja excluir "${t.description}"?`;
+      currentDeleteTarget = t;
+      const instInfo = parseInstallmentDescription(t.description);
+
+      const optionsContainer = document.getElementById('delete-installment-options');
+      const modalMsg = document.getElementById('delete-modal-msg');
+
+      if (instInfo) {
+        // Encontra todas as parcelas relacionadas com a mesma descrição base e total de parcelas
+        const related = transactions.filter(item => {
+          const info = parseInstallmentDescription(item.description);
+          return info && info.baseDescription === instInfo.baseDescription && info.totalNumber === instInfo.totalNumber && item.type === t.type;
+        });
+
+        currentRelatedInstallments = related;
+
+        modalMsg.innerText = `Deseja excluir "${t.description}"?`;
+        optionsContainer.classList.remove('hidden');
+
+        // Reseta opção padrão para "Apenas este lançamento"
+        const defaultRadio = document.querySelector('input[name="delete-scope"][value="only_this"]');
+        if (defaultRadio) defaultRadio.checked = true;
+      } else {
+        currentRelatedInstallments = [];
+        optionsContainer.classList.add('hidden');
+        modalMsg.innerText = `Deseja excluir "${t.description}"? Esta ação não poderá ser desfeita.`;
+      }
+
       document.getElementById('delete-modal').classList.remove('hidden');
     }
 
     function closeDeleteModal() {
       document.getElementById('delete-modal').classList.add('hidden');
-      pendingDeleteIds = [];
+      currentDeleteTarget = null;
+      currentRelatedInstallments = [];
     }
 
+    // CONFIRMAR E PROCESSAR A EXCLUSÃO CONFORME A ABRANGÊNCIA ESCOLHIDA
     async function confirmDeleteTransaction() {
-      for (const id of pendingDeleteIds) {
-        await db.from('transactions').delete().eq('id', id);
+      if (!currentDeleteTarget) {
+        closeDeleteModal();
+        return;
       }
+
+      let idsToDelete = [];
+      const instInfo = parseInstallmentDescription(currentDeleteTarget.description);
+
+      if (instInfo && currentRelatedInstallments.length > 0) {
+        const selectedScope = document.querySelector('input[name="delete-scope"]:checked')?.value || 'only_this';
+
+        if (selectedScope === 'only_this') {
+          idsToDelete = [currentDeleteTarget.id];
+        } else if (selectedScope === 'this_and_future') {
+          idsToDelete = currentRelatedInstallments
+            .filter(item => {
+              const info = parseInstallmentDescription(item.description);
+              return info && info.currentNumber >= instInfo.currentNumber;
+            })
+            .map(item => item.id);
+        } else if (selectedScope === 'all') {
+          idsToDelete = currentRelatedInstallments.map(item => item.id);
+        }
+      } else {
+        idsToDelete = [currentDeleteTarget.id];
+      }
+
+      if (idsToDelete.length > 0) {
+        const { error } = await db.from('transactions').delete().in('id', idsToDelete);
+        if (error) {
+          console.error("Erro ao excluir lançamento(s):", error);
+        }
+      }
+
       closeDeleteModal();
       await loadTransactionsFromDB();
     }
