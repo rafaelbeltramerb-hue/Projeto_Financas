@@ -354,6 +354,49 @@
 
       <!-- TELA 2: LANÇAMENTOS MENSAIS UNIFICADOS -->
       <div id="tab-transactions" class="hidden space-y-3">
+        
+        <!-- CARDS DE RESUMO DIRETO DA ABA LANÇAMENTOS -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- RECEITAS DO MÊS -->
+          <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TOTAL RECEITAS (MÊS)</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-100 border border-emerald-300"></span>
+            </div>
+            <div id="tx-summary-income" class="text-lg font-bold text-emerald-600 mt-1">R$ 0,00</div>
+            <div class="text-[10px] text-slate-500 mt-1 border-t border-slate-100 pt-1 flex justify-between">
+              <span>Recebido: <strong id="tx-summary-income-paid" class="text-emerald-700">R$ 0,00</strong></span>
+              <span>Pendente: <strong id="tx-summary-income-pending" class="text-amber-600">R$ 0,00</strong></span>
+            </div>
+          </div>
+
+          <!-- DESPESAS DO MÊS -->
+          <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TOTAL DESPESAS (MÊS)</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-rose-100 border border-rose-300"></span>
+            </div>
+            <div id="tx-summary-expense" class="text-lg font-bold text-rose-600 mt-1">R$ 0,00</div>
+            <div class="text-[10px] text-slate-500 mt-1 border-t border-slate-100 pt-1 flex justify-between">
+              <span>Pago: <strong id="tx-summary-expense-paid" class="text-rose-700">R$ 0,00</strong></span>
+              <span>Pendente: <strong id="tx-summary-expense-pending" class="text-amber-600">R$ 0,00</strong></span>
+            </div>
+          </div>
+
+          <!-- SALDO DO MÊS -->
+          <div class="bg-white p-3 rounded-xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SALDO CONCLUÍDO (MÊS)</span>
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-100 border border-indigo-300"></span>
+            </div>
+            <div id="tx-summary-balance" class="text-lg font-bold text-slate-900 mt-1">R$ 0,00</div>
+            <div class="text-[10px] text-slate-500 mt-1 border-t border-slate-100 pt-1 flex justify-between">
+              <span>Saldo Previsto Total: <strong id="tx-summary-balance-total" class="text-slate-800">R$ 0,00</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TABELA DE LANÇAMENTOS -->
         <div class="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
           <div class="p-3.5 border-b border-slate-100 flex items-center justify-between">
             <h3 class="font-bold text-slate-900 text-sm">Lançamentos do Mês Selecionado</h3>
@@ -1427,7 +1470,7 @@
         totalEl.className = totalBalance < 0 ? 'text-xl font-bold text-rose-600' : 'text-xl font-bold text-emerald-600';
       }
 
-      // ATUALIZAÇÃO DOS QUADROS KPI DO TOPO
+      // ATUALIZAÇÃO DOS QUADROS KPI DO TOPO DO DASHBOARD
       const cardIncomeEl = document.getElementById('card-income');
       if (cardIncomeEl) cardIncomeEl.innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
 
@@ -1445,6 +1488,42 @@
         const pendingSign = totalPending < 0 ? '-' : '';
         cardPendingEl.innerText = `${pendingSign}R$ ${Math.abs(totalPending).toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
         cardPendingEl.className = totalPending < 0 ? 'text-xl sm:text-2xl font-bold text-rose-600 mt-2' : 'text-xl sm:text-2xl font-bold text-amber-600 mt-2';
+      }
+
+      // ATUALIZAÇÃO DOS QUADROS DA ABA LANÇAMENTOS MENSAIS
+      const totalMonthIncome = monthIncome + monthPendingIncome;
+      const totalMonthExpense = monthExpense + monthPendingExpense;
+      const monthRealizedBalance = monthIncome - monthExpense;
+      const monthProjectedBalance = totalMonthIncome - totalMonthExpense;
+
+      const txSumInc = document.getElementById('tx-summary-income');
+      if (txSumInc) txSumInc.innerText = `R$ ${totalMonthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const txSumIncPaid = document.getElementById('tx-summary-income-paid');
+      if (txSumIncPaid) txSumIncPaid.innerText = `R$ ${monthIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const txSumIncPending = document.getElementById('tx-summary-income-pending');
+      if (txSumIncPending) txSumIncPending.innerText = `R$ ${monthPendingIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const txSumExp = document.getElementById('tx-summary-expense');
+      if (txSumExp) txSumExp.innerText = `R$ ${totalMonthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const txSumExpPaid = document.getElementById('tx-summary-expense-paid');
+      if (txSumExpPaid) txSumExpPaid.innerText = `R$ ${monthExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const txSumExpPending = document.getElementById('tx-summary-expense-pending');
+      if (txSumExpPending) txSumExpPending.innerText = `R$ ${monthPendingExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+
+      const txSumBal = document.getElementById('tx-summary-balance');
+      if (txSumBal) {
+        txSumBal.innerText = `R$ ${monthRealizedBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        txSumBal.className = monthRealizedBalance < 0 ? 'text-lg font-bold text-rose-600 mt-1' : 'text-lg font-bold text-emerald-600 mt-1';
+      }
+
+      const txSumBalTotal = document.getElementById('tx-summary-balance-total');
+      if (txSumBalTotal) {
+        txSumBalTotal.innerText = `R$ ${monthProjectedBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`;
+        txSumBalTotal.className = monthProjectedBalance < 0 ? 'font-bold text-rose-600' : 'font-bold text-slate-800';
       }
 
       renderDashboardLists(prevPending, nextPending, alerts);
