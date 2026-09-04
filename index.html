@@ -47,49 +47,55 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-500 selection:text-white">
 
-  <!-- TELA DE LOGIN / CADASTRO / CONVITE -->
-  <div id="login-view" class="min-h-screen flex items-center justify-center p-3 bg-gradient-to-br from-slate-100 via-indigo-50/30 to-slate-100">
-    <div class="glass-card w-full max-w-md p-6 rounded-2xl shadow-xl shadow-slate-200/50 space-y-4 bg-white">
-      <div class="text-center space-y-1">
-        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-brand-50 text-brand-600 mb-1 shadow-sm border border-brand-100">
+  <!-- TELA DE LOGIN / CADASTRO / CONVITE (ESTILO REFORMULADO) -->
+  <div id="login-view" class="relative min-h-screen flex items-center justify-center p-4 bg-slate-950 overflow-hidden">
+    <!-- EFEITOS DE BRILHO E GLOW DE FUNDO -->
+    <div class="absolute -top-32 -left-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[32rem] h-[32rem] bg-indigo-500/10 rounded-full blur-[140px] pointer-events-none"></div>
+
+    <!-- CARD GLASSMORPHISM ESCURO -->
+    <div class="relative z-10 w-full max-w-md p-6 sm:p-8 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl shadow-2xl shadow-indigo-950/50 space-y-5">
+      <div class="text-center space-y-2">
+        <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 shadow-inner">
           <i data-lucide="wallet" class="w-6 h-6"></i>
         </div>
-        <h1 class="text-xl font-bold tracking-tight text-slate-900">Controle Financeiro</h1>
-        <p id="auth-subtitle" class="text-xs text-slate-500">Acesse sua conta para continuar</p>
+        <h1 class="text-2xl font-bold tracking-tight text-white">Controle Financeiro</h1>
+        <p id="auth-subtitle" class="text-xs text-slate-400">Acesse sua conta para continuar</p>
       </div>
 
       <!-- SELETOR 3 ABAS DE AUTENTICAÇÃO -->
-      <div class="flex bg-slate-100 p-1 rounded-lg text-xs font-medium text-center">
-        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition">Entrar</button>
-        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">Criar Conta</button>
-        <button id="btn-invite-mode" onclick="toggleAuthMode('invited')" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition">Sou Convidado</button>
+      <div class="flex bg-slate-800/80 p-1 rounded-xl text-xs font-medium text-center border border-slate-700/50">
+        <button id="btn-login-mode" onclick="toggleAuthMode('login')" class="flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition">Entrar</button>
+        <button id="btn-register-mode" onclick="toggleAuthMode('register')" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Criar Conta</button>
+        <button id="btn-invite-mode" onclick="toggleAuthMode('invited')" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition">Sou Convidado</button>
       </div>
 
       <!-- FORMULÁRIO DE AUTENTICAÇÃO -->
-      <form id="login-form" class="space-y-3">
-        <div id="login-error" class="hidden text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg text-center font-medium border border-rose-200"></div>
-        <div id="login-success" class="hidden text-xs text-emerald-600 bg-emerald-50 p-2.5 rounded-lg text-center font-medium border border-emerald-200"></div>
+      <form id="login-form" class="space-y-4">
+        <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-xl text-center font-medium border border-rose-800/50"></div>
+        <div id="login-success" class="hidden text-xs text-emerald-400 bg-emerald-950/40 p-2.5 rounded-xl text-center font-medium border border-emerald-800/50"></div>
 
         <div id="name-field-container" class="hidden">
-          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Seu Nome</label>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Seu Nome</label>
           <input type="text" id="login-name" placeholder="Como deseja ser chamado" 
-            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
+            class="w-full bg-slate-800/60 border border-slate-700/70 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Seu E-mail</label>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Seu E-mail</label>
           <input type="email" id="login-email" required placeholder="seu@email.com" 
-            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
+            class="w-full bg-slate-800/60 border border-slate-700/70 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-0.5">Senha</label>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Senha</label>
           <input type="password" id="login-password" required placeholder="••••••" 
-            class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition">
+            class="w-full bg-slate-800/60 border border-slate-700/70 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition">
         </div>
 
         <button type="submit" id="btn-auth-submit"
-          class="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2 rounded-lg text-xs transition duration-200 shadow-md shadow-brand-500/20">
+          class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs transition duration-200 shadow-lg shadow-indigo-600/25">
           Entrar na Conta
         </button>
       </form>
@@ -916,21 +922,21 @@
       succEl.classList.add('hidden');
 
       [btnLogin, btnRegister, btnInvite].forEach(btn => {
-        btn.className = "flex-1 py-1.5 rounded-md text-slate-600 hover:text-slate-900 transition";
+        btn.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition";
       });
 
       if (mode === 'login') {
-        btnLogin.className = "flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition";
+        btnLogin.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition";
         btnSubmit.innerText = "Entrar na Conta";
-        subtitle.innerText = "Acesse sua conta para gerenciar suas finanças";
+        subtitle.innerText = "Acesse sua conta para continuar";
         nameContainer.classList.add('hidden');
       } else if (mode === 'register') {
-        btnRegister.className = "flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition";
+        btnRegister.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition";
         btnSubmit.innerText = "Criar Minha Conta";
         subtitle.innerText = "Crie seu espaço próprio e 100% isolado";
         nameContainer.classList.remove('hidden');
       } else if (mode === 'invited') {
-        btnInvite.className = "flex-1 py-1.5 rounded-md bg-white text-brand-600 font-semibold shadow-sm transition";
+        btnInvite.className = "flex-1 py-1.5 rounded-lg bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30 transition";
         btnSubmit.innerText = "Validar Convite e Acessar";
         subtitle.innerText = "Acesse o espaço de quem te enviou um convite";
         nameContainer.classList.remove('hidden');
@@ -1893,7 +1899,7 @@
         }
       }
 
-      closeModal();
+closeModal();
       await loadTransactionsFromDB();
     }
 
@@ -1914,7 +1920,7 @@
       const { data: list } = await db.from('invitations').select('*').eq('owner_email', currentWorkspaceOwner);
 
       if (!list || list.length === 0) {
-        container.innerHTML = '<p class="text-xs text-slate-400 italic">Nenhum convidado cadastrado.</p>';
+        container.innerHTML = '<p class="text-xs text-slate-400 italic">Nenum convidado cadastrado.</p>';
         return;
       }
 
