@@ -756,6 +756,37 @@
     let statusUpdateTimer = null;
     const pendingStatusMap = new Map();
 
+    // INICIALIZAÇÃO DA APLICAÇÃO
+    document.addEventListener('DOMContentLoaded', () => {
+      setDefaultMonthFilter();
+
+      const savedUser = localStorage.getItem('app_current_user');
+      if (savedUser) {
+        try {
+          currentUser = JSON.parse(savedUser);
+          if (currentUser && currentUser.email) {
+            resolveWorkspaceAndInit();
+          }
+        } catch (e) {
+          console.error("Erro ao ler usuário salvo:", e);
+        }
+      }
+
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons();
+      }
+    });
+
+    function setDefaultMonthFilter() {
+      const input = document.getElementById('month-filter');
+      if (input && !input.value) {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        input.value = `${year}-${month}`;
+      }
+    }
+
     function escapeHTML(str) {
       if (str === null || str === undefined) return '';
       return String(str)
@@ -821,7 +852,7 @@
       return dateStr;
     }
 
-    // AUXILIAR PARA CÁLCULO SEGURO DE MESES FUTUROS (SEM OVERFLOW DE MÊS)
+    // AUXILIAR PARA CÁLCULO SEGURO DE MESES FUTUROS
     function addMonthsToDateString(dateStr, monthsToAdd) {
       const [y, m, d] = dateStr.split('-').map(Number);
       let targetYear = y;
@@ -1084,7 +1115,7 @@
         currentUser = { email, name: userName };
         localStorage.setItem('app_current_user', JSON.stringify(currentUser));
 
-        successEl.innerText = `Convite confirmado! Acessando o espaço de ${ownerFound}...`;
+        successEl.innerText = `Convite confirmed! Acessando o espaço de ${ownerFound}...`;
         successEl.classList.remove('hidden');
 
         setTimeout(async () => { await resolveWorkspaceAndInit(); }, 800);
@@ -1113,6 +1144,8 @@
       document.getElementById('dropdown-user-name').innerText = userNameDisplay;
       document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email.toLowerCase()) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
       
+      setDefaultMonthFilter();
+
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
 
@@ -1214,7 +1247,10 @@
       if (id) {
         await db.from('categories').update({ name, type }).eq('id', id);
       } else {
-        await db.from('categories').insert({ name, type, owner_email: currentWorkspaceOwner });
+        let { error } = await db.from('categories').insert({ name, type, owner_email: currentWorkspaceOwner });
+        if (error) {
+          await db.from('categories').insert({ name, type, workspace_owner: currentWorkspaceOwner });
+        }
       }
 
       resetCategoryForm();
@@ -1255,7 +1291,7 @@
       resetCategoryForm();
     }
 
-    // CARREGAR LANÇAMENTOS DO BANCO FILTRANDO POR owner_email
+    // CARREGAR LANÇAMENTOS DO BANCO FILTRANDO POR owner_email OU workspace_owner
     async function loadTransactionsFromDB() {
       if (!currentWorkspaceOwner) return;
 
@@ -1284,7 +1320,7 @@
         if (error) {
           console.error('Erro na resposta do Supabase:', error);
           if (dbErrorBanner) {
-            document.getElementById('db-error-msg').innerText = `Erro ao carregar dados do Supabase: ${error.message || 'Verifique permissões RLS ou o nome das colunas.'}`;
+            document.getElementById('db-error-msg').innerText = `Erro ao carregar dados do Supabase: ${error.message || 'Verifique permissões RLS ou as colunas.'}`;
             dbErrorBanner.classList.remove('hidden');
           }
           return;
@@ -1405,7 +1441,7 @@
 
     function changeMonth(delta) {
       const input = document.getElementById('month-filter');
-      if (!input.value) return;
+      if (!input.value) setDefaultMonthFilter();
 
       const [year, month] = input.value.split('-').map(Number);
       const date = new Date(year, month - 1 + delta, 1);
@@ -1441,6 +1477,9 @@
       if (!currentUser) return;
 
       const monthFilterEl = document.getElementById('month-filter');
+      if (monthFilterEl && !monthFilterEl.value) {
+        setDefaultMonthFilter();
+      }
       const selectedMonth = monthFilterEl ? monthFilterEl.value : '';
       if (!selectedMonth) return;
 
@@ -1789,7 +1828,7 @@
         populateFormForEdit(t);
       } else {
         document.getElementById('type-expense').checked = true;
-        document.getElementById('tx-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('tx-date').value = getTodayString();
         toggleFormFields();
         document.getElementById('modal').classList.remove('hidden');
       }
@@ -1841,6 +1880,46 @@
       }
     }
 
+    // EXECUTOR DE SALVAMENTO COM TRATAMENTO DE ERROS E FALLBACK DE NOME DE COLUNA
+    async function executeDbInsert(payload) {
+      let { error } = await db.from('transactions').insert(payload);
+      if (error) {
+        const prepareFallback = (item) => ({
+          workspace_owner: item.owner_email,
+          user_email: item.user_email,
+          type: item.type,
+          description: item.description,
+          amount: item.amount,
+          due_date: item.due_date,
+          category: item.category,
+          status: item.status,
+          is_recurring: item.is_recurring
+        });
+        const fallbackData = Array.isArray(payload) ? payload.map(prepareFallback) : prepareFallback(payload);
+        const fb = await db.from('transactions').insert(fallbackData);
+        if (fb.error) throw fb.error;
+      }
+    }
+
+    async function executeDbUpdate(id, payload) {
+      let { error } = await db.from('transactions').update(payload).eq('id', id);
+      if (error) {
+        const fallbackData = {
+          workspace_owner: payload.owner_email,
+          user_email: payload.user_email,
+          type: payload.type,
+          description: payload.description,
+          amount: payload.amount,
+          due_date: payload.due_date,
+          category: payload.category,
+          status: payload.status,
+          is_recurring: payload.is_recurring
+        };
+        const fb = await db.from('transactions').update(fallbackData).eq('id', id);
+        if (fb.error) throw fb.error;
+      }
+    }
+
     async function saveTransaction(e) {
       e.preventDefault();
 
@@ -1869,96 +1948,99 @@
         is_recurring: isRecurring
       };
 
-      if (id) {
-        if (editScope === 'future' && pendingEditId) {
-          const original = transactions.find(item => item.id == pendingEditId);
-          if (original) {
-            const origBaseDesc = getBaseDescription(original.description).toLowerCase();
+      try {
+        if (id) {
+          if (editScope === 'future' && pendingEditId) {
+            const original = transactions.find(item => item.id == pendingEditId);
+            if (original) {
+              const origBaseDesc = getBaseDescription(original.description).toLowerCase();
 
-            // Localiza todos os itens da mesma série a partir da data de vencimento do item original
-            const itemsToUpdate = transactions.filter(item => {
-              if (!item || !item.dueDate) return false;
-              if (item.dueDate < original.dueDate) return false;
+              const itemsToUpdate = transactions.filter(item => {
+                if (!item || !item.dueDate) return false;
+                if (item.dueDate < original.dueDate) return false;
 
-              const itemBaseDesc = getBaseDescription(item.description).toLowerCase();
-              if (itemBaseDesc !== origBaseDesc) return false;
+                const itemBaseDesc = getBaseDescription(item.description).toLowerCase();
+                if (itemBaseDesc !== origBaseDesc) return false;
 
-              if (original.isRecurring) {
-                return item.isRecurring || itemBaseDesc === origBaseDesc;
-              } else {
-                const isInstallment = Boolean(item.description && item.description.match(/\(\d+\s*\/\s*\d+\)$/));
-                return isInstallment || itemBaseDesc === origBaseDesc;
-              }
-            });
-
-            if (itemsToUpdate.length > 0) {
-              const newBaseDesc = getBaseDescription(description);
-              const updatePromises = itemsToUpdate.map(item => {
-                const monthOffset = getMonthDifference(original.dueDate, item.dueDate);
-                const calculatedDueDate = addMonthsToDateString(dueDate, monthOffset);
-
-                const matchFraction = item.description ? item.description.match(/\((\d+\s*\/\s*\d+)\)$/) : null;
-                const updatedDescription = matchFraction ? `${newBaseDesc} (${matchFraction[1]})` : newBaseDesc;
-
-                return db.from('transactions').update({
-                  owner_email: currentWorkspaceOwner,
-                  user_email: currentUser.email.toLowerCase(),
-                  type,
-                  description: updatedDescription,
-                  amount,
-                  due_date: calculatedDueDate,
-                  category,
-                  status: item.id == original.id ? status : item.status,
-                  is_recurring: isRecurring
-                }).eq('id', item.id);
+                if (original.isRecurring) {
+                  return item.isRecurring || itemBaseDesc === origBaseDesc;
+                } else {
+                  const isInstallment = Boolean(item.description && item.description.match(/\(\d+\s*\/\s*\d+\)$/));
+                  return isInstallment || itemBaseDesc === origBaseDesc;
+                }
               });
 
-              await Promise.all(updatePromises);
+              if (itemsToUpdate.length > 0) {
+                const newBaseDesc = getBaseDescription(description);
+                const updatePromises = itemsToUpdate.map(item => {
+                  const monthOffset = getMonthDifference(original.dueDate, item.dueDate);
+                  const calculatedDueDate = addMonthsToDateString(dueDate, monthOffset);
+
+                  const matchFraction = item.description ? item.description.match(/\((\d+\s*\/\s*\d+)\)$/) : null;
+                  const updatedDescription = matchFraction ? `${newBaseDesc} (${matchFraction[1]})` : newBaseDesc;
+
+                  return executeDbUpdate(item.id, {
+                    owner_email: currentWorkspaceOwner,
+                    user_email: currentUser.email.toLowerCase(),
+                    type,
+                    description: updatedDescription,
+                    amount,
+                    due_date: calculatedDueDate,
+                    category,
+                    status: item.id == original.id ? status : item.status,
+                    is_recurring: isRecurring
+                  });
+                });
+
+                await Promise.all(updatePromises);
+              } else {
+                await executeDbUpdate(id, payload);
+              }
             } else {
-              await db.from('transactions').update(payload).eq('id', id);
+              await executeDbUpdate(id, payload);
             }
           } else {
-            await db.from('transactions').update(payload).eq('id', id);
+            await executeDbUpdate(id, payload);
           }
         } else {
-          await db.from('transactions').update(payload).eq('id', id);
-        }
-      } else {
-        // LANÇAMENTO NOVO
-        if (isRecurring) {
-          // GERA AUTOMATICAMENTE OS LANÇAMENTOS FIXOS FUTUROS (12 MESES ADIANTE)
-          const newTxs = [];
-          for (let i = 0; i < 12; i++) {
-            const nextDate = addMonthsToDateString(dueDate, i);
-            newTxs.push({
-              ...payload,
-              due_date: nextDate,
-              status: i === 0 ? status : 'pending'
-            });
-          }
-          await db.from('transactions').insert(newTxs);
-        } else if (installments > 1) {
-          const installmentAmount = amount / installments;
-          const newTxs = [];
+          // NOVO LANÇAMENTO
+          if (isRecurring) {
+            const newTxs = [];
+            for (let i = 0; i < 12; i++) {
+              const nextDate = addMonthsToDateString(dueDate, i);
+              newTxs.push({
+                ...payload,
+                due_date: nextDate,
+                status: i === 0 ? status : 'pending'
+              });
+            }
+            await executeDbInsert(newTxs);
+          } else if (installments > 1) {
+            const installmentAmount = amount / installments;
+            const newTxs = [];
 
-          for (let i = 0; i < installments; i++) {
-            const formattedDate = addMonthsToDateString(dueDate, i);
-            newTxs.push({
-              ...payload,
-              description: `${description} (${i + 1}/${installments})`,
-              amount: installmentAmount,
-              due_date: formattedDate,
-              status: i === 0 ? status : 'pending'
-            });
+            for (let i = 0; i < installments; i++) {
+              const formattedDate = addMonthsToDateString(dueDate, i);
+              newTxs.push({
+                ...payload,
+                description: `${description} (${i + 1}/${installments})`,
+                amount: installmentAmount,
+                due_date: formattedDate,
+                status: i === 0 ? status : 'pending'
+              });
+            }
+            await executeDbInsert(newTxs);
+          } else {
+            await executeDbInsert(payload);
           }
-          await db.from('transactions').insert(newTxs);
-        } else {
-          await db.from('transactions').insert(payload);
         }
+
+        closeModal();
+        await loadTransactionsFromDB();
+      } catch (err) {
+        console.error('Erro ao salvar lançamento:', err);
+        alert('Erro ao salvar no banco de dados: ' + (err.message || err));
       }
-
-      closeModal();
-      await loadTransactionsFromDB();
     }
 
     function openShareModal() {
@@ -2074,10 +2156,11 @@
       document.getElementById('import-modal').classList.add('hidden');
     }
 
+    // PROCESSAMENTO DE IMPORTAÇÃO DE PLANILHAS (EXCEL / CSV)
     function processImportFile() {
       const input = document.getElementById('file-input');
       if (!input.files || input.files.length === 0) {
-        alert('Selecione um arquivo .xlsx ou .csv');
+        alert('Selecione um arquivo .xlsx, .xls ou .csv');
         return;
       }
 
@@ -2096,58 +2179,71 @@
             const description = row['Descrição'] || row['Descricao'] || row['description'] || 'Importado';
             const rawAmount = row['Valor'] || row['amount'] || 0;
             const amount = Math.abs(typeof rawAmount === 'number' ? rawAmount : parseBRLToFloat(rawAmount));
-            const type = (rawAmount < 0 || (row['Tipo'] && row['Tipo'].toLowerCase().includes('desp'))) ? 'expense' : 'income';
-            const dueDate = row['Data Ocorrência'] || row['Data'] || row['dueDate'] || row['due_date'] || new Date().toISOString().split('T')[0];
-            const category = row['Categoria'] || row['category'] || 'Outros';
+            
+            const rawType = String(row['Tipo'] || row['type'] || row['Tipo de Lançamento'] || '').toLowerCase();
+            const type = (rawType.includes('receita') || rawType.includes('entrada') || rawType.includes('income')) ? 'income' : 'expense';
+            
+            let dueDate = row['Data Ocorrência'] || row['Data'] || row['Vencimento'] || row['dueDate'] || row['due_date'];
+            if (dueDate) {
+              if (typeof dueDate === 'number') {
+                const dateObj = XLSX.SSF.parse_date_code(dueDate);
+                if (dateObj) {
+                  dueDate = `${dateObj.y}-${String(dateObj.m).padStart(2, '0')}-${String(dateObj.d).padStart(2, '0')}`;
+                } else {
+                  dueDate = getTodayString();
+                }
+              } else {
+                dueDate = String(dueDate).trim();
+                if (dueDate.includes('/')) {
+                  const parts = dueDate.split('/');
+                  if (parts.length === 3) {
+                    dueDate = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                  }
+                }
+              }
+            } else {
+              dueDate = getTodayString();
+            }
 
-            newItems.push({
-              owner_email: currentWorkspaceOwner,
-              user_email: currentUser.email.toLowerCase(),
-              description: String(description),
-              amount,
-              type,
-              due_date: String(dueDate),
-              category: String(category),
-              status: 'pending',
-              is_recurring: false
-            });
+            const category = row['Categoria'] || row['category'] || 'Outros';
+            const rawStatus = String(row['Status'] || row['status'] || '').toLowerCase();
+            const status = (rawStatus.includes('pago') || rawStatus.includes('recebido') || rawStatus.includes('conclu')) ? 'completed' : 'pending';
+
+            if (amount > 0) {
+              newItems.push({
+                owner_email: currentWorkspaceOwner,
+                user_email: currentUser.email.toLowerCase(),
+                type,
+                description,
+                amount,
+                due_date: dueDate,
+                category,
+                status,
+                is_recurring: false
+              });
+            }
           });
 
           if (newItems.length > 0) {
-            await db.from('transactions').insert(newItems);
-            document.getElementById('import-status').innerText = `${newItems.length} lançamentos importados com sucesso!`;
-            document.getElementById('import-status').classList.remove('hidden');
-            setTimeout(() => {
-              closeImportModal();
-              loadTransactionsFromDB();
-            }, 1200);
+            await executeDbInsert(newItems);
+            
+            const statusEl = document.getElementById('import-status');
+            statusEl.innerText = `${newItems.length} lançamento(s) importado(s) com sucesso!`;
+            statusEl.classList.remove('hidden');
+
+            await loadTransactionsFromDB();
+            setTimeout(() => { closeImportModal(); }, 1500);
+          } else {
+            alert('Nenhum dado válido encontrado na planilha importada.');
           }
         } catch (err) {
-          alert('Erro ao processar o arquivo: ' + err.message);
+          console.error('Erro ao importar arquivo:', err);
+          alert('Erro ao processar o arquivo de importação: ' + (err.message || err));
         }
       };
+
       reader.readAsArrayBuffer(file);
     }
-
-    // INICIALIZAÇÃO DA APLICAÇÃO
-    window.addEventListener('DOMContentLoaded', async () => {
-      const savedUser = localStorage.getItem('app_current_user');
-      if (savedUser) {
-        try {
-          currentUser = JSON.parse(savedUser);
-          await resolveWorkspaceAndInit();
-        } catch(e) {
-          console.error(e);
-        }
-      } else {
-        const monthFilter = document.getElementById('month-filter');
-        if (monthFilter) {
-          const now = new Date();
-          monthFilter.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        }
-      }
-      lucide.createIcons();
-    });
   </script>
 </body>
 </html>
