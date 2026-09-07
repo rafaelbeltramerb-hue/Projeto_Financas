@@ -793,6 +793,15 @@
       }
     }
 
+    // Texto do botão primário de status: deixa explícito o que vai acontecer ao clicar
+    function getStatusActionLabel(t, details) {
+      const isIncome = t.type === 'income';
+      if (details.isPaid) {
+        return isIncome ? 'Desfazer recebimento' : 'Desfazer pagamento';
+      }
+      return isIncome ? 'Confirmar recebimento' : 'Confirmar pagamento';
+    }
+
     function formatAmountInput(input) {
       let value = input.value.replace(/\D/g, '');
       if (!value) {
@@ -1256,6 +1265,7 @@
       listEl.innerHTML = monthTransactions.map((t, index) => {
         const isIncome = t.type === 'income';
         const details = getTransactionStatusDetails(t);
+        const statusActionLabel = getStatusActionLabel(t, details);
         const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
 
         let authorTag = '';
@@ -1287,19 +1297,24 @@
             </td>
 
             <td class="py-3 px-4 text-right relative action-menu-container">
-              <button onclick="toggleActionMenu('${t.id}', event)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition">
-                <i data-lucide="more-horizontal" class="w-4 h-4"></i>
-              </button>
+              <div class="flex items-center justify-end gap-1">
+                <button onclick="toggleStatus('${t.id}')"
+                  class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition ${details.isPaid ? 'text-slate-500 hover:bg-slate-100' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}"
+                  title="${escapeHTML(statusActionLabel)}">
+                  <i data-lucide="${details.isPaid ? 'rotate-ccw' : 'check-circle'}" class="w-3.5 h-3.5"></i>
+                  <span class="hidden lg:inline">${escapeHTML(statusActionLabel)}</span>
+                </button>
 
-              <div id="action-menu-${t.id}" class="action-menu absolute right-4 top-10 w-44 bg-white rounded-xl shadow-lg border border-slate-200/80 py-1 z-30 text-left">
-                <button onclick="toggleStatus('${t.id}')" class="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition flex items-center gap-2">
-                  <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
-                  <span>${details.isPaid ? 'Marcar como Pendente' : 'Marcar como Pago'}</span>
+                <button onclick="openModal('${t.id}')" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition" title="Editar lançamento">
+                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                 </button>
-                <button onclick="openModal('${t.id}')" class="w-full px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 transition flex items-center gap-2">
-                  <i data-lucide="pencil" class="w-3.5 h-3.5 text-slate-500"></i>
-                  <span>Editar Lançamento</span>
+
+                <button onclick="toggleActionMenu('${t.id}', event)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition" title="Mais ações">
+                  <i data-lucide="more-horizontal" class="w-4 h-4"></i>
                 </button>
+              </div>
+
+              <div id="action-menu-${t.id}" class="action-menu absolute right-4 top-10 w-40 bg-white rounded-xl shadow-lg border border-slate-200/80 py-1 z-30 text-left">
                 <button onclick="deleteTransaction('${t.id}')" class="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 transition flex items-center gap-2 font-medium">
                   <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i>
                   <span>Excluir</span>
@@ -1452,11 +1467,18 @@
         const { error } = await db.from('transactions').delete().in('id', idsToDelete);
         if (error) {
           console.error("Erro ao excluir lançamento(s):", error);
+          alert('Não foi possível excluir. Tente novamente.');
+          closeDeleteModal();
+          return;
         }
+
+        // Remove direto do array local, sem recarregar tudo do banco
+        const idSet = new Set(idsToDelete.map(String));
+        transactions = transactions.filter(item => !idSet.has(String(item.id)));
       }
 
       closeDeleteModal();
-      await loadTransactionsFromDB();
+      renderDashboard();
     }
 
     function openModal(id = null) {
@@ -1543,7 +1565,7 @@
           const instInfo = getInstallmentInfo(origTx);
           const finalDesc = instInfo ? `${rawDesc} (${instInfo.currentNumber}/${instInfo.totalNumber})` : rawDesc;
 
-          await db.from('transactions').update({
+          const { error } = await db.from('transactions').update({
             type,
             description: finalDesc,
             amount,
@@ -1553,6 +1575,15 @@
             is_recurring: isRecurring
           }).eq('id', id);
 
+          if (error) {
+            console.error('Erro ao salvar lançamento:', error);
+            alert('Não foi possível salvar o lançamento. Tente novamente.');
+            return;
+          }
+
+          // Atualiza só este item no array local (sem recarregar tudo do banco)
+          Object.assign(origTx, { type, description: finalDesc, amount, dueDate, category, status, isRecurring });
+
         } else {
           const itemsToUpdate = editScope === 'this_and_future'
             ? related.filter(item => item.dueDate >= origTx.dueDate)
@@ -1560,7 +1591,14 @@
 
           const newDay = parseInt(dueDate.split('-')[2], 10);
 
-          for (const item of itemsToUpdate) {
+          // Monta os arrays paralelos para atualizar toda a série em UMA única chamada (RPC),
+          // em vez de um UPDATE por lançamento
+          const ids = [];
+          const dueDatesArr = [];
+          const descriptions = [];
+          const statuses = [];
+
+          itemsToUpdate.forEach(item => {
             const instInfo = getInstallmentInfo(item);
             const finalDesc = instInfo ? `${rawDesc} (${instInfo.currentNumber}/${instInfo.totalNumber})` : rawDesc;
 
@@ -1575,21 +1613,42 @@
               itemDueDate = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(dayToUse).padStart(2, '0')}`;
             }
 
-            const updatePayload = {
-              type,
-              description: finalDesc,
-              amount,
-              due_date: itemDueDate,
-              category,
-              is_recurring: isRecurring
-            };
+            ids.push(item.id);
+            dueDatesArr.push(itemDueDate);
+            descriptions.push(finalDesc);
+            statuses.push(item.id == id ? status : null);
+          });
 
-            if (item.id == id) {
-              updatePayload.status = status;
-            }
+          const { error } = await db.rpc('update_transaction_series', {
+            p_ids: ids,
+            p_due_dates: dueDatesArr,
+            p_descriptions: descriptions,
+            p_statuses: statuses,
+            p_type: type,
+            p_amount: amount,
+            p_category: category,
+            p_is_recurring: isRecurring,
+            p_owner_email: currentWorkspaceOwner
+          });
 
-            await db.from('transactions').update(updatePayload).eq('id', item.id);
+          if (error) {
+            console.error('Erro ao salvar série de lançamentos:', error);
+            alert('Não foi possível salvar a série. Tente novamente.');
+            return;
           }
+
+          // Atualiza os itens afetados diretamente no array local
+          itemsToUpdate.forEach((item, i) => {
+            Object.assign(item, {
+              type,
+              description: descriptions[i],
+              amount,
+              dueDate: dueDatesArr[i],
+              category,
+              isRecurring,
+              status: statuses[i] !== null ? statuses[i] : item.status
+            });
+          });
         }
 
       } else {
@@ -1606,9 +1665,10 @@
           is_recurring: isRecurring
         };
 
+        let batch;
         if (isRecurring) {
           // GERA AUTOMATICAMENTE 12 MESES FUTUROS PARA LANÇAMENTO FIXO
-          const batch = [];
+          batch = [];
           for (let i = 0; i < 12; i++) {
             batch.push({
               ...payload,
@@ -1616,11 +1676,9 @@
               due_date: getFutureMonthlyDate(dueDate, i)
             });
           }
-          await db.from('transactions').insert(batch);
-
         } else if (installments > 1) {
           // GERA PARCELAS
-          const batch = [];
+          batch = [];
           for (let i = 0; i < installments; i++) {
             batch.push({
               ...payload,
@@ -1629,16 +1687,40 @@
               due_date: getFutureMonthlyDate(dueDate, i)
             });
           }
-          await db.from('transactions').insert(batch);
-
         } else {
           // LANÇAMENTO ÚNICO
-          await db.from('transactions').insert(payload);
+          batch = [payload];
         }
+
+        // Uma única chamada de insert em lote, retornando as linhas criadas
+        const { data: inserted, error } = await db.from('transactions').insert(batch).select();
+
+        if (error) {
+          console.error('Erro ao criar lançamento(s):', error);
+          alert('Não foi possível salvar o lançamento. Tente novamente.');
+          return;
+        }
+
+        // Adiciona os novos itens direto no array local, sem baixar o banco inteiro de novo
+        const newItems = (inserted || []).map(raw => ({
+          id: raw.id,
+          workspace_owner: (raw.owner_email || '').toLowerCase(),
+          userEmail: (raw.user_email || '').toLowerCase(),
+          type: raw.type,
+          description: raw.description,
+          amount: parseFloat(raw.amount) || 0,
+          dueDate: raw.due_date,
+          category: raw.category,
+          status: raw.status,
+          isRecurring: Boolean(raw.is_recurring)
+        }));
+
+        transactions.push(...newItems);
+        transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       }
 
       closeModal();
-      await loadTransactionsFromDB();
+      renderDashboard();
     }
 
     function openCategoriesModal() { document.getElementById('categories-modal').classList.remove('hidden'); }
