@@ -463,6 +463,30 @@
     </div>
   </div>
 
+  <!-- MODAL DE CONFLITO AO EXCLUIR CATEGORIA EM USO -->
+  <div id="category-conflict-modal" class="fixed inset-0 z-[60] bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-sm p-5 rounded-2xl shadow-2xl space-y-3 border border-slate-200">
+      <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+        <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+      </div>
+      <h3 class="text-base font-bold text-slate-900 text-center">Categoria em uso</h3>
+      <p id="cat-conflict-msg" class="text-xs text-slate-500 text-center"></p>
+
+      <div>
+        <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">Mover lançamentos para</label>
+        <select id="cat-conflict-replacement" class="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20"></select>
+      </div>
+
+      <div class="flex justify-end space-x-2 border-t border-slate-100 pt-3">
+        <button onclick="closeCategoryConflictModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900">Cancelar</button>
+        <button onclick="confirmCategoryReplacement()" id="btn-confirm-cat-conflict" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-sm transition">Substituir e excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTAINER DE NOTIFICAÇÕES (TOASTS) -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none"></div>
+
   <div id="share-modal" class="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs hidden flex items-center justify-center p-3">
     <div class="bg-white w-full max-w-md p-5 rounded-2xl shadow-2xl space-y-4 border border-slate-200">
       <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
@@ -517,7 +541,7 @@
 
       <div class="flex justify-end space-x-2 border-t border-slate-100 pt-3">
         <button onclick="closeDeleteModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900">Cancelar</button>
-        <button onclick="confirmDeleteTransaction()" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-sm transition">Confirmar Exclusão</button>
+        <button onclick="confirmDeleteTransaction()" id="btn-confirm-delete-tx" class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-sm transition">Confirmar Exclusão</button>
       </div>
     </div>
   </div>
@@ -703,6 +727,58 @@
       const month = String(d.getMonth() + 1).padStart(2, '0');
       input.value = `${year}-${month}`;
       renderDashboard();
+    }
+
+    // ============================================================
+    // FEEDBACK VISUAL: toasts e estado de "carregando" em botões
+    // ============================================================
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const styles = {
+        success: 'bg-emerald-600 text-white',
+        error: 'bg-rose-600 text-white',
+        info: 'bg-slate-800 text-white'
+      };
+      const icons = { success: 'check-circle', error: 'alert-circle', info: 'info' };
+
+      const el = document.createElement('div');
+      el.className = `pointer-events-auto flex items-center gap-2 px-3.5 py-2.5 rounded-xl shadow-lg text-xs font-medium opacity-0 transition-opacity duration-200 ${styles[type] || styles.info}`;
+      el.innerHTML = `<i data-lucide="${icons[type] || icons.info}" class="w-4 h-4 shrink-0"></i><span>${escapeHTML(message)}</span>`;
+      container.appendChild(el);
+      if (window.lucide) lucide.createIcons();
+
+      requestAnimationFrame(() => { el.classList.remove('opacity-0'); });
+
+      setTimeout(() => {
+        el.classList.add('opacity-0');
+        setTimeout(() => el.remove(), 250);
+      }, 2600);
+    }
+
+    // Coloca um botão em estado de carregamento (desabilitado + spinner + texto)
+    function setButtonLoading(btn, loadingText) {
+      if (!btn) return;
+      if (btn.dataset.originalHtml === undefined) {
+        btn.dataset.originalHtml = btn.innerHTML;
+      }
+      btn.disabled = true;
+      btn.classList.add('opacity-70', 'cursor-not-allowed');
+      btn.innerHTML = `<span class="inline-flex items-center justify-center gap-1.5"><i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> ${escapeHTML(loadingText)}</span>`;
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // Restaura o botão ao estado original (usar em erro; em sucesso o re-render já substitui o botão)
+    function restoreButtonState(btn) {
+      if (!btn) return;
+      btn.disabled = false;
+      btn.classList.remove('opacity-70', 'cursor-not-allowed');
+      if (btn.dataset.originalHtml !== undefined) {
+        btn.innerHTML = btn.dataset.originalHtml;
+        delete btn.dataset.originalHtml;
+      }
+      if (window.lucide) lucide.createIcons();
     }
 
     function escapeHTML(str) {
@@ -906,9 +982,13 @@
     }
 
     async function loadCategoriesFromDB() {
-      const { data } = await db.from('categories').select('*').eq('owner_email', currentWorkspaceOwner);
+      const { data, error } = await db.from('categories').select('*').eq('owner_email', currentWorkspaceOwner);
+      if (error) {
+        console.error('Erro ao carregar categorias:', error);
+      }
       userCategories = data || [];
       populateCategoryDropdown();
+      renderCategoriesList();
     }
 
     function populateCategoryDropdown() {
@@ -944,7 +1024,11 @@
         dueDate: raw.due_date || getTodayString(),
         category: raw.category || 'Outros',
         status: raw.status || 'pending',
-        isRecurring: Boolean(raw.is_recurring)
+        isRecurring: Boolean(raw.is_recurring),
+        seriesId: raw.series_id || null,
+        installmentNumber: raw.installment_number ?? null,
+        installmentTotal: raw.installment_total ?? null,
+        recurrenceType: raw.recurrence_type || null
       })).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
       renderDashboard();
@@ -1298,7 +1382,7 @@
 
             <td class="py-3 px-4 text-right relative action-menu-container">
               <div class="flex items-center justify-end gap-1">
-                <button onclick="toggleStatus('${t.id}')"
+                <button onclick="toggleStatus('${t.id}')" id="status-btn-${t.id}"
                   class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition ${details.isPaid ? 'text-slate-500 hover:bg-slate-100' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}"
                   title="${escapeHTML(statusActionLabel)}">
                   <i data-lucide="${details.isPaid ? 'rotate-ccw' : 'check-circle'}" class="w-3.5 h-3.5"></i>
@@ -1349,11 +1433,38 @@
       const t = transactions.find(item => item.id == id);
       if (!t) return;
 
-      const newStatus = t.status === 'completed' ? 'pending' : 'completed';
-      t.status = newStatus;
+      const isIncome = t.type === 'income';
+      const willBePaid = t.status !== 'completed';
+      const newStatus = willBePaid ? 'completed' : 'pending';
 
+      const btn = document.getElementById(`status-btn-${id}`);
+      setButtonLoading(btn, 'Salvando...');
+
+      // Só atualiza a tela DEPOIS que o banco confirmar a alteração,
+      // evitando a tela mostrar "Pago" quando na verdade o banco falhou.
+      const { error } = await db.from('transactions').update({ status: newStatus }).eq('id', id);
+
+      if (error) {
+        console.error('Erro ao atualizar status:', error);
+        restoreButtonState(btn);
+        showToast(
+          willBePaid
+            ? `Não foi possível confirmar o ${isIncome ? 'recebimento' : 'pagamento'}. Tente novamente.`
+            : `Não foi possível desfazer o ${isIncome ? 'recebimento' : 'pagamento'}. Tente novamente.`,
+          'error'
+        );
+        return;
+      }
+
+      t.status = newStatus;
       renderDashboard();
-      await db.from('transactions').update({ status: newStatus }).eq('id', id);
+
+      showToast(
+        willBePaid
+          ? `${isIncome ? 'Recebimento' : 'Pagamento'} confirmado.`
+          : `${isIncome ? 'Recebimento' : 'Pagamento'} desfeito.`,
+        'success'
+      );
     }
 
     // HELPER PARA IDENTIFICAR PARCELAMENTO
@@ -1373,8 +1484,20 @@
     // HELPER UNIFICADO PARA ENCONTRAR LANÇAMENTOS RELACIONADOS (PARCELADOS OU FIXOS)
     function getRelatedTransactions(t) {
       if (!t) return [];
-      const instInfo = getInstallmentInfo(t);
 
+      // Preferência: agrupar pela série real gravada no banco (series_id).
+      // É muito mais confiável do que comparar texto de descrição, e resolve
+      // o caso de duas séries diferentes com a mesma descrição (ex.: duas
+      // séries de "Academia (1/12)", "Academia (2/12)" criadas em datas
+      // diferentes não se confundem mais).
+      if (t.seriesId) {
+        return transactions
+          .filter(item => item.seriesId === t.seriesId)
+          .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      }
+
+      // Fallback: lançamentos antigos, criados antes de existir series_id no banco
+      const instInfo = getInstallmentInfo(t);
       if (instInfo) {
         return transactions.filter(item => {
           const info = getInstallmentInfo(item);
@@ -1463,12 +1586,15 @@
         idsToDelete = [currentDeleteTarget.id];
       }
 
+      const btn = document.getElementById('btn-confirm-delete-tx');
+      setButtonLoading(btn, 'Excluindo...');
+
       if (idsToDelete.length > 0) {
         const { error } = await db.from('transactions').delete().in('id', idsToDelete);
         if (error) {
           console.error("Erro ao excluir lançamento(s):", error);
-          alert('Não foi possível excluir. Tente novamente.');
-          closeDeleteModal();
+          restoreButtonState(btn);
+          showToast('Não foi possível excluir. Tente novamente.', 'error');
           return;
         }
 
@@ -1477,8 +1603,10 @@
         transactions = transactions.filter(item => !idSet.has(String(item.id)));
       }
 
+      restoreButtonState(btn);
       closeDeleteModal();
       renderDashboard();
+      showToast(idsToDelete.length > 1 ? 'Lançamentos excluídos.' : 'Lançamento excluído.', 'success');
     }
 
     function openModal(id = null) {
@@ -1543,6 +1671,7 @@
 
     async function saveTransaction(e) {
       e.preventDefault();
+      const submitBtn = document.getElementById('btn-submit-tx');
       const id = document.getElementById('tx-id').value;
       const type = document.querySelector('input[name="type"]:checked').value;
       const rawDesc = document.getElementById('tx-description').value.trim();
@@ -1553,10 +1682,13 @@
       const isRecurring = document.getElementById('tx-recurring').checked;
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
 
+      setButtonLoading(submitBtn, 'Salvando...');
+      let successMessage = 'Lançamento salvo.';
+
       if (id) {
         // MODO EDIÇÃO
         const origTx = transactions.find(item => item.id == id);
-        if (!origTx) return;
+        if (!origTx) { restoreButtonState(submitBtn); return; }
 
         const related = getRelatedTransactions(origTx);
         const editScope = document.querySelector('input[name="edit-scope"]:checked')?.value || 'only_this';
@@ -1577,12 +1709,14 @@
 
           if (error) {
             console.error('Erro ao salvar lançamento:', error);
-            alert('Não foi possível salvar o lançamento. Tente novamente.');
+            restoreButtonState(submitBtn);
+            showToast('Não foi possível salvar o lançamento. Tente novamente.', 'error');
             return;
           }
 
           // Atualiza só este item no array local (sem recarregar tudo do banco)
           Object.assign(origTx, { type, description: finalDesc, amount, dueDate, category, status, isRecurring });
+          successMessage = 'Lançamento salvo.';
 
         } else {
           const itemsToUpdate = editScope === 'this_and_future'
@@ -1633,7 +1767,8 @@
 
           if (error) {
             console.error('Erro ao salvar série de lançamentos:', error);
-            alert('Não foi possível salvar a série. Tente novamente.');
+            restoreButtonState(submitBtn);
+            showToast('Não foi possível salvar a série. Tente novamente.', 'error');
             return;
           }
 
@@ -1649,10 +1784,16 @@
               status: statuses[i] !== null ? statuses[i] : item.status
             });
           });
+          successMessage = 'Série atualizada.';
         }
 
       } else {
         // MODO CRIAÇÃO
+        // series_id identifica todo o grupo de parcelas/recorrência no banco,
+        // em vez de depender só do texto da descrição para reagrupar depois.
+        const seriesId = (isRecurring || installments > 1) ? crypto.randomUUID() : null;
+        const recurrenceType = isRecurring ? 'fixed' : (installments > 1 ? 'installment' : null);
+
         const payload = {
           owner_email: currentWorkspaceOwner,
           user_email: currentUser.email.toLowerCase(),
@@ -1662,7 +1803,9 @@
           due_date: dueDate,
           category,
           status,
-          is_recurring: isRecurring
+          is_recurring: isRecurring,
+          series_id: seriesId,
+          recurrence_type: recurrenceType
         };
 
         let batch;
@@ -1673,9 +1816,12 @@
             batch.push({
               ...payload,
               status: i === 0 ? status : 'pending',
-              due_date: getFutureMonthlyDate(dueDate, i)
+              due_date: getFutureMonthlyDate(dueDate, i),
+              installment_number: i + 1,
+              installment_total: null
             });
           }
+          successMessage = 'Lançamentos fixos criados.';
         } else if (installments > 1) {
           // GERA PARCELAS
           batch = [];
@@ -1684,12 +1830,16 @@
               ...payload,
               description: `${rawDesc} (${i + 1}/${installments})`,
               status: i === 0 ? status : 'pending',
-              due_date: getFutureMonthlyDate(dueDate, i)
+              due_date: getFutureMonthlyDate(dueDate, i),
+              installment_number: i + 1,
+              installment_total: installments
             });
           }
+          successMessage = 'Parcelas criadas.';
         } else {
           // LANÇAMENTO ÚNICO
-          batch = [payload];
+          batch = [{ ...payload, installment_number: null, installment_total: null }];
+          successMessage = 'Lançamento criado.';
         }
 
         // Uma única chamada de insert em lote, retornando as linhas criadas
@@ -1697,7 +1847,8 @@
 
         if (error) {
           console.error('Erro ao criar lançamento(s):', error);
-          alert('Não foi possível salvar o lançamento. Tente novamente.');
+          restoreButtonState(submitBtn);
+          showToast('Não foi possível salvar o lançamento. Tente novamente.', 'error');
           return;
         }
 
@@ -1712,35 +1863,258 @@
           dueDate: raw.due_date,
           category: raw.category,
           status: raw.status,
-          isRecurring: Boolean(raw.is_recurring)
+          isRecurring: Boolean(raw.is_recurring),
+          seriesId: raw.series_id || null,
+          installmentNumber: raw.installment_number ?? null,
+          installmentTotal: raw.installment_total ?? null,
+          recurrenceType: raw.recurrence_type || null
         }));
 
         transactions.push(...newItems);
         transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       }
 
+      restoreButtonState(submitBtn);
       closeModal();
       renderDashboard();
+      showToast(successMessage, 'success');
     }
 
-    function openCategoriesModal() { document.getElementById('categories-modal').classList.remove('hidden'); }
+    function openCategoriesModal() {
+      resetCategoryForm();
+      renderCategoriesList();
+      document.getElementById('categories-modal').classList.remove('hidden');
+    }
     function closeCategoriesModal() { document.getElementById('categories-modal').classList.add('hidden'); }
     function openShareModal() { document.getElementById('share-modal').classList.remove('hidden'); }
     function closeShareModal() { document.getElementById('share-modal').classList.add('hidden'); }
     function openProfileModal() { alert('Perfil salvo.'); }
     function openImportModal() { alert('Funcionalidade de importação pronta.'); }
 
-    async function saveCategory(e) {
-      e.preventDefault();
-      const name = document.getElementById('cat-name').value.trim();
-      const type = document.getElementById('cat-type').value;
-      await db.from('categories').insert({ name, type, owner_email: currentWorkspaceOwner });
-      document.getElementById('cat-name').value = '';
-      await loadCategoriesFromDB();
+    const DEFAULT_CATEGORY_NAMES = ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Salário', 'Investimentos', 'Outros'];
+    const CATEGORY_TYPE_LABELS = { expense: 'Despesa', income: 'Receita', both: 'Ambos' };
+
+    // Renderiza a lista de categorias personalizadas com ações de editar/excluir
+    function renderCategoriesList() {
+      const container = document.getElementById('categories-list-container');
+      if (!container) return;
+
+      if (userCategories.length === 0) {
+        container.innerHTML = `<p class="text-[11px] text-slate-400 text-center py-2">Nenhuma categoria personalizada ainda.</p>`;
+        return;
+      }
+
+      container.innerHTML = userCategories.map(cat => `
+        <div class="flex items-center justify-between bg-white border border-slate-200/70 rounded-lg px-2.5 py-1.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <i data-lucide="tag" class="w-3.5 h-3.5 text-purple-500 shrink-0"></i>
+            <span class="text-xs font-medium text-slate-700 truncate">${escapeHTML(cat.name)}</span>
+            <span class="text-[10px] text-slate-400 shrink-0">${escapeHTML(CATEGORY_TYPE_LABELS[cat.type] || cat.type)}</span>
+          </div>
+          <div class="flex items-center gap-1 shrink-0">
+            <button onclick="editCategory('${cat.id}')" class="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700 transition" title="Editar categoria">
+              <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            </button>
+            <button onclick="deleteCategory('${cat.id}')" class="p-1 hover:bg-rose-50 rounded text-slate-400 hover:text-rose-600 transition" title="Excluir categoria">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // Preenche o formulário com os dados da categoria para edição
+    function editCategory(id) {
+      const cat = userCategories.find(c => String(c.id) === String(id));
+      if (!cat) return;
+
+      document.getElementById('cat-id').value = cat.id;
+      document.getElementById('cat-name').value = cat.name;
+      document.getElementById('cat-type').value = cat.type || 'expense';
+      document.getElementById('btn-save-cat').innerText = 'Salvar Alterações';
+      document.getElementById('btn-cancel-cat').classList.remove('hidden');
+      document.getElementById('cat-name').focus();
     }
 
     function resetCategoryForm() {
+      document.getElementById('cat-id').value = '';
       document.getElementById('cat-name').value = '';
+      document.getElementById('cat-type').value = 'expense';
+      document.getElementById('btn-save-cat').innerText = 'Adicionar Categoria';
+      document.getElementById('btn-cancel-cat').classList.add('hidden');
+    }
+
+    async function saveCategory(e) {
+      e.preventDefault();
+      const id = document.getElementById('cat-id').value;
+      const name = document.getElementById('cat-name').value.trim();
+      const type = document.getElementById('cat-type').value;
+      if (!name) return;
+
+      const btn = document.getElementById('btn-save-cat');
+      setButtonLoading(btn, id ? 'Salvando...' : 'Adicionando...');
+
+      if (id) {
+        // MODO EDIÇÃO
+        const original = userCategories.find(c => String(c.id) === String(id));
+
+        const { error } = await db.from('categories').update({ name, type }).eq('id', id);
+
+        if (error) {
+          console.error('Erro ao salvar categoria:', error);
+          restoreButtonState(btn);
+          showToast('Não foi possível salvar as alterações da categoria.', 'error');
+          return;
+        }
+
+        // Se o nome mudou, propaga para os lançamentos que já usam essa categoria
+        // (o campo "category" nos lançamentos é texto livre, não uma chave estrangeira)
+        if (original && original.name !== name) {
+          const { error: cascadeError } = await db.from('transactions')
+            .update({ category: name })
+            .eq('owner_email', currentWorkspaceOwner)
+            .eq('category', original.name);
+
+          if (cascadeError) {
+            console.error('Erro ao atualizar categoria nos lançamentos existentes:', cascadeError);
+            showToast('Categoria salva, mas alguns lançamentos antigos podem não ter sido atualizados.', 'error');
+          } else {
+            transactions.forEach(t => { if (t.category === original.name) t.category = name; });
+          }
+        }
+
+        if (original) { original.name = name; original.type = type; }
+        showToast('Categoria atualizada.', 'success');
+
+      } else {
+        // MODO CRIAÇÃO
+        const { data, error } = await db.from('categories')
+          .insert({ name, type, owner_email: currentWorkspaceOwner })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Erro ao criar categoria:', error);
+          restoreButtonState(btn);
+          showToast('Não foi possível adicionar a categoria.', 'error');
+          return;
+        }
+
+        userCategories.push(data);
+        showToast('Categoria adicionada.', 'success');
+      }
+
+      restoreButtonState(btn);
+      resetCategoryForm();
+      renderCategoriesList();
+      populateCategoryDropdown();
+      renderDashboard();
+    }
+
+    // Exclui uma categoria. Se ela já estiver em uso por lançamentos, protege
+    // o histórico financeiro pedindo para mover os lançamentos antes de excluir.
+    async function deleteCategory(id) {
+      const cat = userCategories.find(c => String(c.id) === String(id));
+      if (!cat) return;
+
+      const usageCount = transactions.filter(t => t.category === cat.name).length;
+
+      if (usageCount === 0) {
+        if (!confirm(`Excluir a categoria "${cat.name}"? Esta ação não poderá ser desfeita.`)) return;
+
+        const { error } = await db.from('categories').delete().eq('id', id);
+        if (error) {
+          console.error('Erro ao excluir categoria:', error);
+          showToast('Não foi possível excluir a categoria.', 'error');
+          return;
+        }
+
+        userCategories = userCategories.filter(c => String(c.id) !== String(id));
+        renderCategoriesList();
+        populateCategoryDropdown();
+        showToast('Categoria excluída.', 'success');
+        return;
+      }
+
+      openCategoryConflictModal(cat, usageCount);
+    }
+
+    let categoryConflictTarget = null;
+
+    // Abre o modal de conflito: a categoria está em uso e não pode ser
+    // simplesmente apagada sem afetar o histórico dos lançamentos.
+    function openCategoryConflictModal(cat, usageCount) {
+      categoryConflictTarget = cat;
+
+      document.getElementById('cat-conflict-msg').innerText =
+        `A categoria "${cat.name}" possui ${usageCount} lançamento(s) associado(s). Escolha para qual categoria eles devem ser movidos antes de excluir "${cat.name}".`;
+
+      const select = document.getElementById('cat-conflict-replacement');
+      select.innerHTML = '';
+      const customNames = userCategories.map(c => c.name);
+      const allNames = Array.from(new Set([...DEFAULT_CATEGORY_NAMES, ...customNames]))
+        .filter(name => name !== cat.name);
+
+      allNames.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.innerText = name;
+        select.appendChild(opt);
+      });
+
+      document.getElementById('category-conflict-modal').classList.remove('hidden');
+    }
+
+    function closeCategoryConflictModal() {
+      document.getElementById('category-conflict-modal').classList.add('hidden');
+      categoryConflictTarget = null;
+    }
+
+    // Move todos os lançamentos da categoria antiga para a nova categoria
+    // escolhida (uma única chamada) e só então exclui a categoria antiga.
+    async function confirmCategoryReplacement() {
+      if (!categoryConflictTarget) return;
+
+      const newName = document.getElementById('cat-conflict-replacement').value;
+      if (!newName) return;
+
+      const btn = document.getElementById('btn-confirm-cat-conflict');
+      setButtonLoading(btn, 'Movendo...');
+
+      const { error: cascadeError } = await db.from('transactions')
+        .update({ category: newName })
+        .eq('owner_email', currentWorkspaceOwner)
+        .eq('category', categoryConflictTarget.name);
+
+      if (cascadeError) {
+        console.error('Erro ao mover lançamentos:', cascadeError);
+        restoreButtonState(btn);
+        showToast('Não foi possível mover os lançamentos. Tente novamente.', 'error');
+        return;
+      }
+
+      const { error: deleteError } = await db.from('categories').delete().eq('id', categoryConflictTarget.id);
+
+      restoreButtonState(btn);
+
+      if (deleteError) {
+        console.error('Erro ao excluir categoria:', deleteError);
+        transactions.forEach(t => { if (t.category === categoryConflictTarget.name) t.category = newName; });
+        showToast('Os lançamentos foram movidos, mas não foi possível excluir a categoria. Tente novamente.', 'error');
+        renderDashboard();
+        return;
+      }
+
+      transactions.forEach(t => { if (t.category === categoryConflictTarget.name) t.category = newName; });
+      userCategories = userCategories.filter(c => c.id !== categoryConflictTarget.id);
+
+      closeCategoryConflictModal();
+      renderCategoriesList();
+      populateCategoryDropdown();
+      renderDashboard();
+      showToast('Lançamentos movidos e categoria excluída.', 'success');
     }
 
     async function addSharedUser(e) {
