@@ -955,7 +955,9 @@
       setButtonLoading(submitBtn, 'Aguarde...');
 
       if (authMode === 'login') {
-        const { data: users, error } = await db.from('users').select('*').eq('email', email);
+        // A comparação de senha acontece DENTRO do banco (via crypt/bcrypt),
+        // nunca mais em texto puro aqui no JavaScript do cliente.
+        const { data: matches, error } = await db.rpc('verify_login', { p_email: email, p_password: password });
 
         if (error) {
           console.error('Erro ao consultar login:', error);
@@ -965,22 +967,23 @@
           return;
         }
 
-        if (!users || users.length === 0 || users[0].password !== password) {
+        if (!matches || matches.length === 0) {
           restoreButtonState(submitBtn);
           errorEl.innerText = 'E-mail ou senha incorretos.';
           errorEl.classList.remove('hidden');
           return;
         }
-        currentUser = { email: users[0].email.toLowerCase(), name: users[0].name };
+        currentUser = { email: matches[0].email.toLowerCase(), name: matches[0].name };
 
       } else if (authMode === 'register') {
         const userName = name || email.split('@')[0];
-        const { error } = await db.from('users').insert({ email, name: userName, password });
+        // O hash da senha (bcrypt) é gerado dentro do banco, dentro da função create_user
+        const { data: created, error } = await db.rpc('create_user', { p_email: email, p_name: userName, p_password: password });
 
         if (error) {
           console.error('Erro ao criar conta:', error);
           restoreButtonState(submitBtn);
-          errorEl.innerText = (error.code === '23505')
+          errorEl.innerText = (error.code === '23505' || (error.message || '').includes('cadastrado'))
             ? 'Este e-mail já possui uma conta. Tente entrar em vez de cadastrar.'
             : 'Não foi possível criar sua conta. Tente novamente.';
           errorEl.classList.remove('hidden');
