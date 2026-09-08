@@ -72,7 +72,6 @@
       <div class="flex items-center bg-slate-800/60 p-1 rounded-xl text-xs font-medium text-center border border-white/5 divide-x divide-slate-700/50">
         <button id="btn-login-mode" type="button" onclick="toggleAuthMode('login')" class="flex-1 py-1.5 rounded-lg bg-purple-600 text-white font-semibold shadow transition">Entrar</button>
         <button id="btn-register-mode" type="button" onclick="toggleAuthMode('register')" class="flex-1 py-1.5 rounded-lg text-slate-300 hover:text-white transition">Criar conta</button>
-        <button id="btn-invite-mode" type="button" onclick="toggleAuthMode('invited')" class="flex-1 py-1.5 rounded-lg text-slate-300 hover:text-white transition">Sou convidado</button>
       </div>
 
       <form id="login-form" class="space-y-3.5">
@@ -107,6 +106,9 @@
               <i data-lucide="eye" id="password-toggle-icon" class="w-4 h-4"></i>
             </button>
           </div>
+          <div id="forgot-password-wrap" class="text-right">
+            <button type="button" onclick="requestPasswordReset()" class="text-[11px] text-purple-300 hover:text-purple-200 transition">Esqueci minha senha</button>
+          </div>
         </div>
 
         <button type="submit" id="btn-auth-submit"
@@ -121,6 +123,40 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL: DEFINIR NOVA SENHA (aparece ao voltar de um link de redefinição/convite) -->
+  <div id="set-password-modal" class="fixed inset-0 z-[70] bg-slate-950/90 backdrop-blur-sm hidden flex items-center justify-center p-3">
+    <div class="bg-slate-900 border border-white/10 w-full max-w-sm p-6 rounded-2xl shadow-2xl space-y-4">
+      <div class="text-center space-y-1.5">
+        <div class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white shadow-lg shadow-purple-500/20 mb-1">
+          <i data-lucide="key-round" class="w-5 h-5"></i>
+        </div>
+        <h3 class="text-lg font-bold text-white">Defina sua senha</h3>
+        <p class="text-xs text-slate-300">Escolha uma senha para acessar sua conta.</p>
+      </div>
+
+      <form id="set-password-form" onsubmit="saveNewPassword(event)" class="space-y-3">
+        <div id="set-password-error" class="hidden text-xs text-rose-300 bg-rose-950/60 p-2.5 rounded-lg text-center font-medium border border-rose-800/60"></div>
+
+        <div class="space-y-1">
+          <label class="block text-xs font-medium text-slate-200">Nova senha</label>
+          <input type="password" id="new-password" required minlength="6" placeholder="••••••••••••"
+            class="w-full h-10 bg-slate-800/50 border border-slate-700/80 rounded-lg px-3 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition">
+        </div>
+        <div class="space-y-1">
+          <label class="block text-xs font-medium text-slate-200">Confirme a nova senha</label>
+          <input type="password" id="new-password-confirm" required minlength="6" placeholder="••••••••••••"
+            class="w-full h-10 bg-slate-800/50 border border-slate-700/80 rounded-lg px-3 text-xs text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 transition">
+        </div>
+
+        <button type="submit" id="btn-save-new-password"
+          class="w-full h-10 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-lg text-xs transition duration-200 shadow-lg shadow-purple-600/30 mt-1">
+          Salvar senha e entrar
+        </button>
+      </form>
+    </div>
+  </div>
+
 
   <!-- PAINEL PRINCIPAL -->
   <div id="dashboard-view" class="hidden min-h-screen flex flex-col bg-slate-50/50">
@@ -682,20 +718,39 @@
     const monthNamesPT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const monthShortPT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
+    // Centraliza TODA transição de sessão (login inicial ao abrir a página,
+    // login manual, cadastro, recuperação de senha, logout) num único lugar,
+    // em vez de controlar isso manualmente via localStorage.
+    db.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        document.getElementById('login-view').classList.add('hidden');
+        document.getElementById('dashboard-view').classList.add('hidden');
+        document.getElementById('set-password-modal').classList.remove('hidden');
+        return;
+      }
+
+      if (event === 'SIGNED_OUT') {
+        currentUser = null;
+        document.getElementById('set-password-modal').classList.add('hidden');
+        document.getElementById('dashboard-view').classList.add('hidden');
+        document.getElementById('login-view').classList.remove('hidden');
+        return;
+      }
+
+      if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session && session.user) {
+        // Evita reprocessar tudo de novo se já estamos logados com o mesmo usuário
+        if (currentUser && currentUser.email === session.user.email.toLowerCase()) return;
+
+        currentUser = {
+          email: session.user.email.toLowerCase(),
+          name: session.user.user_metadata?.name || session.user.email
+        };
+        resolveWorkspaceAndInit();
+      }
+    });
+
     document.addEventListener('DOMContentLoaded', () => {
       setDefaultMonthFilter();
-
-      const savedUser = localStorage.getItem('app_current_user');
-      if (savedUser) {
-        try {
-          currentUser = JSON.parse(savedUser);
-          if (currentUser && currentUser.email) {
-            resolveWorkspaceAndInit();
-          }
-        } catch (e) {
-          console.error("Erro ao ler usuário:", e);
-        }
-      }
 
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.action-menu-container')) {
@@ -922,24 +977,22 @@
       authMode = mode;
       const btnLogin = document.getElementById('btn-login-mode');
       const btnRegister = document.getElementById('btn-register-mode');
-      const btnInvite = document.getElementById('btn-invite-mode');
       const btnSubmitText = document.getElementById('btn-auth-text');
       const nameContainer = document.getElementById('name-field-container');
+      const forgotWrap = document.getElementById('forgot-password-wrap');
 
-      [btnLogin, btnRegister, btnInvite].forEach(btn => btn.className = "flex-1 py-1.5 rounded-lg text-slate-300 hover:text-white transition");
+      [btnLogin, btnRegister].forEach(btn => btn.className = "flex-1 py-1.5 rounded-lg text-slate-300 hover:text-white transition");
 
       if (mode === 'login') {
         btnLogin.className = "flex-1 py-1.5 rounded-lg bg-purple-600 text-white font-semibold shadow transition";
         if (btnSubmitText) btnSubmitText.innerText = "Entrar na conta";
         nameContainer.classList.add('hidden');
-      } else if (mode === 'register') {
+        forgotWrap.classList.remove('hidden');
+      } else {
         btnRegister.className = "flex-1 py-1.5 rounded-lg bg-purple-600 text-white font-semibold shadow transition";
         if (btnSubmitText) btnSubmitText.innerText = "Criar minha conta";
         nameContainer.classList.remove('hidden');
-      } else {
-        btnInvite.className = "flex-1 py-1.5 rounded-lg bg-purple-600 text-white font-semibold shadow transition";
-        if (btnSubmitText) btnSubmitText.innerText = "Acessar como convidado";
-        nameContainer.classList.remove('hidden');
+        forgotWrap.classList.add('hidden');
       }
     }
 
@@ -949,56 +1002,125 @@
       const password = document.getElementById('login-password').value;
       const name = document.getElementById('login-name').value.trim();
       const errorEl = document.getElementById('login-error');
+      const successEl = document.getElementById('login-success');
       const submitBtn = document.getElementById('btn-auth-submit');
 
       errorEl.classList.add('hidden');
+      successEl.classList.add('hidden');
       setButtonLoading(submitBtn, 'Aguarde...');
 
       if (authMode === 'login') {
-        // A comparação de senha acontece DENTRO do banco (via crypt/bcrypt),
-        // nunca mais em texto puro aqui no JavaScript do cliente.
-        const { data: matches, error } = await db.rpc('verify_login', { p_email: email, p_password: password });
+        const { error } = await db.auth.signInWithPassword({ email, password });
 
         if (error) {
-          console.error('Erro ao consultar login:', error);
-          restoreButtonState(submitBtn);
-          errorEl.innerText = 'Não foi possível conectar. Tente novamente.';
-          errorEl.classList.remove('hidden');
-          return;
-        }
-
-        if (!matches || matches.length === 0) {
+          console.error('Erro ao entrar:', error);
           restoreButtonState(submitBtn);
           errorEl.innerText = 'E-mail ou senha incorretos.';
           errorEl.classList.remove('hidden');
           return;
         }
-        currentUser = { email: matches[0].email.toLowerCase(), name: matches[0].name };
+        // A partir daqui, o listener onAuthStateChange (evento SIGNED_IN) é quem
+        // preenche currentUser e chama resolveWorkspaceAndInit() — não fazemos isso aqui.
 
-      } else if (authMode === 'register') {
+      } else {
+        // MODO CADASTRO
         const userName = name || email.split('@')[0];
-        // O hash da senha (bcrypt) é gerado dentro do banco, dentro da função create_user
-        const { data: created, error } = await db.rpc('create_user', { p_email: email, p_name: userName, p_password: password });
+        const { data, error } = await db.auth.signUp({
+          email,
+          password,
+          options: { data: { name: userName } }
+        });
 
         if (error) {
           console.error('Erro ao criar conta:', error);
           restoreButtonState(submitBtn);
-          errorEl.innerText = (error.code === '23505' || (error.message || '').includes('cadastrado'))
+          errorEl.innerText = (error.message || '').toLowerCase().includes('already registered')
             ? 'Este e-mail já possui uma conta. Tente entrar em vez de cadastrar.'
             : 'Não foi possível criar sua conta. Tente novamente.';
           errorEl.classList.remove('hidden');
           return;
         }
-        currentUser = { email, name: userName };
 
-      } else {
-        currentUser = { email, name: name || email.split('@')[0] };
+        // Se a confirmação de e-mail estiver ativada no projeto, ainda não existe
+        // sessão neste momento — pedimos para a pessoa confirmar antes de entrar.
+        if (!data.session) {
+          restoreButtonState(submitBtn);
+          successEl.innerText = 'Conta criada! Confira seu e-mail para confirmar o cadastro antes de entrar.';
+          successEl.classList.remove('hidden');
+          return;
+        }
+        // Se já veio sessão (confirmação de e-mail desativada), o listener cuida do resto
       }
 
-      localStorage.setItem('app_current_user', JSON.stringify(currentUser));
-      await resolveWorkspaceAndInit();
       restoreButtonState(submitBtn);
     });
+
+    async function requestPasswordReset() {
+      const email = document.getElementById('login-email').value.trim().toLowerCase();
+      if (!email) {
+        showToast('Digite seu e-mail no campo acima primeiro.', 'error');
+        return;
+      }
+
+      const { error } = await db.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+
+      if (error) {
+        console.error('Erro ao solicitar redefinição de senha:', error);
+        showToast('Não foi possível enviar o link. Tente novamente.', 'error');
+        return;
+      }
+
+      // Mensagem genérica de propósito: não revela se o e-mail existe ou não na base
+      showToast('Se esse e-mail tiver uma conta, enviamos um link de redefinição.', 'success');
+    }
+
+    async function saveNewPassword(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('new-password').value;
+      const pwd2 = document.getElementById('new-password-confirm').value;
+      const errorEl = document.getElementById('set-password-error');
+      errorEl.classList.add('hidden');
+
+      if (pwd.length < 6) {
+        errorEl.innerText = 'A senha precisa ter pelo menos 6 caracteres.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      if (pwd !== pwd2) {
+        errorEl.innerText = 'As senhas não coincidem.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-new-password');
+      setButtonLoading(btn, 'Salvando...');
+
+      const { error } = await db.auth.updateUser({ password: pwd });
+
+      restoreButtonState(btn);
+
+      if (error) {
+        console.error('Erro ao definir senha:', error);
+        errorEl.innerText = 'Não foi possível salvar a senha. Tente novamente ou peça um novo link.';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+
+      document.getElementById('set-password-modal').classList.add('hidden');
+      showToast('Senha definida com sucesso!', 'success');
+
+      // Com a senha definida, a sessão já está ativa — completa o login normalmente
+      const { data: sessionData } = await db.auth.getSession();
+      if (sessionData?.session?.user) {
+        currentUser = {
+          email: sessionData.session.user.email.toLowerCase(),
+          name: sessionData.session.user.user_metadata?.name || sessionData.session.user.email
+        };
+        await resolveWorkspaceAndInit();
+      }
+    }
 
     async function resolveWorkspaceAndInit() {
       let ownerFound = null;
@@ -1029,11 +1151,15 @@
       await loadTransactionsFromDB();
     }
 
-    function logout() {
-      localStorage.removeItem('app_current_user');
-      currentUser = null;
-      document.getElementById('dashboard-view').classList.add('hidden');
-      document.getElementById('login-view').classList.remove('hidden');
+    async function logout() {
+      const { error } = await db.auth.signOut();
+      if (error) {
+        console.error('Erro ao sair:', error);
+        showToast('Não foi possível sair. Tente novamente.', 'error');
+        return;
+      }
+      // O listener onAuthStateChange (evento SIGNED_OUT) cuida de limpar
+      // currentUser e mostrar a tela de login novamente.
     }
 
     async function loadCategoriesFromDB() {
