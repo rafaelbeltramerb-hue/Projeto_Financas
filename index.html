@@ -709,6 +709,7 @@
     let authMode = 'login';
     let currentUser = null;
     let currentWorkspaceOwner = null;
+    let currentWorkspaceOwnerId = null;
     let transactions = [];
     let userCategories = [];
     let currentDeleteTarget = null;
@@ -1123,26 +1124,30 @@
     }
 
     async function resolveWorkspaceAndInit() {
-      let ownerFound = null;
-
-      const { data: inviteData, error } = await db.from('invitations')
-        .select('owner_email')
-        .eq('invited_email', currentUser.email.toLowerCase())
-        .limit(1);
+      // Resolvido inteiramente no banco a partir do auth.uid()/auth.email()
+      // do JWT — não depende mais de nada que o cliente possa forjar.
+      const { data: info, error } = await db.rpc('resolve_current_workspace_info');
 
       if (error) {
-        // Não bloqueia o login: se a consulta de convites falhar, o usuário
-        // simplesmente cai no próprio workspace (comportamento padrão/seguro).
-        console.error('Erro ao verificar convites de workspace:', error);
-      } else if (inviteData && inviteData.length > 0) {
-        ownerFound = inviteData[0].owner_email.toLowerCase();
+        console.error('Erro ao resolver workspace:', error);
+        showToast('Não foi possível carregar seu workspace. Tente novamente.', 'error');
+        return;
       }
 
-      currentWorkspaceOwner = ownerFound || currentUser.email.toLowerCase();
+      const workspace = (info && info.length > 0) ? info[0] : null;
+
+      if (!workspace) {
+        console.error('Workspace não encontrado para o usuário logado.');
+        showToast('Não foi possível identificar seu workspace. Contate o suporte.', 'error');
+        return;
+      }
+
+      currentWorkspaceOwnerId = workspace.owner_id;
+      currentWorkspaceOwner = (workspace.owner_email || '').toLowerCase();
 
       document.getElementById('user-display').innerText = currentUser.name || currentUser.email;
       document.getElementById('dropdown-user-name').innerText = currentUser.name || currentUser.email;
-      document.getElementById('workspace-owner-label').innerText = (currentWorkspaceOwner === currentUser.email.toLowerCase()) ? 'Próprio' : `de ${currentWorkspaceOwner}`;
+      document.getElementById('workspace-owner-label').innerText = workspace.is_own_workspace ? 'Próprio' : `de ${workspace.owner_name || currentWorkspaceOwner}`;
 
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
@@ -1163,7 +1168,7 @@
     }
 
     async function loadCategoriesFromDB() {
-      const { data, error } = await db.from('categories').select('*').eq('owner_email', currentWorkspaceOwner);
+      const { data, error } = await db.from('categories').select('*').eq('owner_id', currentWorkspaceOwnerId);
       if (error) {
         console.error('Erro ao carregar categorias:', error);
         showToast('Não foi possível carregar suas categorias.', 'error');
@@ -1227,7 +1232,7 @@
       setButtonLoading(btn, 'Adicionando...');
 
       const { data, error } = await db.from('categories')
-        .insert({ name, type, owner_email: currentWorkspaceOwner })
+        .insert({ name, type, owner_id: currentWorkspaceOwnerId, owner_email: currentWorkspaceOwner })
         .select()
         .single();
 
@@ -1249,7 +1254,7 @@
     }
 
     async function loadTransactionsFromDB() {
-      const { data, error } = await db.from('transactions').select('*').eq('owner_email', currentWorkspaceOwner);
+      const { data, error } = await db.from('transactions').select('*').eq('owner_id', currentWorkspaceOwnerId);
       if (error) {
         console.error("Erro ao carregar transações:", error);
         showToast('Não foi possível carregar seus lançamentos. Tente recarregar a página.', 'error');
@@ -2026,8 +2031,7 @@
             p_type: type,
             p_amount: amount,
             p_category: category,
-            p_is_recurring: isRecurring,
-            p_owner_email: currentWorkspaceOwner
+            p_is_recurring: isRecurring
           });
 
           if (error) {
@@ -2060,6 +2064,7 @@
         const recurrenceType = isRecurring ? 'fixed' : (installments > 1 ? 'installment' : null);
 
         const payload = {
+          owner_id: currentWorkspaceOwnerId,
           owner_email: currentWorkspaceOwner,
           user_email: currentUser.email.toLowerCase(),
           type,
@@ -2239,7 +2244,7 @@
         if (original && original.name !== name) {
           const { error: cascadeError } = await db.from('transactions')
             .update({ category: name })
-            .eq('owner_email', currentWorkspaceOwner)
+            .eq('owner_id', currentWorkspaceOwnerId)
             .eq('category', original.name);
 
           if (cascadeError) {
@@ -2256,7 +2261,7 @@
       } else {
         // MODO CRIAÇÃO
         const { data, error } = await db.from('categories')
-          .insert({ name, type, owner_email: currentWorkspaceOwner })
+          .insert({ name, type, owner_id: currentWorkspaceOwnerId, owner_email: currentWorkspaceOwner })
           .select()
           .single();
 
@@ -2350,7 +2355,7 @@
 
       const { error: cascadeError } = await db.from('transactions')
         .update({ category: newName })
-        .eq('owner_email', currentWorkspaceOwner)
+        .eq('owner_id', currentWorkspaceOwnerId)
         .eq('category', categoryConflictTarget.name);
 
       if (cascadeError) {
@@ -2390,7 +2395,7 @@
       const btn = document.getElementById('btn-submit-share');
       setButtonLoading(btn, 'Enviando...');
 
-      const { error } = await db.from('invitations').insert({ owner_email: currentWorkspaceOwner, invited_email });
+      const { error } = await db.from('invitations').insert({ owner_id: currentWorkspaceOwnerId, owner_email: currentWorkspaceOwner, invited_email });
 
       restoreButtonState(btn);
 
