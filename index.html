@@ -1881,12 +1881,16 @@
       const listEl = document.getElementById('transactions-list');
       if (!listEl) return;
 
-      if (monthTransactions.length === 0) {
+      // Reordena sempre por data de vencimento, independente da ordem em
+      // que os itens chegaram — não confia mais que quem chamou já ordenou.
+      const sorted = [...monthTransactions].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+      if (sorted.length === 0) {
         listEl.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-xs">Nenhum lançamento encontrado para este mês.</td></tr>`;
         return;
       }
 
-      listEl.innerHTML = monthTransactions.map((t, index) => {
+      listEl.innerHTML = sorted.map((t, index) => {
         const isIncome = t.type === 'income';
         const details = getTransactionStatusDetails(t);
         const statusActionLabel = getStatusActionLabel(t, details);
@@ -2288,6 +2292,7 @@
 
           // Atualiza só este item no array local (sem recarregar tudo do banco)
           Object.assign(origTx, { type, description: finalDesc, amount, dueDate, category, status, isRecurring });
+          transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
           successMessage = 'Lançamento salvo.';
 
         } else {
@@ -2355,6 +2360,7 @@
               status: statuses[i] !== null ? statuses[i] : item.status
             });
           });
+          transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
           successMessage = 'Série atualizada.';
         }
 
