@@ -219,7 +219,7 @@
       </form>
 
       <div class="pt-3 border-t border-slate-800/80 text-center space-y-1">
-        <p class="text-[11px] text-slate-400">© 2026 Controle Financeiro</p>
+        <p class="text-[11px] text-slate-400">© 2026 Controle Financeiro SaaS</p>
       </div>
     </div>
   </div>
@@ -858,6 +858,8 @@
     let currentUser = null;
     let currentWorkspaceOwner = null;
     let currentWorkspaceOwnerId = null;
+    let cachedPreviousBalance = 0;
+    let cachedPreviousBalanceMonth = null;
     let valuesHidden = (localStorage.getItem('app_values_hidden') === '1');
 
     // Formata valores em R$ respeitando o modo "ocultar valores"
@@ -1326,6 +1328,10 @@
     }
 
     async function resolveWorkspaceAndInit() {
+      // Reseta o cache de saldo anterior (pode ser um workspace diferente do último)
+      cachedPreviousBalance = 0;
+      cachedPreviousBalanceMonth = null;
+
       // Resolvido inteiramente no banco a partir do auth.uid()/auth.email()
       // do JWT — não depende mais de nada que o cliente possa forjar.
       const { data: info, error } = await db.rpc('resolve_current_workspace_info');
@@ -1457,29 +1463,31 @@
     }
 
     async function loadTransactionsFromDB() {
-      const { data, error } = await db.from('transactions').select('*').eq('owner_id', currentWorkspaceOwnerId);
+      // Otimização (item 13): em vez de baixar TODO o histórico do usuário,
+      // carregamos só o que a interface realmente precisa manter em memória:
+      //   - todo lançamento PENDENTE, não importa a data (são naturalmente
+      //     poucos — viram "concluído" com o tempo, não se acumulam pra sempre)
+      //   - lançamentos CONCLUÍDOS dos últimos ~24 meses (dá margem confortável
+      //     de navegação por mês sem precisar buscar de novo no banco)
+      // Saldo de anos anteriores a essa janela é somado direto no banco via
+      // get_previous_balance() (bem mais barato que baixar cada linha antiga
+      // só pra somar um número).
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 24);
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
+
+      const { data, error } = await db.from('transactions')
+        .select('*')
+        .eq('owner_id', currentWorkspaceOwnerId)
+        .or(`status.eq.pending,due_date.gte.${cutoffStr}`);
+
       if (error) {
         console.error("Erro ao carregar transações:", error);
         showToast('Não foi possível carregar seus lançamentos. Tente recarregar a página.', 'error');
         return;
       }
 
-      transactions = (data || []).map(raw => ({
-        id: raw.id,
-        workspace_owner: (raw.owner_email || raw.workspace_owner || '').toLowerCase(),
-        userEmail: (raw.user_email || raw.userEmail || '').toLowerCase(),
-        type: raw.type || 'expense',
-        description: raw.description || 'Sem descrição',
-        amount: parseFloat(raw.amount) || 0,
-        dueDate: raw.due_date || getTodayString(),
-        category: raw.category || 'Outros',
-        status: raw.status || 'pending',
-        isRecurring: Boolean(raw.is_recurring),
-        seriesId: raw.series_id || null,
-        installmentNumber: raw.installment_number ?? null,
-        installmentTotal: raw.installment_total ?? null,
-        recurrenceType: raw.recurrence_type || null
-      })).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+      transactions = (data || []).map(mapRawTransaction).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
 
       renderDashboard();
     }
@@ -1529,7 +1537,7 @@
       const prevMonthDate = new Date(currY, currM - 2, 1);
       const prevMonthStr = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
 
-      let previousBalance = 0;
+      let previousBalance = cachedPreviousBalance;
       let monthIncome = 0;
       let monthExpense = 0;
       let monthPendingIncome = 0;
@@ -1554,10 +1562,6 @@
         if (isPrevMonth) {
           if (isIncome) prevMonthTotalIncome += t.amount;
           else prevMonthTotalExpense += t.amount;
-        }
-
-        if (isBeforeMonth && isCompleted) {
-          previousBalance += isIncome ? t.amount : -t.amount;
         }
 
         if (isBeforeMonth && !isCompleted) {
@@ -1618,6 +1622,72 @@
       renderTransactionsTable(monthTransactions);
 
       if (window.lucide) lucide.createIcons();
+
+      // Se o mês selecionado mudou desde a última vez, busca o saldo anterior
+      // atualizado no banco (agregado, sem precisar carregar o histórico
+      // inteiro) e re-renderiza quando chegar.
+      refreshPreviousBalanceIfNeeded(selectedMonth, firstDayOfMonth);
+
+      // Rede de segurança: se o mês está fora da janela de ~24 meses que
+      // carregamos por padrão (ver loadTransactionsFromDB) e não achamos
+      // nada localmente, busca esse mês específico sob demanda em vez de
+      // mostrar a tabela vazia por engano.
+      ensureMonthLoaded(selectedMonth);
+    }
+
+    async function ensureMonthLoaded(selectedMonth) {
+      const alreadyHasData = transactions.some(t => t.dueDate.startsWith(selectedMonth));
+      if (alreadyHasData) return;
+
+      const [y, m] = selectedMonth.split('-').map(Number);
+      const monthStart = `${selectedMonth}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      const monthEnd = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
+
+      const { data, error } = await db.from('transactions')
+        .select('*')
+        .eq('owner_id', currentWorkspaceOwnerId)
+        .gte('due_date', monthStart)
+        .lte('due_date', monthEnd);
+
+      if (error) {
+        console.error('Erro ao buscar lançamentos do mês:', error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const existingIds = new Set(transactions.map(t => String(t.id)));
+        const newOnes = data.map(mapRawTransaction).filter(t => !existingIds.has(String(t.id)));
+
+        if (newOnes.length > 0) {
+          transactions.push(...newOnes);
+          transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+          if (document.getElementById('month-filter').value === selectedMonth) {
+            renderDashboard();
+          }
+        }
+      }
+    }
+
+    async function refreshPreviousBalanceIfNeeded(selectedMonth, firstDayOfMonth) {
+      if (cachedPreviousBalanceMonth === selectedMonth) return;
+
+      const { data, error } = await db.rpc('get_previous_balance', { p_before_date: firstDayOfMonth });
+
+      if (error) {
+        console.error('Erro ao calcular saldo anterior:', error);
+        return;
+      }
+
+      cachedPreviousBalance = Number(data) || 0;
+      cachedPreviousBalanceMonth = selectedMonth;
+
+      // Só re-renderiza se o usuário ainda estiver olhando o mesmo mês
+      // (evita "brigar" com um clique de navegação que já aconteceu no meio tempo)
+      if (document.getElementById('month-filter').value === selectedMonth) {
+        renderDashboard();
+      }
     }
 
     function renderExecutiveStoryBanner(balance, pendingExpenses, projected) {
@@ -1954,21 +2024,29 @@
     }
 
     // HELPER UNIFICADO PARA ENCONTRAR LANÇAMENTOS RELACIONADOS (PARCELADOS OU FIXOS)
-    function getRelatedTransactions(t) {
+    // Busca no banco via series_id em vez de depender só do que já está
+    // carregado localmente — necessário agora que loadTransactionsFromDB()
+    // não traz mais o histórico inteiro (ver Fase 13, otimização de carga).
+    async function getRelatedTransactions(t) {
       if (!t) return [];
 
-      // Preferência: agrupar pela série real gravada no banco (series_id).
-      // É muito mais confiável do que comparar texto de descrição, e resolve
-      // o caso de duas séries diferentes com a mesma descrição (ex.: duas
-      // séries de "Academia (1/12)", "Academia (2/12)" criadas em datas
-      // diferentes não se confundem mais).
       if (t.seriesId) {
-        return transactions
-          .filter(item => item.seriesId === t.seriesId)
-          .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+        const { data, error } = await db.from('transactions')
+          .select('*')
+          .eq('series_id', t.seriesId);
+
+        if (error) {
+          console.error('Erro ao buscar série do lançamento:', error);
+          showToast('Não foi possível carregar a série completa. Tente novamente.', 'error');
+          // Fallback: usa o que já estiver carregado localmente, melhor que nada
+          return transactions.filter(item => item.seriesId === t.seriesId).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+        }
+
+        return (data || []).map(mapRawTransaction).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       }
 
-      // Fallback: lançamentos antigos, criados antes de existir series_id no banco
+      // Fallback: lançamentos antigos, criados antes de existir series_id no banco.
+      // Só olha o que já está carregado localmente (casos raros/legados).
       const instInfo = getInstallmentInfo(t);
       if (instInfo) {
         return transactions.filter(item => {
@@ -1991,14 +2069,35 @@
       return [t];
     }
 
+    // Converte uma linha crua do Supabase pro formato usado no app (mesmo
+    // shape usado em loadTransactionsFromDB e no insert de saveTransaction)
+    function mapRawTransaction(raw) {
+      return {
+        id: raw.id,
+        workspace_owner: (raw.owner_email || '').toLowerCase(),
+        userEmail: (raw.user_email || '').toLowerCase(),
+        type: raw.type || 'expense',
+        description: raw.description || 'Sem descrição',
+        amount: parseFloat(raw.amount) || 0,
+        dueDate: raw.due_date || getTodayString(),
+        category: raw.category || 'Outros',
+        status: raw.status || 'pending',
+        isRecurring: Boolean(raw.is_recurring),
+        seriesId: raw.series_id || null,
+        installmentNumber: raw.installment_number ?? null,
+        installmentTotal: raw.installment_total ?? null,
+        recurrenceType: raw.recurrence_type || null
+      };
+    }
+
     // ABRIR MODAL DE EXCLUSÃO
-    function deleteTransaction(id) {
+    async function deleteTransaction(id) {
       closeAllActionMenus();
       const t = transactions.find(item => item.id == id);
       if (!t) return;
 
       currentDeleteTarget = t;
-      const related = getRelatedTransactions(t);
+      const related = await getRelatedTransactions(t);
 
       const optionsContainer = document.getElementById('delete-installment-options');
       const modalMsg = document.getElementById('delete-modal-msg');
@@ -2081,7 +2180,7 @@
       showToast(idsToDelete.length > 1 ? 'Lançamentos excluídos.' : 'Lançamento excluído.', 'success');
     }
 
-    function openModal(id = null) {
+    async function openModal(id = null) {
       closeAllActionMenus();
       document.getElementById('transaction-form').reset();
       document.getElementById('tx-id').value = '';
@@ -2110,7 +2209,7 @@
         document.getElementById('tx-status').value = t.status;
         document.getElementById('tx-recurring').checked = Boolean(t.isRecurring);
 
-        const related = getRelatedTransactions(t);
+        const related = await getRelatedTransactions(t);
         if (related.length > 1) {
           editScopeContainer.classList.remove('hidden');
           const defaultRadio = document.querySelector('input[name="edit-scope"][value="only_this"]');
@@ -2163,7 +2262,7 @@
         const origTx = transactions.find(item => item.id == id);
         if (!origTx) { restoreButtonState(submitBtn); return; }
 
-        const related = getRelatedTransactions(origTx);
+        const related = await getRelatedTransactions(origTx);
         const editScope = document.querySelector('input[name="edit-scope"]:checked')?.value || 'only_this';
 
         if (related.length <= 1 || editScope === 'only_this') {
@@ -2326,22 +2425,7 @@
         }
 
         // Adiciona os novos itens direto no array local, sem baixar o banco inteiro de novo
-        const newItems = (inserted || []).map(raw => ({
-          id: raw.id,
-          workspace_owner: (raw.owner_email || '').toLowerCase(),
-          userEmail: (raw.user_email || '').toLowerCase(),
-          type: raw.type,
-          description: raw.description,
-          amount: parseFloat(raw.amount) || 0,
-          dueDate: raw.due_date,
-          category: raw.category,
-          status: raw.status,
-          isRecurring: Boolean(raw.is_recurring),
-          seriesId: raw.series_id || null,
-          installmentNumber: raw.installment_number ?? null,
-          installmentTotal: raw.installment_total ?? null,
-          recurrenceType: raw.recurrence_type || null
-        }));
+        const newItems = (inserted || []).map(mapRawTransaction);
 
         transactions.push(...newItems);
         transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
