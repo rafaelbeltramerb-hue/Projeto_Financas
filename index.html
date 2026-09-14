@@ -1056,6 +1056,19 @@
       if (window.lucide) lucide.createIcons();
     }
 
+    // Variante compacta: só o ícone girando, sem texto — usar em botões
+    // pequenos/quadrados (ícone-apenas) onde um texto ao lado quebraria o layout.
+    function setIconButtonLoading(btn) {
+      if (!btn) return;
+      if (btn.dataset.originalHtml === undefined) {
+        btn.dataset.originalHtml = btn.innerHTML;
+      }
+      btn.disabled = true;
+      btn.classList.add('opacity-70', 'cursor-not-allowed');
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i>`;
+      if (window.lucide) lucide.createIcons();
+    }
+
     function escapeHTML(str) {
       if (!str) return '';
       return String(str)
@@ -1904,7 +1917,7 @@
         const fixedTag = t.isRecurring ? ' · Fixo' : '';
 
         return `
-          <tr class="${bgClass} hover:bg-purple-50/40 transition border-b border-slate-100">
+          <tr class="${bgClass} hover:bg-purple-50/40 transition border-b border-slate-100 cursor-pointer" onclick="openModal('${t.id}')" title="Clique para editar">
             <td class="py-3 px-4">
               <div class="font-bold text-slate-900 text-xs">${escapeHTML(t.description)}</div>
               <div class="text-[10px] text-slate-400 font-medium">${escapeHTML(t.category)}${fixedTag}${escapeHTML(authorTag)}</div>
@@ -1924,16 +1937,12 @@
               </span>
             </td>
 
-            <td class="py-3 px-4 text-right relative action-menu-container">
+            <td class="py-3 px-4 text-right relative action-menu-container" onclick="event.stopPropagation()">
               <div class="flex items-center justify-end gap-1">
                 <button onclick="toggleStatus('${t.id}')" data-status-btn-id="${t.id}"
                   class="flex items-center justify-center w-7 h-7 rounded-lg transition ${details.isPaid ? 'text-slate-400 hover:bg-rose-50 hover:text-rose-600' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}"
                   title="${escapeHTML(statusActionLabel)}">
                   <i data-lucide="${details.isPaid ? 'rotate-ccw' : 'check-circle'}" class="w-3.5 h-3.5"></i>
-                </button>
-
-                <button onclick="openModal('${t.id}')" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition" title="Editar lançamento">
-                  <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
                 </button>
 
                 <button onclick="toggleActionMenu('${t.id}', event)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition" title="Mais ações">
@@ -1983,7 +1992,7 @@
       // Usa data-attribute em vez de id: a mesma transação pode ter um botão
       // de status tanto na tabela de Lançamentos quanto nas listas do Dashboard.
       const btns = document.querySelectorAll(`[data-status-btn-id="${id}"]`);
-      btns.forEach(b => setButtonLoading(b, 'Salvando...'));
+      btns.forEach(b => setIconButtonLoading(b));
 
       // Só atualiza a tela DEPOIS que o banco confirmar a alteração,
       // evitando a tela mostrar "Pago" quando na verdade o banco falhou.
