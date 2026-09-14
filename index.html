@@ -1927,10 +1927,9 @@
             <td class="py-3 px-4 text-right relative action-menu-container">
               <div class="flex items-center justify-end gap-1">
                 <button onclick="toggleStatus('${t.id}')" data-status-btn-id="${t.id}"
-                  class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition ${details.isPaid ? 'text-slate-500 hover:bg-slate-100' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}"
+                  class="flex items-center justify-center w-7 h-7 rounded-lg transition ${details.isPaid ? 'text-slate-400 hover:bg-rose-50 hover:text-rose-600' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}"
                   title="${escapeHTML(statusActionLabel)}">
                   <i data-lucide="${details.isPaid ? 'rotate-ccw' : 'check-circle'}" class="w-3.5 h-3.5"></i>
-                  <span class="hidden lg:inline">${escapeHTML(statusActionLabel)}</span>
                 </button>
 
                 <button onclick="openModal('${t.id}')" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition" title="Editar lançamento">
