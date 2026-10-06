@@ -150,6 +150,18 @@
     html.dark .border-purple-100 { border-color: rgba(168,85,247,0.3) !important; }
 
     html.dark ::-webkit-scrollbar-thumb { background-color: #334155; }
+
+    /* Toggle Receita/Despesa: usa a variante has-[:checked]:bg-*-50/50 do
+       Tailwind, que gera uma classe composta própria (não é a mesma classe
+       que .bg-emerald-50) — por isso as regras de modo escuro acima não a
+       alcançavam, e o estado selecionado ficava quase invisível sobre o
+       fundo escuro do modal. Mira exatamente nessas classes compostas. */
+    html.dark .has-\[\:checked\]\:bg-emerald-50\/50:has(:checked) {
+      background-color: rgba(16, 185, 129, 0.25) !important;
+    }
+    html.dark .has-\[\:checked\]\:bg-rose-50\/50:has(:checked) {
+      background-color: rgba(244, 63, 94, 0.25) !important;
+    }
   </style>
 </head>
 <body class="bg-slate-50/70 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-600 selection:text-white">
@@ -753,7 +765,7 @@
 
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-0.5">Descrição</label>
-          <input type="text" id="tx-description" required placeholder="Ex: Supermercado, Aluguel, Salário" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+          <input type="text" id="tx-description" required placeholder="Ex: Supermercado, Aluguel, Salário" oninput="suggestCategoryFromDescription()" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20">
         </div>
 
         <div class="grid grid-cols-2 gap-2">
@@ -770,7 +782,7 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-0.5">Categoria</label>
-            <select id="tx-category" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20"></select>
+            <select id="tx-category" onchange="markCategoryManuallySet()" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20"></select>
             <button type="button" onclick="toggleInlineCategoryForm()" class="mt-1 text-[11px] font-semibold text-purple-600 hover:text-purple-800 transition flex items-center gap-1">
               <i data-lucide="plus-circle" class="w-3 h-3"></i> Nova categoria
             </button>
@@ -1445,6 +1457,7 @@
 
       if (existing) {
         document.getElementById('tx-category').value = existing;
+        categoryManuallySet = true;
         toggleInlineCategoryForm(false);
         showToast('Essa categoria já existia — foi selecionada.', 'success');
         return;
@@ -1470,6 +1483,7 @@
       populateCategoryDropdown();
       renderCategoriesList();
       document.getElementById('tx-category').value = data.name;
+      categoryManuallySet = true;
 
       toggleInlineCategoryForm(false);
       showToast('Categoria adicionada.', 'success');
@@ -2198,6 +2212,7 @@
       document.getElementById('tx-id').value = '';
       document.getElementById('modal-title').innerText = 'Nova Transação';
       toggleInlineCategoryForm(false);
+      categoryManuallySet = false;
 
       populateCategoryDropdown();
 
@@ -2559,6 +2574,79 @@
 
     const DEFAULT_CATEGORY_NAMES = ['Alimentação', 'Moradia', 'Transporte', 'Lazer', 'Saúde', 'Salário', 'Investimentos', 'Outros'];
     const CATEGORY_TYPE_LABELS = { expense: 'Despesa', income: 'Receita', both: 'Ambos' };
+
+    // ============================================================
+    // SUGESTÃO AUTOMÁTICA DE CATEGORIA A PARTIR DA DESCRIÇÃO
+    // ============================================================
+    // Só atua em lançamentos NOVOS (não mexe na categoria ao editar um
+    // lançamento existente) e para de sugerir assim que o usuário escolhe
+    // uma categoria manualmente, para não "brigar" com a escolha dele.
+    let categoryManuallySet = false;
+
+    function markCategoryManuallySet() {
+      categoryManuallySet = true;
+    }
+
+    // Palavras-chave comuns -> categoria padrão correspondente. Cobre só as
+    // categorias padrão (DEFAULT_CATEGORY_NAMES); categorias que o usuário
+    // criou são casadas por nome direto em suggestCategoryFromDescription.
+    const CATEGORY_KEYWORDS = {
+      'Alimentação': ['mercado', 'supermercado', 'mercearia', 'feira', 'hortifruti', 'acougue', 'restaurante', 'lanchonete', 'padaria', 'ifood', 'rappi', 'pizza', 'lanche'],
+      'Moradia': ['aluguel', 'condominio', 'iptu', 'energia', 'luz', 'agua', 'gas', 'internet', 'imovel'],
+      'Transporte': ['uber', '99', 'taxi', 'gasolina', 'combustivel', 'estacionamento', 'pedagio', 'onibus', 'metro', 'oficina', 'mecanico'],
+      'Lazer': ['cinema', 'netflix', 'spotify', 'show', 'viagem', 'passeio', 'streaming', 'ingresso', 'bar', 'balada'],
+      'Saúde': ['farmacia', 'remedio', 'medico', 'consulta', 'exame', 'hospital', 'dentista', 'plano de saude', 'academia'],
+      'Salário': ['salario', 'holerite', 'pagamento mensal', 'folha'],
+      'Investimentos': ['investimento', 'aplicacao', 'cdb', 'tesouro direto', 'acoes', 'corretora']
+    };
+
+    // Remove acentos e baixa a caixa, pra comparação tolerante
+    // (ex: "Açougue", "ACOUGUE" e "açoúgue" tratados como o mesmo texto)
+    function normalizeForMatch(str) {
+      return (str || '')
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .toLowerCase()
+        .trim();
+    }
+
+    function suggestCategoryFromDescription() {
+      const isEditing = Boolean(document.getElementById('tx-id').value);
+      if (isEditing || categoryManuallySet) return;
+
+      const rawDesc = document.getElementById('tx-description').value;
+      const normalizedDesc = normalizeForMatch(rawDesc);
+      if (!normalizedDesc) return;
+
+      const select = document.getElementById('tx-category');
+      if (!select) return;
+
+      const availableOptions = Array.from(select.options).map(opt => opt.value);
+
+      // 1) Casamento direto: o nome de alguma categoria já existente
+      //    (padrão ou criada pelo usuário) aparece dentro do que foi digitado.
+      //    Cobre casos como "Financiamento Apto" -> categoria "Financiamento".
+      const directMatch = availableOptions.find(name => {
+        const normalizedName = normalizeForMatch(name);
+        return normalizedName.length >= 4 && normalizedDesc.includes(normalizedName);
+      });
+
+      if (directMatch) {
+        select.value = directMatch;
+        return;
+      }
+
+      // 2) Palavras-chave conhecidas para as categorias padrão
+      for (const [categoryName, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+        if (!availableOptions.includes(categoryName)) continue;
+
+        const matched = keywords.some(keyword => normalizedDesc.includes(normalizeForMatch(keyword)));
+        if (matched) {
+          select.value = categoryName;
+          return;
+        }
+      }
+    }
 
     // Renderiza a lista de categorias personalizadas com ações de editar/excluir
     function renderCategoriesList() {
