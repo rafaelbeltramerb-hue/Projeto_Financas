@@ -52,14 +52,6 @@
     input[type="month"]::-webkit-calendar-picker-indicator:hover {
       opacity: 1;
     }
-    /* Menu dropdown de ações */
-    .action-menu {
-      display: none;
-    }
-    .action-menu.active {
-      display: block;
-    }
-
     /* ==============================================================
        MODO ESCURO — sobrepõe as classes utilitárias já usadas no HTML
        (evita reescrever cada elemento com variantes dark:). Cobre as
@@ -995,7 +987,6 @@
     let creditCards = [];
     let currentDeleteTarget = null;
     let currentRelatedInstallments = [];
-    let activeOpenMenuId = null;
 
     const monthNamesPT = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
     const monthShortPT = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
@@ -1037,9 +1028,6 @@
       updateThemeToggleUI(document.documentElement.classList.contains('dark') ? 'dark' : 'light');
 
       document.addEventListener('click', (e) => {
-        if (!e.target.closest('.action-menu-container')) {
-          closeAllActionMenus();
-        }
         if (!e.target.closest('#btn-user-dropdown') && !e.target.closest('#user-dropdown-menu')) {
           closeUserDropdown();
         }
@@ -2105,7 +2093,7 @@
               </span>
             </td>
 
-            <td class="py-3 px-4 text-right relative action-menu-container" onclick="event.stopPropagation()">
+            <td class="py-3 px-4 text-right" onclick="event.stopPropagation()">
               <div class="flex items-center justify-end gap-1">
                 <button onclick="toggleStatus('${t.id}')" data-status-btn-id="${t.id}"
                   class="flex items-center justify-center w-7 h-7 rounded-lg transition ${details.isPaid ? 'text-slate-400 hover:bg-rose-50 hover:text-rose-600' : 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}"
@@ -2113,15 +2101,8 @@
                   <i data-lucide="${details.isPaid ? 'rotate-ccw' : 'check-circle'}" class="w-3.5 h-3.5"></i>
                 </button>
 
-                <button onclick="toggleActionMenu('${t.id}', event)" class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition" title="Mais ações">
-                  <i data-lucide="more-horizontal" class="w-4 h-4"></i>
-                </button>
-              </div>
-
-              <div id="action-menu-${t.id}" class="action-menu absolute right-4 top-10 w-40 bg-white rounded-xl shadow-lg border border-slate-200/80 py-1 z-30 text-left">
-                <button onclick="deleteTransaction('${t.id}')" class="w-full px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 transition flex items-center gap-2 font-medium">
-                  <i data-lucide="trash-2" class="w-3.5 h-3.5 text-rose-600"></i>
-                  <span>Excluir</span>
+                <button onclick="deleteTransaction('${t.id}')" class="flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition" title="Excluir">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                 </button>
               </div>
             </td>
@@ -2250,26 +2231,7 @@
       switchTab('transactions');
     }
 
-    function toggleActionMenu(id, e) {
-      e.stopPropagation();
-      const menu = document.getElementById(`action-menu-${id}`);
-      if (!menu) return;
-
-      if (activeOpenMenuId && activeOpenMenuId !== id) {
-        closeAllActionMenus();
-      }
-
-      menu.classList.toggle('active');
-      activeOpenMenuId = menu.classList.contains('active') ? id : null;
-    }
-
-    function closeAllActionMenus() {
-      document.querySelectorAll('.action-menu').forEach(m => m.classList.remove('active'));
-      activeOpenMenuId = null;
-    }
-
     async function toggleStatus(id) {
-      closeAllActionMenus();
       const t = transactions.find(item => item.id == id);
       if (!t) return;
 
@@ -2428,7 +2390,6 @@
 
     // ABRIR MODAL DE EXCLUSÃO
     async function deleteTransaction(id) {
-      closeAllActionMenus();
       const t = transactions.find(item => item.id == id);
       if (!t) return;
 
@@ -2517,7 +2478,6 @@
     }
 
     async function openModal(id = null) {
-      closeAllActionMenus();
       document.getElementById('transaction-form').reset();
       document.getElementById('tx-id').value = '';
       document.getElementById('modal-title').innerText = 'Nova Transação';
