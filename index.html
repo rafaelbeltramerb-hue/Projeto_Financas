@@ -1033,6 +1033,34 @@
         }
       });
 
+      // ESC fecha a tela aberta mais "por cima" (a de conflito de categoria
+      // fica sobre a de categorias, por exemplo). A tela de definir nova
+      // senha fica de fora de propósito: é uma etapa obrigatória.
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+
+        const closers = [
+          ['category-conflict-modal', closeCategoryConflictModal],
+          ['delete-modal', closeDeleteModal],
+          ['modal', closeModal],
+          ['credit-cards-modal', closeCreditCardsModal],
+          ['categories-modal', closeCategoriesModal],
+          ['share-modal', closeShareModal],
+          ['profile-modal', closeProfileModal]
+        ];
+
+        for (const [id, close] of closers) {
+          const el = document.getElementById(id);
+          if (el && !el.classList.contains('hidden')) {
+            close();
+            return;
+          }
+        }
+
+        const menu = document.getElementById('user-dropdown-menu');
+        if (menu && !menu.classList.contains('hidden')) closeUserDropdown();
+      });
+
       if (window.lucide && typeof lucide.createIcons === 'function') {
         lucide.createIcons();
       }
