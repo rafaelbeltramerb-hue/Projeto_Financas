@@ -110,6 +110,7 @@
 
     /* Textos escuros (ex: text-amber-900) sobre fundos coloridos claros
        ficam ilegíveis quando o fundo escurece — clareia esses tons */
+    html.dark .text-amber-950,
     html.dark .text-amber-900,
     html.dark .text-amber-800 { color: #fcd34d !important; }
     html.dark .text-amber-700 { color: #fbbf24 !important; }
@@ -129,6 +130,7 @@
     /* Fundos coloridos claros (alertas, badges) ficam mais escuros/translúcidos */
     html.dark .bg-amber-50\/80 { background-color: rgba(245,158,11,0.15) !important; }
     html.dark .bg-amber-100 { background-color: rgba(245,158,11,0.2) !important; }
+    html.dark .bg-emerald-50\/80 { background-color: rgba(16,185,129,0.15) !important; }
     html.dark .bg-emerald-100 { background-color: rgba(16,185,129,0.2) !important; }
     html.dark .bg-rose-100 { background-color: rgba(244,63,94,0.2) !important; }
 
@@ -486,9 +488,15 @@
 
             <!-- DESPESAS POR CATEGORIA -->
             <div class="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-xs space-y-3">
-              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 gap-2 flex-wrap">
                 <h3 class="font-bold text-slate-900 text-sm">Despesas por Categoria</h3>
-                <span id="cat-total-label" class="text-xs text-slate-400 font-medium">Total: R$ 0,00</span>
+                <div class="flex items-center gap-2">
+                  <select id="category-range-select" onchange="renderDashboard()" class="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+                    <option value="month">Este mês</option>
+                    <option value="12m">Últimos 12 meses</option>
+                  </select>
+                  <span id="cat-total-label" class="text-xs text-slate-400 font-medium whitespace-nowrap">Total: R$ 0,00</span>
+                </div>
               </div>
               <div id="category-bars-container" class="space-y-2.5 pt-1">
                 <!-- Lista de categorias com barras de progresso -->
@@ -1703,7 +1711,6 @@
       let prevMonthTotalIncome = 0;
       let prevMonthTotalExpense = 0;
 
-      const categoryTotals = {};
       const prevPending = [];
       const nextPending = [];
       const alerts = [];
@@ -1743,10 +1750,6 @@
               else monthPendingExpense += t.amount;
               nextPending.push(t);
             }
-
-            if (!isIncome) {
-              categoryTotals[t.category] = (categoryTotals[t.category] || 0) + t.amount;
-            }
           }
         }
 
@@ -1780,7 +1783,7 @@
       document.getElementById('txt-total-balance').innerText = `${fmtBRL(totalBalance)}`;
 
       renderExecutiveStoryBanner(totalBalance, totalPendingExpense, projectedBalance);
-      renderCategoryBars(categoryTotals);
+      renderCategoryBars(computeCategoryTotals(selectedMonth));
       renderPendingSections(prevPending, nextPending);
       renderCompactAlerts(alerts);
       renderTransactionsTabSummary(monthIncome, monthPendingIncome, monthExpense, monthPendingExpense);
@@ -1883,6 +1886,33 @@
       } else {
         banner.classList.add('hidden');
       }
+    }
+
+    // Soma as despesas por categoria no período escolhido no seletor
+    // "Despesas por Categoria": só o mês selecionado no topo da página, ou
+    // os últimos 12 meses terminando nesse mês. Compras no cartão de
+    // crédito ficam de fora (mesma regra do resto do dashboard — só contam
+    // quando a fatura é paga). Trabalha com o que já está em memória (a
+    // janela de ~24 meses carregada por padrão já cobre os últimos 12).
+    function computeCategoryTotals(selectedMonth) {
+      const range = document.getElementById('category-range-select')?.value || 'month';
+      const totals = {};
+
+      let startMonth = selectedMonth;
+      if (range === '12m') {
+        const [y, m] = selectedMonth.split('-').map(Number);
+        const start = new Date(y, m - 1 - 11, 1);
+        startMonth = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+      }
+
+      transactions.forEach(t => {
+        if (t.type === 'income' || t.paymentMethod === 'credit_card') return;
+        const txMonth = t.dueDate.slice(0, 7);
+        if (txMonth < startMonth || txMonth > selectedMonth) return;
+        totals[t.category] = (totals[t.category] || 0) + t.amount;
+      });
+
+      return totals;
     }
 
     function renderCategoryBars(categoryTotals) {
