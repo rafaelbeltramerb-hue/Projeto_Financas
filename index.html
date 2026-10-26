@@ -2678,6 +2678,13 @@
 
           const newDay = parseInt(dueDate.split('-')[2], 10);
 
+          // Quantos meses a data do lançamento editado andou (ex: 10/10 -> 10/11
+          // = +1). Esse mesmo deslocamento é aplicado aos demais lançamentos do
+          // grupo, mantendo o espaçamento mensal entre as parcelas.
+          const [origY, origM] = origTx.dueDate.split('-').map(Number);
+          const [newY, newM] = dueDate.split('-').map(Number);
+          const monthShift = (newY - origY) * 12 + (newM - origM);
+
           // Monta os arrays paralelos para atualizar toda a série em UMA única chamada (RPC),
           // em vez de um UPDATE por lançamento
           const ids = [];
@@ -2694,7 +2701,7 @@
               itemDueDate = dueDate;
             } else {
               const [y, m] = item.dueDate.split('-').map(Number);
-              const targetDate = new Date(y, m - 1, 1);
+              const targetDate = new Date(y, m - 1 + monthShift, 1);
               const maxDays = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
               const dayToUse = Math.min(newDay, maxDays);
               itemDueDate = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, '0')}-${String(dayToUse).padStart(2, '0')}`;
