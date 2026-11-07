@@ -196,11 +196,12 @@
       background-color: rgba(244, 63, 94, 0.25) !important;
     }
   </style>
+<style>html.dark{--splash-bg:#0f172a}</style>
 </head>
 <body class="bg-slate-50/70 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-600 selection:text-white">
 
   <!-- TELA DE LOGIN / CADASTRO / CONVITE -->
-  <div id="login-view" class="relative min-h-screen flex items-center justify-center p-4 bg-slate-950 overflow-hidden bg-cover bg-center bg-no-repeat" style="background-image: url('https://www.cbamonitor.cz/storage/breaking-news-thumbs/bn_189_thumbnail_1.jpeg');">
+  <div id="login-view" class="hidden relative min-h-screen flex items-center justify-center p-4 bg-slate-950 overflow-hidden bg-cover bg-center bg-no-repeat" style="background-image: url('https://www.cbamonitor.cz/storage/breaking-news-thumbs/bn_189_thumbnail_1.jpeg');">
     <div class="absolute inset-0 bg-gradient-to-br from-slate-950/90 via-slate-950/75 to-slate-900/70 backdrop-blur-[2px] pointer-events-none"></div>
     <div class="absolute -top-32 -left-32 w-96 h-96 bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
     <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-[120px] pointer-events-none"></div>
@@ -304,6 +305,13 @@
 
 
   <!-- PAINEL PRINCIPAL -->
+  <div id="boot-splash" class="min-h-screen flex items-center justify-center bg-slate-50" style="background:var(--splash-bg,#f8fafc)">
+    <div class="flex flex-col items-center gap-3">
+      <div class="w-8 h-8 rounded-full border-4 border-purple-200 border-t-purple-600 animate-spin"></div>
+      <p class="text-xs text-slate-500 font-medium">Carregando...</p>
+    </div>
+  </div>
+
   <div id="dashboard-view" class="hidden min-h-screen flex flex-col bg-slate-50/50">
     
     <!-- BANNER DE ERRO DE BANCO DE DADOS -->
@@ -1066,8 +1074,23 @@
     // Centraliza TODA transição de sessão (login inicial ao abrir a página,
     // login manual, cadastro, recuperação de senha, logout) num único lugar,
     // em vez de controlar isso manualmente via localStorage.
+    // Rede de segurança: se a checagem de sessão travar, não deixa o carregamento infinito
+    setTimeout(() => {
+      const sp = document.getElementById('boot-splash');
+      if (sp && !sp.classList.contains('hidden') && !currentUser) {
+        sp.classList.add('hidden');
+        document.getElementById('login-view').classList.remove('hidden');
+      }
+    }, 8000);
+
+    function hideBootSplash() {
+      const el = document.getElementById('boot-splash');
+      if (el) el.classList.add('hidden');
+    }
+
     db.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
+        hideBootSplash();
         document.getElementById('login-view').classList.add('hidden');
         document.getElementById('dashboard-view').classList.add('hidden');
         document.getElementById('set-password-modal').classList.remove('hidden');
@@ -1075,6 +1098,7 @@
       }
 
       if (event === 'SIGNED_OUT') {
+        hideBootSplash();
         currentUser = null;
         document.getElementById('set-password-modal').classList.add('hidden');
         document.getElementById('dashboard-view').classList.add('hidden');
@@ -1093,6 +1117,13 @@
           avatarUrl: session.user.user_metadata?.avatar_url || null
         };
         resolveWorkspaceAndInit();
+        return;
+      }
+
+      // Primeira checagem terminou e NÃO há sessão: só agora mostra o login
+      if (event === 'INITIAL_SESSION' && !session) {
+        hideBootSplash();
+        document.getElementById('login-view').classList.remove('hidden');
       }
     });
 
@@ -1611,6 +1642,7 @@
       renderUserAvatar();
       document.getElementById('workspace-owner-label').innerText = workspace.is_own_workspace ? 'Próprio' : `de ${workspace.owner_name || currentWorkspaceOwner}`;
 
+      hideBootSplash();
       document.getElementById('login-view').classList.add('hidden');
       document.getElementById('dashboard-view').classList.remove('hidden');
 
@@ -2936,8 +2968,12 @@
           }
 
           // Atualiza os itens afetados diretamente no array local
+          // IMPORTANTE: "itemsToUpdate" vem de uma consulta nova ao banco
+          // (getRelatedTransactions), ou seja, são CÓPIAS — alterá-las não muda
+          // o array "transactions" que a tela usa. Por isso localizamos cada
+          // item pelo id no array local e atualizamos o objeto de lá.
           itemsToUpdate.forEach((item, i) => {
-            Object.assign(item, {
+            const changes = {
               type,
               description: descriptions[i],
               amount,
@@ -2947,7 +2983,14 @@
               status: statuses[i] !== null ? statuses[i] : item.status,
               paymentMethod,
               cardId
-            });
+            };
+            const localItem = transactions.find(t => String(t.id) === String(item.id));
+            if (localItem) {
+              Object.assign(localItem, changes);
+            } else {
+              // Item fora da janela carregada em memória: só entra se for relevante
+              transactions.push({ ...item, ...changes });
+            }
           });
           transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
           successMessage = 'Série atualizada.';
