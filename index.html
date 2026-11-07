@@ -891,7 +891,7 @@
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-600 mb-0.5">Vencimento</label>
-            <input type="date" id="tx-date" required class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20">
+            <input type="date" id="tx-date" required onchange="updateCardInvoiceHint()" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20">
           </div>
         </div>
 
@@ -905,9 +905,11 @@
           </div>
           <div id="tx-card-container" class="hidden">
             <label class="block text-xs font-semibold text-slate-600 mb-0.5">Cartão</label>
-            <select id="tx-card" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20"></select>
+            <select id="tx-card" onchange="updateCardInvoiceHint()" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/20"></select>
           </div>
         </div>
+
+        <p id="tx-card-invoice-hint" class="hidden text-[11px] font-semibold text-purple-600 -mt-1"></p>
 
         <div class="grid grid-cols-2 gap-2">
           <div>
@@ -1704,6 +1706,23 @@
       } else {
         container.classList.add('hidden');
       }
+      updateCardInvoiceHint();
+    }
+
+    // Avisa, no formulário, em qual fatura a compra vai cair
+    function updateCardInvoiceHint() {
+      const hint = document.getElementById('tx-card-invoice-hint');
+      if (!hint) return;
+      const method = document.getElementById('tx-payment-method').value;
+      const card = creditCards.find(c => String(c.id) === String(document.getElementById('tx-card').value));
+      const date = document.getElementById('tx-date').value;
+      if (method !== 'credit_card' || !card || !card.due_day || !date) {
+        hint.classList.add('hidden');
+        return;
+      }
+      const due = getInvoiceDueDate(getInvoiceCompetence(date, card.closing_day), card);
+      hint.innerText = `Esta compra cai na fatura que vence em ${formatDateToBR(due)}.`;
+      hint.classList.remove('hidden');
     }
 
     // Permite cadastrar uma categoria nova sem sair do formulário de lançamento
@@ -1863,14 +1882,15 @@
         const isCompleted = t.status === 'completed';
         const isIncome = t.type === 'income';
         const isBeforeMonth = t.dueDate < firstDayOfMonth;
-        const isCurrentMonth = t.dueDate.startsWith(selectedMonth);
+        const isCardTx = t.paymentMethod === 'credit_card';
+        // Compra no cartão aparece no mês em que a fatura vence, não no da compra
+        const isCurrentMonth = (isCardTx ? getEffectiveDate(t) : t.dueDate).startsWith(selectedMonth);
         const isPrevMonth = t.dueDate.startsWith(prevMonthStr);
         // Compras no cartão de crédito não movimentam o saldo da conta —
         // só a fatura paga (um lançamento normal, forma "Conta") movimenta.
         // Por isso ficam de fora de todas as somas de saldo/pendências/
         // alertas abaixo, mas continuam aparecendo na tabela de lançamentos
         // (monthTransactions) e na aba "Faturas do Cartão".
-        const isCardTx = t.paymentMethod === 'credit_card';
 
         if (isPrevMonth && !isCardTx) {
           if (isIncome) prevMonthTotalIncome += t.amount;
@@ -2296,7 +2316,10 @@
             </td>
 
             <td class="py-3 px-4 text-slate-500 text-xs font-medium">${escapeHTML(t.category)}</td>
-            <td class="py-3 px-4 text-slate-500 text-xs font-medium">${formatDateToBR(t.dueDate)}</td>
+            <td class="py-3 px-4 text-slate-500 text-xs font-medium">
+              ${formatDateToBR(t.dueDate)}
+              ${t.paymentMethod === 'credit_card' && getEffectiveDate(t) !== t.dueDate ? `<div class="text-[10px] text-purple-600 font-semibold">Fatura vence ${formatDateToBR(getEffectiveDate(t))}</div>` : ''}
+            </td>
 
             <td class="py-3 px-4 font-semibold text-xs ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">
               ${isIncome ? '+' : '-'} ${fmtBRL(t.amount)}
@@ -2604,6 +2627,19 @@
       return `${compY}-${String(compM).padStart(2, '0')}`;
     }
 
+    // Data em que o lançamento "pesa" de verdade. Para compra no cartão é o
+    // vencimento da fatura em que ela cai (compra depois do fechamento vai
+    // para a fatura seguinte); para os demais, é a própria data do lançamento.
+    function getEffectiveDate(t) {
+      if (t.paymentMethod === 'credit_card' && t.cardId) {
+        const card = creditCards.find(c => String(c.id) === String(t.cardId));
+        if (card && card.due_day) {
+          return getInvoiceDueDate(getInvoiceCompetence(t.dueDate, card.closing_day), card);
+        }
+      }
+      return t.dueDate;
+    }
+
     // A partir da competência de fechamento ('YYYY-MM') e do cartão, calcula
     // a data real de vencimento da fatura. O vencimento sempre vem depois do
     // fechamento: se o dia de vencimento cadastrado for <= dia de fechamento,
@@ -2741,6 +2777,7 @@
         togglePaymentMethodFields();
         if (t.paymentMethod === 'credit_card') {
           document.getElementById('tx-card').value = t.cardId || '';
+          updateCardInvoiceHint();
         }
 
         const related = await getRelatedTransactions(t);
