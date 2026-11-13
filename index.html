@@ -562,6 +562,8 @@ html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; 
                   <select id="category-range-select" onchange="renderDashboard()" class="text-[11px] font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/20">
                     <option value="month">Este mês</option>
                     <option value="12m">Últimos 12 meses</option>
+                    <option value="24m">Últimos 24 meses</option>
+                    <option value="all">Desde o início</option>
                   </select>
                   <span id="cat-total-label" class="text-xs text-slate-400 font-medium whitespace-nowrap">Total: R$ 0,00</span>
                 </div>
@@ -1077,6 +1079,7 @@ html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; 
       if (window.lucide) lucide.createIcons();
     }
     let transactions = [];
+    let loadWindowCutoffStr = null;
     let userCategories = [];
     let creditCards = [];
     let currentDeleteTarget = null;
@@ -1847,6 +1850,9 @@ html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; 
       cutoff.setMonth(cutoff.getMonth() - 24);
       const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
 
+      loadWindowCutoffStr = cutoffStr;
+      oldExpensesCache = null;
+
       const { data, error } = await db.from('transactions')
         .select('*')
         .eq('owner_id', currentWorkspaceOwnerId)
@@ -2130,15 +2136,62 @@ html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; 
     // crédito ficam de fora (mesma regra do resto do dashboard — só contam
     // quando a fatura é paga). Trabalha com o que já está em memória (a
     // janela de ~24 meses carregada por padrão já cobre os últimos 12).
+    let oldExpensesCache = null;
+    let oldExpensesLoading = false;
+
+    async function loadOldExpensesForCategories() {
+      if (oldExpensesLoading || !loadWindowCutoffStr || !currentWorkspaceOwnerId) return;
+      oldExpensesLoading = true;
+      try {
+        const rows = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await db.from('transactions')
+            .select('category, amount, due_date')
+            .eq('owner_id', currentWorkspaceOwnerId)
+            .eq('type', 'expense')
+            .eq('payment_method', 'account')
+            .eq('status', 'completed')
+            .lt('due_date', loadWindowCutoffStr)
+            .order('due_date')
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          rows.push(...(data || []));
+          if (!data || data.length < PAGE) break;
+        }
+        oldExpensesCache = rows;
+      } catch (err) {
+        console.error('Erro ao carregar despesas antigas:', err);
+        showToast('Não foi possível carregar o histórico completo de categorias.', 'error');
+        oldExpensesCache = [];
+      } finally {
+        oldExpensesLoading = false;
+      }
+      renderDashboard();
+    }
+
     function computeCategoryTotals(selectedMonth) {
       const range = document.getElementById('category-range-select')?.value || 'month';
       const totals = {};
 
       let startMonth = selectedMonth;
-      if (range === '12m') {
+      if (range === '12m' || range === '24m') {
+        const back = range === '12m' ? 11 : 23;
         const [y, m] = selectedMonth.split('-').map(Number);
-        const start = new Date(y, m - 1 - 11, 1);
+        const start = new Date(y, m - 1 - back, 1);
         startMonth = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+      } else if (range === 'all') {
+        startMonth = '0000-00';
+        // Despesas concluídas mais antigas que a janela em memória são buscadas
+        // do banco uma única vez (só categoria/valor/data) e guardadas em cache.
+        if (oldExpensesCache) {
+          oldExpensesCache.forEach(r => {
+            if (r.due_date.slice(0, 7) > selectedMonth) return;
+            totals[r.category] = (totals[r.category] || 0) + Number(r.amount);
+          });
+        } else {
+          loadOldExpensesForCategories();
+        }
       }
 
       transactions.forEach(t => {
