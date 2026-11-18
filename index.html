@@ -211,6 +211,20 @@ html:not(.dark) #hero-card .text-rose-400\/80 { color:#e11d48 !important; }
 html:not(.dark) #hero-card .bg-white\/10 { background-color:#ede9fe !important; color:#6d28d9 !important; }
 html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; }
 </style>
+<style>
+/* Destaque das RECEITAS na lista de lançamentos */
+tr.tx-income { background: linear-gradient(90deg, rgba(16,185,129,.16) 0%, rgba(16,185,129,.05) 45%, rgba(255,255,255,0) 100%), #f7fffb !important; }
+tr.tx-income:hover { background: linear-gradient(90deg, rgba(16,185,129,.24) 0%, rgba(16,185,129,.09) 45%, rgba(255,255,255,0) 100%), #effdf7 !important; }
+tr.tx-income > td:first-child { box-shadow: inset 4px 0 0 #10b981; }
+.tx-income-icon { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:9999px; background:#10b981; color:#fff; flex-shrink:0; margin-right:8px; box-shadow:0 0 0 3px rgba(16,185,129,.18); }
+.tx-income-chip { display:inline-block; font-size:9px; font-weight:800; letter-spacing:.06em; color:#047857; background:#d1fae5; padding:1px 6px; border-radius:4px; margin-left:6px; }
+.tx-income-amount { display:inline-flex; align-items:center; gap:2px; font-weight:800; color:#047857; background:#d1fae5; border:1px solid #a7f3d0; padding:2px 8px; border-radius:8px; }
+html.dark tr.tx-income { background: linear-gradient(90deg, rgba(16,185,129,.22) 0%, rgba(16,185,129,.07) 45%, rgba(30,41,59,0) 100%), #1e293b !important; }
+html.dark tr.tx-income:hover { background: linear-gradient(90deg, rgba(16,185,129,.30) 0%, rgba(16,185,129,.11) 45%, rgba(30,41,59,0) 100%), #243247 !important; }
+html.dark .tx-income-icon { box-shadow:0 0 0 3px rgba(16,185,129,.28); }
+html.dark .tx-income-chip { color:#6ee7b7; background:rgba(16,185,129,.18); }
+html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); border-color:rgba(16,185,129,.35); }
+</style>
 </head>
 <body class="bg-slate-50/70 text-slate-800 min-h-screen font-sans antialiased selection:bg-brand-600 selection:text-white">
 
@@ -2395,7 +2409,7 @@ html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; 
         const isIncome = t.type === 'income';
         const details = getTransactionStatusDetails(t);
         const statusActionLabel = getStatusActionLabel(t, details);
-        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50';
+        const bgClass = isIncome ? 'tx-income' : (index % 2 === 0 ? 'bg-white' : 'bg-slate-50/50');
 
         let authorTag = '';
         if (t.userEmail && t.userEmail !== currentUser.email.toLowerCase()) {
@@ -2410,7 +2424,7 @@ html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; 
         return `
           <tr class="${bgClass} hover:bg-purple-50/40 transition border-b border-slate-100 cursor-pointer" onclick="openModal('${t.id}')" title="Clique para editar">
             <td class="py-3 px-4">
-              <div class="font-bold text-slate-900 text-xs flex items-center flex-wrap">${escapeHTML(t.description)}${cardBadge}</div>
+              <div class="font-bold text-slate-900 text-xs flex items-center flex-wrap">${isIncome ? '<span class="tx-income-icon" title="Receita"><i data-lucide="trending-up" class="w-3 h-3"></i></span>' : ''}${escapeHTML(t.description)}${isIncome ? '<span class="tx-income-chip">RECEITA</span>' : ''}${cardBadge}</div>
               <div class="text-[10px] text-slate-400 font-medium">${escapeHTML(t.category)}${fixedTag}${escapeHTML(authorTag)}</div>
             </td>
 
@@ -2420,8 +2434,8 @@ html:not(.dark) #hero-card .border-white\/10 { border-color:#e2e8f0 !important; 
               ${t.paymentMethod === 'credit_card' && getEffectiveDate(t) !== t.dueDate ? `<div class="text-[10px] text-purple-600 font-semibold">Fatura vence ${formatDateToBR(getEffectiveDate(t))}</div>` : ''}
             </td>
 
-            <td class="py-3 px-4 font-semibold text-xs ${isIncome ? 'text-emerald-600' : 'text-slate-900'}">
-              ${isIncome ? '+' : '-'} ${fmtBRL(t.amount)}
+            <td class="py-3 px-4 font-semibold text-xs ${isIncome ? '' : 'text-slate-900'}">
+              ${isIncome ? `<span class="tx-income-amount">+ ${fmtBRL(t.amount)}</span>` : `- ${fmtBRL(t.amount)}`}
             </td>
 
             <td class="py-3 px-4">
