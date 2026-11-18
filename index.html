@@ -1423,6 +1423,28 @@ html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); bo
       const isPaid = t.status === 'completed';
       const todayStr = getTodayString();
 
+      // Compra no cartão: quem vence é a FATURA, não a data da compra. Enquanto
+      // a fatura não venceu, o status é "Na fatura" (nem atrasado, nem pago).
+      if (t.paymentMethod === 'credit_card' && t.cardId) {
+        const invDue = getEffectiveDate(t);
+        if (invDue > todayStr) {
+          return {
+            label: 'Na fatura',
+            badgeClass: 'bg-purple-50 text-purple-700 border border-purple-200/80',
+            dotColor: 'bg-purple-500',
+            isPaid: isPaid,
+            isCardOpen: true
+          };
+        }
+        if (isPaid) {
+          return { label: 'Fatura paga', badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80', dotColor: 'bg-emerald-500', isPaid: true };
+        }
+        if (invDue === todayStr) {
+          return { label: 'Fatura vence hoje', badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200/80', dotColor: 'bg-amber-500', isPaid: false };
+        }
+        return { label: 'Fatura vencida', badgeClass: 'bg-rose-50 text-rose-700 border border-rose-200/80', dotColor: 'bg-rose-500', isPaid: false };
+      }
+
       if (isPaid) {
         return {
           label: isIncome ? 'Recebido' : 'Pago',
@@ -1459,6 +1481,9 @@ html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); bo
     // Texto do botão primário de status: deixa explícito o que vai acontecer ao clicar
     function getStatusActionLabel(t, details) {
       const isIncome = t.type === 'income';
+      if (t.paymentMethod === 'credit_card' && t.cardId) {
+        return details.isPaid ? 'Desfazer fatura paga' : 'Marcar fatura como paga';
+      }
       if (details.isPaid) {
         return isIncome ? 'Desfazer recebimento' : 'Desfazer pagamento';
       }
@@ -2537,6 +2562,7 @@ html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); bo
                     <div class="flex items-center gap-2 shrink-0">
                       <span class="text-sm font-bold text-slate-900">${fmtBRL(total)}</span>
                       <button onclick="event.stopPropagation(); startInvoicePayment('${card.id}', '${comp}')" class="text-[10px] font-semibold text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg transition whitespace-nowrap">Lançar pagamento</button>
+                      <button onclick="event.stopPropagation(); toggleInvoicePaid('${card.id}', '${comp}')" class="text-[10px] font-semibold ${items.every(t => t.status === 'completed') ? 'text-emerald-700 bg-emerald-50' : 'text-slate-600 bg-slate-100 hover:bg-slate-200'} px-2 py-1 rounded-lg transition whitespace-nowrap" title="Marcar todas as compras desta fatura como pagas (ou desfazer)">${items.every(t => t.status === 'completed') ? 'Fatura paga ✓' : 'Marcar paga'}</button>
                     </div>
                   </div>
                   <div class="divide-y divide-slate-100 ${isCollapsed ? 'hidden' : ''}">
@@ -2595,7 +2621,30 @@ html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); bo
       document.getElementById('tx-date').value = dueDate;
       categoryManuallySet = true;
       toggleFormFields();
+      pendingInvoicePayment = { ids: items.map(t => t.id) };
       switchTab('transactions');
+    }
+
+    // Marca (ou desmarca) todas as compras de uma fatura como pagas, de uma vez
+    async function toggleInvoicePaid(cardId, competence) {
+      const card = creditCards.find(c => String(c.id) === String(cardId));
+      if (!card) return;
+      const items = transactions.filter(t =>
+        t.paymentMethod === 'credit_card' &&
+        String(t.cardId) === String(cardId) &&
+        getInvoiceCompetence(t.dueDate, card.closing_day) === competence
+      );
+      if (items.length === 0) return;
+      const newStatus = items.every(t => t.status === 'completed') ? 'pending' : 'completed';
+      const { error } = await db.from('transactions').update({ status: newStatus }).in('id', items.map(t => t.id));
+      if (error) {
+        console.error('Erro ao atualizar fatura:', error);
+        showToast('Não foi possível atualizar a fatura. Tente novamente.', 'error');
+        return;
+      }
+      items.forEach(t => { t.status = newStatus; });
+      renderDashboard();
+      showToast(newStatus === 'completed' ? 'Fatura marcada como paga.' : 'Fatura voltou para em aberto.', 'success');
     }
 
     async function toggleStatus(id) {
@@ -2916,7 +2965,13 @@ html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); bo
       document.getElementById('modal').classList.remove('hidden');
     }
 
+    // Fatura cujo pagamento está sendo lançado no formulário (preenchida por
+    // startInvoicePayment). Ao salvar o pagamento como "concluído", as compras
+    // da fatura são marcadas como pagas juntas.
+    let pendingInvoicePayment = null;
+
     function closeModal() {
+      pendingInvoicePayment = null;
       document.getElementById('modal').classList.add('hidden');
     }
 
@@ -2941,6 +2996,7 @@ html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); bo
       const installments = parseInt(document.getElementById('tx-installments').value) || 1;
       const paymentMethod = document.getElementById('tx-payment-method').value;
       const cardId = paymentMethod === 'credit_card' ? (document.getElementById('tx-card').value || null) : null;
+      const invoicePay = !id ? pendingInvoicePayment : null;
 
       if (paymentMethod === 'credit_card' && !cardId) {
         showToast('Cadastre um cartão antes de lançar uma compra no cartão.', 'error');
@@ -3154,6 +3210,18 @@ html.dark .tx-income-amount { color:#6ee7b7; background:rgba(16,185,129,.16); bo
         const newItems = (inserted || []).map(mapRawTransaction);
 
         transactions.push(...newItems);
+
+        // Pagamento de fatura lançado como concluído: marca as compras da fatura como pagas
+        if (invoicePay && invoicePay.ids.length && status === 'completed' && paymentMethod === 'account' && type === 'expense') {
+          const { error: invErr } = await db.from('transactions').update({ status: 'completed' }).in('id', invoicePay.ids);
+          if (invErr) {
+            console.error('Erro ao marcar compras da fatura como pagas:', invErr);
+            showToast('Pagamento salvo, mas não foi possível marcar as compras da fatura como pagas.', 'error');
+          } else {
+            transactions.forEach(t => { if (invoicePay.ids.includes(t.id)) t.status = 'completed'; });
+            successMessage = 'Pagamento lançado e compras da fatura marcadas como pagas.';
+          }
+        }
         transactions.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
       }
 
